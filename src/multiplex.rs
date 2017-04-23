@@ -35,8 +35,6 @@ impl Multiplexer {
         let mut outstanding = repeat(true).take(self.objects as usize).collect::<Vec<_>>();
         let mut draw_states: Vec<Option<DrawState>> = outstanding.iter().map(|_| None).collect();
 
-        //self.term.show_cursor(false)?;
-
         while outstanding.iter().any(|&x| x) {
             let (idx, draw_state) = self.rx.recv().unwrap();
             let idx = idx as usize;
@@ -68,20 +66,6 @@ impl Multiplexer {
             }
 
             self.term.flush()?;
-        }
-
-        //self.term.show_cursor(true)?;
-
-        // clear
-        {
-            let to_clear = draw_states.iter().map(|ref item_opt| {
-                if let Some(ref item) = **item_opt {
-                    item.lines.len()
-                } else {
-                    0
-                }
-            }).sum();
-            self.term.clear_last_lines(to_clear)?;
         }
 
         Ok(())

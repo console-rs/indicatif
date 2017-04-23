@@ -36,9 +36,12 @@ impl DrawTarget {
 
     pub fn get_draw_state(&self, state: &ProgressState) -> DrawState {
         let (pos, len) = state.position();
-        let line = format!("{} / {}", pos, len);
+        let mut lines = vec![];
+        if !state.is_finished() {
+            lines.push(format!("{}  {} / {} | {}", state.current_tick_char(), pos, len, state.message()));
+        }
         DrawState {
-            lines: vec![line],
+            lines: lines,
             finished: state.is_finished(),
         }
     }
@@ -107,6 +110,10 @@ pub struct ProgressState {
 }
 
 impl ProgressState {
+    pub fn current_tick_char(&self) -> char {
+        self.style.get_tick_char(self.tick)
+    }
+
     pub fn has_spinner(&self) -> bool {
         self.tick != !0
     }
@@ -121,6 +128,10 @@ impl ProgressState {
 
     pub fn position(&self) -> (u64, u64) {
         (self.pos, self.len)
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
     }
 }
 
