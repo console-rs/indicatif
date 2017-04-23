@@ -3,7 +3,7 @@ use std::iter::repeat;
 use std::sync::mpsc::{channel, Sender, Receiver};
 
 use term::Term;
-use progress::{ProgressIndicator, DrawTarget, DrawState};
+use progress::{ProgressBar, DrawTarget, DrawState};
 
 
 pub struct Multiplexer {
@@ -24,11 +24,11 @@ impl Multiplexer {
         }
     }
 
-    pub fn add<T: ProgressIndicator>(&mut self, t: T) -> T {
-        t.set_draw_target(DrawTarget::Remote(self.objects,
-                                             self.tx.clone()));
+    pub fn add(&mut self, bar: ProgressBar) -> ProgressBar {
+        bar.set_draw_target(DrawTarget::Remote(self.objects,
+                                               self.tx.clone()));
         self.objects += 1;
-        t
+        bar
     }
 
     pub fn join(self) -> io::Result<()> {

@@ -5,5 +5,5 @@ mod term;
 mod progress;
 mod multiplex;
 
-pub use progress::{ProgressBar, Spinner};
+pub use progress::ProgressBar;
 pub use multiplex::Multiplexer;

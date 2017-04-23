@@ -24,11 +24,6 @@ pub enum DrawTarget {
     Hidden,
 }
 
-pub trait ProgressIndicator: 'static {
-    #[doc(hidden)]
-    fn set_draw_target(&self, target: DrawTarget);
-}
-
 impl DrawTarget {
     pub fn stdout() -> DrawTarget {
         DrawTarget::Term(Term::stdout(), None)
@@ -225,76 +220,8 @@ impl ProgressBar {
             state.finished = true;
         });
     }
-}
 
-impl ProgressIndicator for ProgressBar {
-
-    fn set_draw_target(&self, target: DrawTarget) {
-        self.state.write().draw_target = target;
-    }
-}
-
-pub struct Spinner {
-    state: RwLock<ProgressState>,
-}
-
-impl Spinner {
-    pub fn new() -> Spinner {
-        Spinner {
-            state: RwLock::new(ProgressState {
-                style: Style::default(),
-                draw_target: DrawTarget::stdout(),
-                message: "".into(),
-                pos: 0,
-                len: !0,
-                tick: 0,
-                finished: false,
-            }),
-        }
-    }
-
-    fn update_state<F: FnOnce(&mut ProgressState)>(&self, f: F) {
-        {
-            let mut state = self.state.write();
-            f(&mut state);
-        }
-        self.draw();
-    }
-
-    pub fn draw(&self) -> io::Result<()> {
-        let mut state = self.state.write();
-        let draw_state = state.draw_target.get_draw_state(&*state);
-        state.draw_target.update(draw_state)
-    }
-
-    pub fn tick(&self) {
-        self.update_state(|mut state| {
-            state.tick += 1;
-        });
-    }
-
-    pub fn set_message(&self, msg: &str) {
-        let msg = msg.to_string();
-        self.update_state(|mut state| {
-            state.message = msg;
-        })
-    }
-
-    pub fn finish_with_message(&self, msg: &str) {
-        self.set_message(msg);
-        self.finish();
-    }
-
-    pub fn finish(&self) {
-        self.update_state(|mut state| {
-            state.finished = true;
-        });
-    }
-}
-
-impl ProgressIndicator for Spinner {
-
-    fn set_draw_target(&self, target: DrawTarget) {
+    pub fn set_draw_target(&self, target: DrawTarget) {
         self.state.write().draw_target = target;
     }
 }
