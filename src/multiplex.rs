@@ -31,7 +31,7 @@ impl Multiplexer {
         t
     }
 
-    pub fn join(&self) -> io::Result<()> {
+    pub fn join(self) -> io::Result<()> {
         let mut outstanding = repeat(true).take(self.objects as usize).collect::<Vec<_>>();
         let mut draw_states: Vec<Option<DrawState>> = outstanding.iter().map(|_| None).collect();
 
