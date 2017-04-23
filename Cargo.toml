@@ -1,0 +1,8 @@
+[package]
+name = "indicatif"
+version = "0.1.0"
+authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
+
+[dependencies]
+libc = "0"
+parking_lot = "0"
