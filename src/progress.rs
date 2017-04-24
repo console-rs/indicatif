@@ -1,6 +1,7 @@
 use std::io;
+use std::iter::repeat;
 use std::borrow::Cow;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{channel, Sender, Receiver};
 
 use parking_lot::RwLock;
 
@@ -18,9 +19,15 @@ pub struct DrawState {
     pub finished: bool,
 }
 
+enum Status {
+    InProgress,
+    DoneVisible,
+    DoneHidden,
+}
+
 pub enum DrawTarget {
     Term(Term, Option<DrawState>),
-    Remote(u32, Sender<(u32, DrawState)>),
+    Remote(usize, Sender<(usize, DrawState)>),
     Hidden,
 }
 
@@ -32,8 +39,10 @@ impl DrawTarget {
     pub fn get_draw_state(&self, state: &ProgressState) -> DrawState {
         let (pos, len) = state.position();
         let mut lines = vec![];
-        if !state.is_finished() {
-            lines.push(format!("{}  {} / {} | {}", state.current_tick_char(), pos, len, state.message()));
+        if state.should_render() {
+            lines.push(format!("{}  {} / {} | {}",
+                               state.current_tick_char(),
+                               pos, len, state.message()));
         }
         DrawState {
             lines: lines,
@@ -80,13 +89,17 @@ impl Style {
 
     pub fn default() -> Style {
         Style {
-            tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈".chars().collect(),
+            tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
             progress_chars: "██░".chars().collect(),
         }
     }
 
     pub fn get_tick_char(&self, idx: u64) -> char {
-        self.tick_chars[(idx as usize) % self.tick_chars.len()]
+        self.tick_chars[(idx as usize) % (self.tick_chars.len() - 1)]
+    }
+
+    pub fn get_final_tick_char(&self) -> char {
+        self.tick_chars[self.tick_chars.len() - 1]
     }
 
     pub fn get_progress_char(&self, idx: u64) -> char {
@@ -101,12 +114,16 @@ pub struct ProgressState {
     pos: u64,
     len: u64,
     tick: u64,
-    finished: bool,
+    status: Status,
 }
 
 impl ProgressState {
     pub fn current_tick_char(&self) -> char {
-        self.style.get_tick_char(self.tick)
+        if self.is_finished() {
+            self.style.get_final_tick_char()
+        } else {
+            self.style.get_tick_char(self.tick)
+        }
     }
 
     pub fn has_spinner(&self) -> bool {
@@ -118,7 +135,18 @@ impl ProgressState {
     }
 
     pub fn is_finished(&self) -> bool {
-        self.finished
+        match self.status {
+            Status::InProgress => false,
+            Status::DoneVisible => true,
+            Status::DoneHidden => true,
+        }
+    }
+
+    pub fn should_render(&self) -> bool {
+        match self.status {
+            Status::DoneHidden => false,
+            _ => true,
+        }
     }
 
     pub fn position(&self) -> (u64, u64) {
@@ -144,7 +172,7 @@ impl ProgressBar {
                 pos: 0,
                 len: len,
                 tick: !0,
-                finished: false,
+                status: Status::InProgress,
             }),
         }
     }
@@ -171,6 +199,14 @@ impl ProgressBar {
         });
     }
 
+    pub fn disable_spinner(&self) {
+        self.update_state(|mut state| {
+            if state.tick != !0 {
+                state.tick = !0;
+            }
+        });
+    }
+
     pub fn tick(&self) {
         self.update_state(|mut state| {
             if state.tick == !0 {
@@ -187,18 +223,12 @@ impl ProgressBar {
             if state.tick != !0 {
                 state.tick += 1;
             }
-            if state.pos >= state.len {
-                state.finished = true;
-            }
         })
     }
 
     pub fn set_length(&self, len: u64) {
         self.update_state(|mut state| {
             state.len = len;
-            if state.len != state.pos {
-                state.finished = false;
-            }
         })
     }
 
@@ -210,18 +240,99 @@ impl ProgressBar {
     }
 
     pub fn finish_with_message(&self, msg: &str) {
-        self.set_message(msg);
-        self.finish();
+        let msg = msg.to_string();
+        self.update_state(|mut state| {
+            state.message = msg;
+            state.pos = state.len;
+            state.status = Status::DoneVisible;
+        });
     }
 
-    pub fn finish(&self) {
+    pub fn finish_and_clear(&self) {
         self.update_state(|mut state| {
             state.pos = state.len;
-            state.finished = true;
+            state.status = Status::DoneHidden;
         });
     }
 
     pub fn set_draw_target(&self, target: DrawTarget) {
         self.state.write().draw_target = target;
+    }
+}
+
+
+pub struct MultiProgress {
+    objects: usize,
+    term: Term,
+    tx: Sender<(usize, DrawState)>,
+    rx: Receiver<(usize, DrawState)>,
+}
+
+impl MultiProgress {
+    pub fn new() -> MultiProgress {
+        let (tx, rx) = channel();
+        MultiProgress {
+            objects: 0,
+            term: Term::stdout(),
+            tx: tx,
+            rx: rx,
+        }
+    }
+
+    pub fn add(&mut self, bar: ProgressBar) -> ProgressBar {
+        bar.set_draw_target(DrawTarget::Remote(self.objects,
+                                               self.tx.clone()));
+        self.objects += 1;
+        bar
+    }
+
+    pub fn join(self) -> io::Result<()> {
+        let mut outstanding = repeat(true).take(self.objects as usize).collect::<Vec<_>>();
+        let mut draw_states: Vec<Option<DrawState>> = outstanding.iter().map(|_| None).collect();
+
+        while outstanding.iter().any(|&x| x) {
+            let (idx, draw_state) = self.rx.recv().unwrap();
+
+            if draw_state.finished {
+                outstanding[idx] = false;
+            }
+
+            // clear
+            {
+                let to_clear = draw_states.iter().map(|ref item_opt| {
+                    if let Some(ref item) = **item_opt {
+                        item.lines.len()
+                    } else {
+                        0
+                    }
+                }).sum();
+                self.term.clear_last_lines(to_clear)?;
+            }
+
+            // update
+            draw_states[idx] = Some(draw_state);
+
+            // redraw
+            for draw_state_opt in draw_states.iter() {
+                if let Some(ref draw_state) = *draw_state_opt {
+                    draw_state.draw_to_term(&self.term)?;
+                }
+            }
+
+            self.term.flush()?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Drop for ProgressBar {
+    fn drop(&mut self) {
+        if self.state.read().is_finished() {
+            return;
+        }
+        self.update_state(|mut state| {
+            state.status = Status::DoneHidden;
+        });
     }
 }

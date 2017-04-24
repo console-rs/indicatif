@@ -3,7 +3,6 @@ extern crate parking_lot;
 
 mod term;
 mod progress;
-mod multiplex;
 
-pub use progress::ProgressBar;
-pub use multiplex::Multiplexer;
+pub use progress::{ProgressBar, MultiProgress, ProgressState, DrawState, DrawTarget};
+pub use term::Term;
