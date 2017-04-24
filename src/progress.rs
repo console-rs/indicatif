@@ -13,9 +13,12 @@ pub struct Style {
     progress_chars: Vec<char>,
 }
 
+/// The drawn state of an element.
 #[derive(Default, Clone)]
 pub struct DrawState {
+    /// The lines to print (can contain ANSI codes)
     pub lines: Vec<String>,
+    /// True if the bar no longer needs drawing.
     pub finished: bool,
 }
 
@@ -25,18 +28,29 @@ enum Status {
     DoneHidden,
 }
 
+/// Target for draw operations
 pub enum DrawTarget {
+    /// Draws into a terminal
     Term(Term, Option<DrawState>),
+    /// Draws to a remote receiver
     Remote(usize, Sender<(usize, DrawState)>),
+    /// Do not draw at all
     Hidden,
 }
 
 impl DrawTarget {
+    /// Draw to a buffered stdout terminal
     pub fn stdout() -> DrawTarget {
-        DrawTarget::Term(Term::stdout(), None)
+        DrawTarget::Term(Term::buffered_stdout(), None)
     }
 
-    pub fn get_draw_state(&self, state: &ProgressState) -> DrawState {
+    /// Draw to a buffered stderr terminal
+    pub fn stderr() -> DrawTarget {
+        DrawTarget::Term(Term::buffered_stderr(), None)
+    }
+
+    /// Given the state of a progress bar, draw to a draw state.
+    fn get_draw_state(&self, state: &ProgressState) -> DrawState {
         let (pos, len) = state.position();
         let mut lines = vec![];
         if state.should_render() {
@@ -50,6 +64,7 @@ impl DrawTarget {
         }
     }
 
+    /// Apply the given draw state (draws it).
     pub fn update(&mut self, draw_state: DrawState) -> io::Result<()> {
         match *self {
             DrawTarget::Term(ref term, ref mut last_state) => {
@@ -107,6 +122,7 @@ impl Style {
     }
 }
 
+/// The state of a progress bar at a moment in time.
 pub struct ProgressState {
     style: Style,
     draw_target: DrawTarget,
@@ -118,6 +134,8 @@ pub struct ProgressState {
 }
 
 impl ProgressState {
+    /// Returns the character that should be drawn for the
+    /// current spinner character.
     pub fn current_tick_char(&self) -> char {
         if self.is_finished() {
             self.style.get_final_tick_char()
@@ -126,14 +144,17 @@ impl ProgressState {
         }
     }
 
+    /// Indicates that a spinner should be drawn.
     pub fn has_spinner(&self) -> bool {
         self.tick != !0
     }
 
+    /// Indicates that a progress bar should be drawn.
     pub fn has_progress(&self) -> bool {
         self.len != !0
     }
 
+    /// Indicates that the progress bar finished.
     pub fn is_finished(&self) -> bool {
         match self.status {
             Status::InProgress => false,
@@ -142,6 +163,8 @@ impl ProgressState {
         }
     }
 
+    /// Returns `false` if the progress bar should no longer be
+    /// drawn.
     pub fn should_render(&self) -> bool {
         match self.status {
             Status::DoneHidden => false,
@@ -149,20 +172,26 @@ impl ProgressState {
         }
     }
 
+    /// Returns the position of the status bar as `(pos, len)` tuple.
     pub fn position(&self) -> (u64, u64) {
         (self.pos, self.len)
     }
 
+    /// Returns the current message of the progress bar.
     pub fn message(&self) -> &str {
         &self.message
     }
 }
 
+/// A progress bar or spinner.
 pub struct ProgressBar {
     state: RwLock<ProgressState>,
 }
 
 impl ProgressBar {
+    /// Creates a new progress bar with a given length.
+    ///
+    /// This progress bar by default draws directly to stdout.
     pub fn new(len: u64) -> ProgressBar {
         ProgressBar {
             state: RwLock::new(ProgressState {
@@ -177,20 +206,20 @@ impl ProgressBar {
         }
     }
 
-    fn update_state<F: FnOnce(&mut ProgressState)>(&self, f: F) {
-        {
-            let mut state = self.state.write();
-            f(&mut state);
-        }
-        self.draw();
+    /// Creates a new spinner.
+    ///
+    /// This spinner by default draws directly to stdout.
+    pub fn new_spinner() -> ProgressBar {
+        let rv = ProgressBar::new(!0);
+        rv.enable_spinner();
+        rv
     }
 
-    pub fn draw(&self) -> io::Result<()> {
-        let mut state = self.state.write();
-        let draw_state = state.draw_target.get_draw_state(&*state);
-        state.draw_target.update(draw_state)
-    }
-
+    /// Enables the spinner.
+    ///
+    /// This is obviously enabled by default if you create a progress
+    /// bar with `new_spinner` but optionally a spinner can be added
+    /// to a progress bar itself.
     pub fn enable_spinner(&self) {
         self.update_state(|mut state| {
             if state.tick == !0 {
@@ -199,6 +228,9 @@ impl ProgressBar {
         });
     }
 
+    /// Disables a spinner.
+    ///
+    /// This should not be called if the progress bar is a spinner itself.
     pub fn disable_spinner(&self) {
         self.update_state(|mut state| {
             if state.tick != !0 {
@@ -207,6 +239,9 @@ impl ProgressBar {
         });
     }
 
+    /// Manually ticks the spinner or progress bar.
+    ///
+    /// This automatically happens on any other change to a progress bar.
     pub fn tick(&self) {
         self.update_state(|mut state| {
             if state.tick == !0 {
@@ -217,6 +252,7 @@ impl ProgressBar {
         });
     }
 
+    /// Advances the position of a progress bar by delta.
     pub fn inc(&self, delta: u64) {
         self.update_state(|mut state| {
             state.pos += delta;
@@ -226,12 +262,14 @@ impl ProgressBar {
         })
     }
 
+    /// Sets the length of the progress bar.
     pub fn set_length(&self, len: u64) {
         self.update_state(|mut state| {
             state.len = len;
         })
     }
 
+    /// Sets the current message of the progress bar.
     pub fn set_message(&self, msg: &str) {
         let msg = msg.to_string();
         self.update_state(|mut state| {
@@ -239,6 +277,7 @@ impl ProgressBar {
         })
     }
 
+    /// Finishes the progress bar and sets a message.
     pub fn finish_with_message(&self, msg: &str) {
         let msg = msg.to_string();
         self.update_state(|mut state| {
@@ -248,6 +287,7 @@ impl ProgressBar {
         });
     }
 
+    /// Finishes the progress bar and completely clears it.
     pub fn finish_and_clear(&self) {
         self.update_state(|mut state| {
             state.pos = state.len;
@@ -255,12 +295,37 @@ impl ProgressBar {
         });
     }
 
+    /// Sets a different draw target for the progress bar.
+    ///
+    /// This can be used to draw the progress bar to stderr
+    /// for instance:
+    ///
+    /// ```rust,no_run
+    /// # use indicatif::{ProgressBar, DrawTarget};
+    /// let pb = ProgressBar::new(100);
+    /// pb.set_draw_target(DrawTarget::stderr());
+    /// ```
     pub fn set_draw_target(&self, target: DrawTarget) {
         self.state.write().draw_target = target;
+    }
+
+    fn update_state<F: FnOnce(&mut ProgressState)>(&self, f: F) {
+        {
+            let mut state = self.state.write();
+            f(&mut state);
+        }
+        self.draw();
+    }
+
+    fn draw(&self) -> io::Result<()> {
+        let mut state = self.state.write();
+        let draw_state = state.draw_target.get_draw_state(&*state);
+        state.draw_target.update(draw_state)
     }
 }
 
 
+/// Manages multiple progress bars from different threads.
 pub struct MultiProgress {
     objects: usize,
     term: Term,
@@ -269,16 +334,22 @@ pub struct MultiProgress {
 }
 
 impl MultiProgress {
+    /// Creates a new multi progress object that draws to stdout.
     pub fn new() -> MultiProgress {
         let (tx, rx) = channel();
         MultiProgress {
             objects: 0,
-            term: Term::stdout(),
+            term: Term::buffered_stdout(),
             tx: tx,
             rx: rx,
         }
     }
 
+    /// Adds a progress bar.
+    ///
+    /// The progress bar added will have the draw target changed to a
+    /// remote draw target that is intercepted by the multi progress
+    /// object.
     pub fn add(&mut self, bar: ProgressBar) -> ProgressBar {
         bar.set_draw_target(DrawTarget::Remote(self.objects,
                                                self.tx.clone()));
@@ -286,6 +357,11 @@ impl MultiProgress {
         bar
     }
 
+    /// Waits for all progress bars to report that they are finished.
+    ///
+    /// You need to call this as this will request the draw instructions
+    /// from the remote progress bars.  Not calling this will deadlock
+    /// your program.
     pub fn join(self) -> io::Result<()> {
         let mut outstanding = repeat(true).take(self.objects as usize).collect::<Vec<_>>();
         let mut draw_states: Vec<Option<DrawState>> = outstanding.iter().map(|_| None).collect();
