@@ -38,7 +38,7 @@ enum Status {
 /// Target for draw operations
 pub enum DrawTarget {
     /// Draws into a terminal
-    Term(Term, Option<DrawState>),
+    Term(Term, Option<DrawState>, Option<Duration>),
     /// Draws to a remote receiver
     Remote(usize, Sender<(usize, DrawState)>),
     /// Do not draw at all
@@ -48,37 +48,32 @@ pub enum DrawTarget {
 impl DrawTarget {
     /// Draw to a buffered stdout terminal
     pub fn stdout() -> DrawTarget {
-        DrawTarget::Term(Term::buffered_stdout(), None)
+        let rate = Some(Duration::from_millis(1000 / 30));
+        DrawTarget::Term(Term::buffered_stdout(), None, rate)
     }
 
     /// Draw to a buffered stderr terminal
     pub fn stderr() -> DrawTarget {
-        DrawTarget::Term(Term::buffered_stderr(), None)
-    }
-
-    /// Given the state of a progress bar, draw to a draw state.
-    fn get_draw_state(&self, state: &ProgressState) -> DrawState {
-        DrawState {
-            lines: if state.should_render() {
-                state.style.format_state(state)
-            } else {
-                vec![]
-            },
-            finished: state.is_finished(),
-            ts: Instant::now(),
-        }
+        let rate = Some(Duration::from_millis(1000 / 30));
+        DrawTarget::Term(Term::buffered_stderr(), None, rate)
     }
 
     /// Apply the given draw state (draws it).
-    pub fn update(&mut self, draw_state: DrawState) -> io::Result<()> {
+    pub fn apply_draw_state(&mut self, draw_state: DrawState) -> io::Result<()> {
         match *self {
-            DrawTarget::Term(ref term, ref mut last_state) => {
-                if let Some(ref last_state) = *last_state {
-                    last_state.clear_term(term)?;
+            DrawTarget::Term(ref term, ref mut last_state, rate) => {
+                let last_draw = last_state.as_ref().map(|x| x.ts);
+                if draw_state.finished ||
+                   rate.is_none() ||
+                   last_draw.is_none() ||
+                   last_draw.unwrap().elapsed() > rate.unwrap() {
+                    if let Some(ref last_state) = *last_state {
+                        last_state.clear_term(term)?;
+                    }
+                    draw_state.draw_to_term(term)?;
+                    term.flush()?;
+                    *last_state = Some(draw_state);
                 }
-                draw_state.draw_to_term(term)?;
-                term.flush()?;
-                *last_state = Some(draw_state);
             }
             DrawTarget::Remote(idx, ref chan) => {
                 chan.send((idx, draw_state)).unwrap();
@@ -246,16 +241,7 @@ impl ProgressState {
         if let Some(width) = self.width {
             width as usize
         } else {
-            let size = match self.draw_target {
-                DrawTarget::Term(ref term, _) => term.size(),
-                DrawTarget::Remote(..) => terminal_size(),
-                DrawTarget::Hidden => None,
-            };
-            if let Some((_, width)) = size {
-                width as usize
-            } else {
-                74
-            }
+            terminal_size().map(|x| x.1).unwrap_or(74) as usize
         }
     }
 }
@@ -397,8 +383,16 @@ impl ProgressBar {
 
     fn draw(&self) -> io::Result<()> {
         let mut state = self.state.write();
-        let draw_state = state.draw_target.get_draw_state(&*state);
-        state.draw_target.update(draw_state)
+        let draw_state = DrawState {
+            lines: if state.should_render() {
+                state.style.format_state(&*state)
+            } else {
+                vec![]
+            },
+            finished: state.is_finished(),
+            ts: Instant::now(),
+        };
+        state.draw_target.apply_draw_state(draw_state)
     }
 }
 
@@ -406,8 +400,7 @@ impl ProgressBar {
 /// Manages multiple progress bars from different threads.
 pub struct MultiProgress {
     objects: usize,
-    term: Term,
-    refresh_rate: Option<usize>,
+    draw_target: DrawTarget,
     tx: Sender<(usize, DrawState)>,
     rx: Receiver<(usize, DrawState)>,
 }
@@ -418,8 +411,7 @@ impl MultiProgress {
         let (tx, rx) = channel();
         MultiProgress {
             objects: 0,
-            term: Term::buffered_stdout(),
-            refresh_rate: Some(30),
+            draw_target: DrawTarget::stdout(),
             tx: tx,
             rx: rx,
         }
@@ -451,52 +443,43 @@ impl MultiProgress {
         self.join_impl(true)
     }
 
-    fn join_impl(self, clear: bool) -> io::Result<()> {
+    fn join_impl(mut self, clear: bool) -> io::Result<()> {
         if self.objects == 0 {
             return Ok(());
         }
 
         let mut outstanding = repeat(true).take(self.objects as usize).collect::<Vec<_>>();
-        let mut clear_height = 0;
         let mut draw_states: Vec<Option<DrawState>> = outstanding.iter().map(|_| None).collect();
-        let mut last_draw: Option<Instant> = None;
-        let rate = self.refresh_rate.map(|n| Duration::from_millis(1000 / n as u64));
 
         while outstanding.iter().any(|&x| x) {
             let (idx, draw_state) = self.rx.recv().unwrap();
+            let ts = draw_state.ts;
 
             if draw_state.finished {
                 outstanding[idx] = false;
             }
+            draw_states[idx] = Some(draw_state);
 
-            if draw_state.finished ||
-               rate.is_none() ||
-               last_draw.is_none() ||
-               last_draw.unwrap().elapsed() > rate.unwrap() {
-                self.term.clear_last_lines(clear_height)?;
-
-                // persist the state for to-draw and drawn
-                last_draw = Some(draw_state.ts);
-                draw_states[idx] = Some(draw_state);
-
-                // paint current state
-                clear_height = 0;
-                for draw_state_opt in draw_states.iter() {
-                    if let Some(ref draw_state) = *draw_state_opt {
-                        draw_state.draw_to_term(&self.term)?;
-                        clear_height += draw_state.lines.len();
-                    }
+            let mut lines = vec![];
+            for draw_state_opt in draw_states.iter() {
+                if let Some(ref draw_state) = *draw_state_opt {
+                    lines.extend_from_slice(&draw_state.lines[..]);
                 }
-
-                self.term.flush()?;
-            } else {
-                draw_states[idx] = Some(draw_state);
             }
+
+            self.draw_target.apply_draw_state(DrawState {
+                lines: lines,
+                finished: false,
+                ts: ts,
+            })?;
         }
 
         if clear {
-            self.term.clear_last_lines(clear_height)?;
-            self.term.flush()?;
+            self.draw_target.apply_draw_state(DrawState {
+                lines: vec![],
+                finished: true,
+                ts: Instant::now(),
+            })?;
         }
 
         Ok(())
