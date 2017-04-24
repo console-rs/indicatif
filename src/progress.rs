@@ -53,15 +53,12 @@ impl DrawTarget {
 
     /// Given the state of a progress bar, draw to a draw state.
     fn get_draw_state(&self, state: &ProgressState) -> DrawState {
-        let (pos, len) = state.position();
-        let mut lines = vec![];
-        if state.should_render() {
-            lines.push(format!("{}  {} / {} | {}",
-                               state.current_tick_char(),
-                               pos, len, state.message()));
-        }
         DrawState {
-            lines: lines,
+            lines: if state.should_render() {
+                state.style.format_bar(state)
+            } else {
+                vec![]
+            },
             finished: state.is_finished(),
         }
     }
@@ -104,7 +101,7 @@ impl Default for Style {
         Style {
             tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
             progress_chars: "██░".chars().collect(),
-            bar_template: Cow::Borrowed("{msg}\n{bar} {pos}/{len}"),
+            bar_template: Cow::Borrowed("{msg}\n{wide_bar} {pos}/{len}"),
             spinner_template: Cow::Borrowed("{spinner} {msg}"),
         }
     }
@@ -125,6 +122,13 @@ impl Style {
     /// Returns the progress char for a given number.
     pub fn get_progress_char(&self, idx: u64) -> char {
         self.progress_chars[(idx as usize) % self.progress_chars.len()]
+    }
+
+    pub fn format_bar(&self, state: &ProgressState) -> Vec<String> {
+        let (pos, len) = state.position();
+        vec![format!("{}  {} / {} | {}",
+                               state.current_tick_char(),
+                               pos, len, state.message())]
     }
 }
 
