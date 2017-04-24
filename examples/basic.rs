@@ -10,7 +10,12 @@ fn main() {
     let mut m = MultiProgress::new();
     let mut sty = ProgressStyle::default();
     sty.bar_template = Cow::Owned(
-        format!("{} {{wide_bar}} {{pos}}/{{len}}", style("{spinner}").red()));
+        format!("{} {{wide_bar}} {{pos}}/{{len}}", style("{spinner}").cyan()));
+    sty.progress_styles = vec![
+        style('█').cyan(),
+        style('█').magenta(),
+        style(' ')
+    ];
 
     let pb = m.add(ProgressBar::new(128));
     pb.enable_spinner();
