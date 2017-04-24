@@ -9,11 +9,12 @@ use indicatif::{ProgressBar, MultiProgress, ProgressStyle, style};
 fn main() {
     let mut m = MultiProgress::new();
     let mut sty = ProgressStyle::default();
+    sty.tick_chars = "■□▪▫ ".chars().collect();
     sty.bar_template = Cow::Owned(
-        format!("{} {{wide_bar}} {{pos}}/{{len}}", style("{spinner}").cyan()));
+        format!("  {}   {{msg}}\n {{wide_bar}} {{pos}}/{{len}}  ", style("{spinner}").blue()));
     sty.progress_styles = vec![
         style('█').cyan(),
-        style('█').magenta(),
+        style('█').white(),
         style(' ')
     ];
 
