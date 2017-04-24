@@ -55,14 +55,14 @@ impl DrawTarget {
         DrawTarget::Term(term, None, rate)
     }
 
-    /// Draw to a buffered stdout terminal at a max of 30 times a second.
+    /// Draw to a buffered stdout terminal at a max of 15 times a second.
     pub fn stdout() -> DrawTarget {
-        DrawTarget::to_term(Term::buffered_stdout(), Some(30))
+        DrawTarget::to_term(Term::buffered_stdout(), Some(15))
     }
 
-    /// Draw to a buffered stderr terminal at a max of 30 times a second.
+    /// Draw to a buffered stderr terminal at a max of 15 times a second.
     pub fn stderr() -> DrawTarget {
-        DrawTarget::to_term(Term::buffered_stderr(), Some(30))
+        DrawTarget::to_term(Term::buffered_stderr(), Some(15))
     }
 
     /// Apply the given draw state (draws it).
