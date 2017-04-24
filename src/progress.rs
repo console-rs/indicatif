@@ -137,14 +137,14 @@ impl ProgressStyle {
         let pct = state.percent();
         let mut fill = (pct * width as f32) as usize;
         let mut head = 0;
-        if fill > 0 {
+        if fill > 0 && !state.is_finished() {
             fill -= 1;
             head = 1;
         }
 
         let bar = repeat(state.style.progress_styles[0].to_string())
             .take(fill).collect::<String>();
-        let cur = if head == 1 && !state.is_finished() {
+        let cur = if head == 1 {
             state.style.progress_styles[1].to_string()
         } else {
             "".into()
