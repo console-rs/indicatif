@@ -2,14 +2,19 @@ extern crate indicatif;
 
 use std::thread;
 use std::time::Duration;
+use std::borrow::Cow;
 
-use indicatif::{ProgressBar, MultiProgress};
+use indicatif::{ProgressBar, MultiProgress, ProgressStyle, style};
 
 fn main() {
     let mut m = MultiProgress::new();
+    let mut sty = ProgressStyle::default();
+    sty.bar_template = Cow::Owned(
+        format!("{} {{wide_bar}} {{pos}}/{{len}}", style("{spinner}").red()));
 
     let pb = m.add(ProgressBar::new(128));
     pb.enable_spinner();
+    pb.set_style(sty.clone());
     let _ = thread::spawn(move || {
         for i in 0..128 {
             pb.set_message(&format!("item #{}", i + 1));
@@ -21,6 +26,7 @@ fn main() {
 
     let pb = m.add(ProgressBar::new(128));
     pb.enable_spinner();
+    pb.set_style(sty.clone());
     let _ = thread::spawn(move || {
         for _ in 0..3 {
             pb.set_position(0);
@@ -35,6 +41,7 @@ fn main() {
 
     let pb = m.add(ProgressBar::new(1024));
     pb.enable_spinner();
+    pb.set_style(sty.clone());
     let _ = thread::spawn(move || {
         for i in 0..1024 {
             pb.set_message(&format!("item #{}", i + 1));

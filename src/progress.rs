@@ -6,15 +6,16 @@ use std::time::{Duration, Instant};
 use std::sync::mpsc::{channel, Sender, Receiver};
 
 use parking_lot::RwLock;
-use unicode_width::UnicodeWidthStr;
 
 use term::{Term, terminal_size};
 use utils::expand_template;
+use ansistyle::{style, Styled, get_terminal_text_width};
 
 /// Controls the rendering style of progress bars.
+#[derive(Clone)]
 pub struct ProgressStyle {
     pub tick_chars: Vec<char>,
-    pub progress_chars: Vec<char>,
+    pub progress_styles: Vec<Styled<char>>,
     pub bar_template: Cow<'static, str>,
     pub spinner_template: Cow<'static, str>,
 }
@@ -109,7 +110,11 @@ impl Default for ProgressStyle {
     fn default() -> ProgressStyle {
         ProgressStyle {
             tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
-            progress_chars: "██░".chars().collect(),
+            progress_styles: vec![
+                style('█'),
+                style('█'),
+                style('░')
+            ],
             bar_template: Cow::Borrowed("{msg}\n{wide_bar} {pos}/{len}"),
             spinner_template: Cow::Borrowed("{spinner} {msg}"),
         }
@@ -130,10 +135,23 @@ impl ProgressStyle {
 
     pub fn format_bar(&self, state: &ProgressState, width: usize) -> String {
         let pct = state.percent();
-        let fill = (pct * width as f32) as usize;
-        let bar = repeat(state.style.progress_chars[0]).take(fill).collect::<String>();
-        let rest = repeat(state.style.progress_chars[2]).take(width - fill).collect::<String>();
-        format!("{}{}", bar, rest)
+        let mut fill = (pct * width as f32) as usize;
+        let mut head = 0;
+        if fill > 0 {
+            fill -= 1;
+            head = 1;
+        }
+
+        let bar = repeat(state.style.progress_styles[0].to_string())
+            .take(fill).collect::<String>();
+        let cur = if head == 1 && !state.is_finished() {
+            state.style.progress_styles[1].to_string()
+        } else {
+            "".into()
+        };
+        let rest = repeat(state.style.progress_styles[2].to_string())
+            .take(width - fill - head).collect::<String>();
+        format!("{}{}{}", bar, cur, rest)
     }
 
     pub fn format_state(&self, state: &ProgressState) -> Vec<String> {
@@ -165,7 +183,7 @@ impl ProgressStyle {
 
             rv.push(if *need_wide_bar.borrow() {
                 let total_width = state.width();
-                let bar_width = total_width - s.width();
+                let bar_width = total_width - get_terminal_text_width(&s);
                 s.replace("\x00", &self.format_bar(state, bar_width))
             } else {
                 s.to_string()
@@ -287,6 +305,13 @@ impl ProgressBar {
         let rv = ProgressBar::new(!0);
         rv.enable_spinner();
         rv
+    }
+
+    /// Overrides the stored style.
+    pub fn set_style(&self, style: ProgressStyle) {
+        self.update_state(|mut state| {
+            state.style = style;
+        });
     }
 
     /// Enables the spinner.

@@ -2,8 +2,11 @@ use std::env;
 use std::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::BTreeSet;
+use std::borrow::Cow;
 
 use term::is_a_terminal;
+use regex::Regex;
+use unicode_width::UnicodeWidthStr;
 
 fn supports_styling() -> bool {
     (&env::var("CLICOLOR").unwrap_or("0".into()) != "0" &&
@@ -33,6 +36,20 @@ pub fn should_style() -> bool {
 /// library.
 pub fn set_should_style(val: bool) {
     ENABLE_STYLING.store(val, Ordering::Relaxed);
+}
+
+/// Helper function to strip ansi codes.
+pub fn strip_ansi_codes(s: &str) -> Cow<str> {
+    lazy_static! {
+        static ref STRIP_RE: Regex = Regex::new(
+            r"[\x1b\x9b][\[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-PRZcf-nqry=><]").unwrap();
+    }
+    STRIP_RE.replace_all(s, "")
+}
+
+/// Measure the width of a string in terminal characters.
+pub fn get_terminal_text_width(s: &str) -> usize {
+    strip_ansi_codes(s).width()
 }
 
 /// An ANSI color.
@@ -90,6 +107,7 @@ impl Style {
 }
 
 /// A formatting wrapper that can be styled for a terminal.
+#[derive(Clone)]
 pub struct Styled<D> {
     fg: Option<Color>,
     bg: Option<Color>,
@@ -103,6 +121,7 @@ pub struct Styled<D> {
 /// Example:
 ///
 /// ```rust,no_run
+/// # use indicatif::style;
 /// format!("Hello {}", style("World").cyan());
 /// ```
 pub fn style<D>(val: D) -> Styled<D> {
@@ -208,3 +227,10 @@ impl_fmt!(Octal);
 impl_fmt!(Pointer);
 impl_fmt!(UpperExp);
 impl_fmt!(UpperHex);
+
+
+#[test]
+fn test_text_width() {
+    let s = style("foo").red().on_black().bold().force_styling(true).to_string();
+    assert_eq!(get_terminal_text_width(&s), 3);
+}
