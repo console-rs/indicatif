@@ -41,5 +41,5 @@ fn main() {
         pb.finish_with_message("done");
     });
 
-    m.join().unwrap();
+    m.join_and_clear().unwrap();
 }

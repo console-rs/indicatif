@@ -7,10 +7,12 @@ use parking_lot::RwLock;
 
 use term::Term;
 
-#[derive(Default)]
+/// Controls the rendering style of progress bars.
 pub struct Style {
-    tick_chars: Vec<char>,
-    progress_chars: Vec<char>,
+    pub tick_chars: Vec<char>,
+    pub progress_chars: Vec<char>,
+    pub bar_template: Cow<'static, str>,
+    pub spinner_template: Cow<'static, str>,
 }
 
 /// The drawn state of an element.
@@ -76,7 +78,7 @@ impl DrawTarget {
                 *last_state = Some(draw_state);
             }
             DrawTarget::Remote(idx, ref chan) => {
-                chan.send((idx, draw_state));
+                chan.send((idx, draw_state)).unwrap();
             }
             DrawTarget::Hidden => {}
         }
@@ -97,26 +99,30 @@ impl DrawState {
     }
 }
 
-impl Style {
-    pub fn new() -> Style {
-        Default::default()
-    }
-
-    pub fn default() -> Style {
+impl Default for Style {
+    fn default() -> Style {
         Style {
             tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
             progress_chars: "██░".chars().collect(),
+            bar_template: Cow::Borrowed("{msg}\n{bar} {pos}/{len}"),
+            spinner_template: Cow::Borrowed("{spinner} {msg}"),
         }
     }
+}
 
+impl Style {
+
+    /// Returns the tick char for a given number.
     pub fn get_tick_char(&self, idx: u64) -> char {
         self.tick_chars[(idx as usize) % (self.tick_chars.len() - 1)]
     }
 
+    /// Returns the tick char for the finished state.
     pub fn get_final_tick_char(&self) -> char {
         self.tick_chars[self.tick_chars.len() - 1]
     }
 
+    /// Returns the progress char for a given number.
     pub fn get_progress_char(&self, idx: u64) -> char {
         self.progress_chars[(idx as usize) % self.progress_chars.len()]
     }
@@ -195,7 +201,7 @@ impl ProgressBar {
     pub fn new(len: u64) -> ProgressBar {
         ProgressBar {
             state: RwLock::new(ProgressState {
-                style: Style::default(),
+                style: Default::default(),
                 draw_target: DrawTarget::stdout(),
                 message: "".into(),
                 pos: 0,
@@ -314,7 +320,7 @@ impl ProgressBar {
             let mut state = self.state.write();
             f(&mut state);
         }
-        self.draw();
+        self.draw().ok();
     }
 
     fn draw(&self) -> io::Result<()> {
@@ -363,6 +369,31 @@ impl MultiProgress {
     /// from the remote progress bars.  Not calling this will deadlock
     /// your program.
     pub fn join(self) -> io::Result<()> {
+        self.join_impl(false)
+    }
+
+    /// Works like `join` but clears the progress bar in the end.
+    pub fn join_and_clear(self) -> io::Result<()> {
+        self.join_impl(true)
+    }
+
+    fn clear(&self, draw_states: &[Option<DrawState>]) -> io::Result<()> {
+        let to_clear = draw_states.iter().map(|ref item_opt| {
+            if let Some(ref item) = **item_opt {
+                item.lines.len()
+            } else {
+                0
+            }
+        }).sum();
+        self.term.clear_last_lines(to_clear)?;
+        Ok(())
+    }
+
+    fn join_impl(self, clear: bool) -> io::Result<()> {
+        if self.objects == 0 {
+            return Ok(());
+        }
+
         let mut outstanding = repeat(true).take(self.objects as usize).collect::<Vec<_>>();
         let mut draw_states: Vec<Option<DrawState>> = outstanding.iter().map(|_| None).collect();
 
@@ -373,17 +404,7 @@ impl MultiProgress {
                 outstanding[idx] = false;
             }
 
-            // clear
-            {
-                let to_clear = draw_states.iter().map(|ref item_opt| {
-                    if let Some(ref item) = **item_opt {
-                        item.lines.len()
-                    } else {
-                        0
-                    }
-                }).sum();
-                self.term.clear_last_lines(to_clear)?;
-            }
+            self.clear(&draw_states[..])?;
 
             // update
             draw_states[idx] = Some(draw_state);
@@ -395,6 +416,11 @@ impl MultiProgress {
                 }
             }
 
+            self.term.flush()?;
+        }
+
+        if clear {
+            self.clear(&draw_states[..])?;
             self.term.flush()?;
         }
 

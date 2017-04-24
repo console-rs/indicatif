@@ -126,7 +126,7 @@ impl Term {
                 io::stdout().flush()?;
             }
             TermTarget::Stderr => {
-                io::stderr().write_all(bytes);
+                io::stderr().write_all(bytes)?;
                 io::stderr().flush()?;
             }
         }

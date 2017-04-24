@@ -1,5 +1,4 @@
 use std::io;
-use std::io::Write;
 use std::mem;
 
 use libc;
@@ -16,7 +15,7 @@ pub fn terminal_size() -> Option<(u16, u16)> {
     }
 
     unsafe {
-        let mut winsize: libc::winsize = unsafe { mem::zeroed() };
+        let mut winsize: libc::winsize = mem::zeroed();
         libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, &mut winsize);
         if winsize.ws_row > 0 && winsize.ws_col > 0 {
             return Some((winsize.ws_row as u16, winsize.ws_col as u16));

@@ -7,5 +7,5 @@ extern crate parking_lot;
 mod term;
 mod progress;
 
-pub use progress::{ProgressBar, MultiProgress, ProgressState, DrawState, DrawTarget};
+pub use progress::{ProgressBar, MultiProgress, ProgressState, DrawState, DrawTarget, Style};
 pub use term::Term;
