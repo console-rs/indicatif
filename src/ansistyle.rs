@@ -117,6 +117,8 @@ pub fn style<D>(val: D) -> Styled<D> {
 
 impl<D> Styled<D> {
     /// Forces styling on or off.
+    ///
+    /// This overrides the detection from `should_style`.
     #[inline(always)]
     pub fn force_styling(mut self, value: bool) -> Styled<D> {
         self.force = Some(value);
