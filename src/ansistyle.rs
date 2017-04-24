@@ -48,7 +48,7 @@ pub fn strip_ansi_codes(s: &str) -> Cow<str> {
 }
 
 /// Measure the width of a string in terminal characters.
-pub fn get_terminal_text_width(s: &str) -> usize {
+pub fn measure_text_width(s: &str) -> usize {
     strip_ansi_codes(s).width()
 }
 

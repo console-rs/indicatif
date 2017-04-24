@@ -9,7 +9,7 @@ use parking_lot::RwLock;
 
 use term::{Term, terminal_size};
 use utils::expand_template;
-use ansistyle::{style, Styled, get_terminal_text_width};
+use ansistyle::{style, Styled, measure_text_width};
 
 /// Controls the rendering style of progress bars.
 #[derive(Clone)]
@@ -183,7 +183,7 @@ impl ProgressStyle {
 
             rv.push(if *need_wide_bar.borrow() {
                 let total_width = state.width();
-                let bar_width = total_width - get_terminal_text_width(&s);
+                let bar_width = total_width - measure_text_width(&s);
                 s.replace("\x00", &self.format_bar(state, bar_width))
             } else {
                 s.to_string()
