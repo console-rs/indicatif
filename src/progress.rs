@@ -46,16 +46,20 @@ pub enum DrawTarget {
 }
 
 impl DrawTarget {
-    /// Draw to a buffered stdout terminal
-    pub fn stdout() -> DrawTarget {
-        let rate = Some(Duration::from_millis(1000 / 30));
-        DrawTarget::Term(Term::buffered_stdout(), None, rate)
+    /// Draw to a terminal, optionally with a refresh rate.
+    pub fn to_term(term: Term, refresh_rate: Option<u64>) -> DrawTarget {
+        let rate = refresh_rate.map(|x| Duration::from_millis(1000 / x));
+        DrawTarget::Term(term, None, rate)
     }
 
-    /// Draw to a buffered stderr terminal
+    /// Draw to a buffered stdout terminal at a max of 30 times a second.
+    pub fn stdout() -> DrawTarget {
+        DrawTarget::to_term(Term::buffered_stdout(), Some(30))
+    }
+
+    /// Draw to a buffered stderr terminal at a max of 30 times a second.
     pub fn stderr() -> DrawTarget {
-        let rate = Some(Duration::from_millis(1000 / 30));
-        DrawTarget::Term(Term::buffered_stderr(), None, rate)
+        DrawTarget::to_term(Term::buffered_stderr(), Some(30))
     }
 
     /// Apply the given draw state (draws it).
@@ -415,6 +419,10 @@ impl MultiProgress {
             tx: tx,
             rx: rx,
         }
+    }
+
+    pub fn set_draw_target(&mut self, target: DrawTarget) {
+        self.draw_target = target;
     }
 
     /// Adds a progress bar.
