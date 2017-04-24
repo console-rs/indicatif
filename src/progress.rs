@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 use std::sync::mpsc::{channel, Sender, Receiver};
 
 use parking_lot::RwLock;
+use unicode_width::UnicodeWidthStr;
 
 use term::{Term, terminal_size};
 use utils::expand_template;
@@ -25,6 +26,8 @@ pub struct DrawState {
     pub lines: Vec<String>,
     /// True if the bar no longer needs drawing.
     pub finished: bool,
+    /// True if drawing should be forced.
+    pub force_draw: bool,
     /// Time when the draw state was created.
     pub ts: Instant,
 }
@@ -68,6 +71,7 @@ impl DrawTarget {
             DrawTarget::Term(ref term, ref mut last_state, rate) => {
                 let last_draw = last_state.as_ref().map(|x| x.ts);
                 if draw_state.finished ||
+                   draw_state.force_draw ||
                    rate.is_none() ||
                    last_draw.is_none() ||
                    last_draw.unwrap().elapsed() > rate.unwrap() {
@@ -146,6 +150,8 @@ impl Style {
                 } else if key == "bar" {
                     // XXX: width?
                     self.format_bar(state, 20)
+                } else if key == "spinner" {
+                    state.current_tick_char().to_string()
                 } else if key == "msg" {
                     state.message().to_string()
                 } else if key == "pos" {
@@ -159,7 +165,7 @@ impl Style {
 
             rv.push(if *need_wide_bar.borrow() {
                 let total_width = state.width();
-                let bar_width = total_width - s.len() - 1;
+                let bar_width = total_width - s.width();
                 s.replace("\x00", &self.format_bar(state, bar_width))
             } else {
                 s.to_string()
@@ -394,6 +400,7 @@ impl ProgressBar {
                 vec![]
             },
             finished: state.is_finished(),
+            force_draw: false,
             ts: Instant::now(),
         };
         state.draw_target.apply_draw_state(draw_state)
@@ -421,6 +428,7 @@ impl MultiProgress {
         }
     }
 
+    /// Sets a different draw target for the multiprogress bar.
     pub fn set_draw_target(&mut self, target: DrawTarget) {
         self.draw_target = target;
     }
@@ -462,6 +470,7 @@ impl MultiProgress {
         while outstanding.iter().any(|&x| x) {
             let (idx, draw_state) = self.rx.recv().unwrap();
             let ts = draw_state.ts;
+            let force_draw = draw_state.finished || draw_state.force_draw;
 
             if draw_state.finished {
                 outstanding[idx] = false;
@@ -477,7 +486,8 @@ impl MultiProgress {
 
             self.draw_target.apply_draw_state(DrawState {
                 lines: lines,
-                finished: false,
+                force_draw: force_draw,
+                finished: !outstanding.iter().any(|&x| x),
                 ts: ts,
             })?;
         }
@@ -486,6 +496,7 @@ impl MultiProgress {
             self.draw_target.apply_draw_state(DrawState {
                 lines: vec![],
                 finished: true,
+                force_draw: true,
                 ts: Instant::now(),
             })?;
         }

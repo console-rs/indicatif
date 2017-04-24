@@ -5,6 +5,7 @@
 extern crate parking_lot;
 extern crate regex;
 #[macro_use] extern crate lazy_static;
+extern crate unicode_width;
 
 mod term;
 mod progress;
