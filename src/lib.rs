@@ -10,6 +10,9 @@ extern crate unicode_width;
 mod term;
 mod progress;
 mod utils;
+mod ansistyle;
 
-pub use progress::{ProgressBar, MultiProgress, ProgressState, DrawState, DrawTarget, Style};
+pub use progress::{ProgressBar, MultiProgress, ProgressState, DrawState,
+                   DrawTarget, ProgressStyle};
 pub use term::Term;
+pub use ansistyle::{style, Styled};

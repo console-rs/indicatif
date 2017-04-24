@@ -12,7 +12,7 @@ use term::{Term, terminal_size};
 use utils::expand_template;
 
 /// Controls the rendering style of progress bars.
-pub struct Style {
+pub struct ProgressStyle {
     pub tick_chars: Vec<char>,
     pub progress_chars: Vec<char>,
     pub bar_template: Cow<'static, str>,
@@ -105,9 +105,9 @@ impl DrawState {
     }
 }
 
-impl Default for Style {
-    fn default() -> Style {
-        Style {
+impl Default for ProgressStyle {
+    fn default() -> ProgressStyle {
+        ProgressStyle {
             tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
             progress_chars: "██░".chars().collect(),
             bar_template: Cow::Borrowed("{msg}\n{wide_bar} {pos}/{len}"),
@@ -116,7 +116,7 @@ impl Default for Style {
     }
 }
 
-impl Style {
+impl ProgressStyle {
 
     /// Returns the tick char for a given number.
     pub fn get_tick_char(&self, idx: u64) -> char {
@@ -178,7 +178,7 @@ impl Style {
 
 /// The state of a progress bar at a moment in time.
 pub struct ProgressState {
-    style: Style,
+    style: ProgressStyle,
     draw_target: DrawTarget,
     width: Option<u16>,
     message: String,
