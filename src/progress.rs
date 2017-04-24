@@ -1,11 +1,14 @@
 use std::io;
 use std::iter::repeat;
 use std::borrow::Cow;
+use std::cell::RefCell;
+use std::time::{Duration, Instant};
 use std::sync::mpsc::{channel, Sender, Receiver};
 
 use parking_lot::RwLock;
 
-use term::Term;
+use term::{Term, terminal_size};
+use utils::expand_template;
 
 /// Controls the rendering style of progress bars.
 pub struct Style {
@@ -16,12 +19,14 @@ pub struct Style {
 }
 
 /// The drawn state of an element.
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct DrawState {
     /// The lines to print (can contain ANSI codes)
     pub lines: Vec<String>,
     /// True if the bar no longer needs drawing.
     pub finished: bool,
+    /// Time when the draw state was created.
+    pub ts: Instant,
 }
 
 enum Status {
@@ -55,11 +60,12 @@ impl DrawTarget {
     fn get_draw_state(&self, state: &ProgressState) -> DrawState {
         DrawState {
             lines: if state.should_render() {
-                state.style.format_bar(state)
+                state.style.format_state(state)
             } else {
                 vec![]
             },
             finished: state.is_finished(),
+            ts: Instant::now(),
         }
     }
 
@@ -119,16 +125,49 @@ impl Style {
         self.tick_chars[self.tick_chars.len() - 1]
     }
 
-    /// Returns the progress char for a given number.
-    pub fn get_progress_char(&self, idx: u64) -> char {
-        self.progress_chars[(idx as usize) % self.progress_chars.len()]
+    pub fn format_bar(&self, state: &ProgressState, width: usize) -> String {
+        let pct = state.percent();
+        let fill = (pct * width as f32) as usize;
+        let bar = repeat(state.style.progress_chars[0]).take(fill).collect::<String>();
+        let rest = repeat(state.style.progress_chars[2]).take(width - fill).collect::<String>();
+        format!("{}{}", bar, rest)
     }
 
-    pub fn format_bar(&self, state: &ProgressState) -> Vec<String> {
+    pub fn format_state(&self, state: &ProgressState) -> Vec<String> {
         let (pos, len) = state.position();
-        vec![format!("{}  {} / {} | {}",
-                               state.current_tick_char(),
-                               pos, len, state.message())]
+        let mut rv = vec![];
+
+        for line in self.bar_template.lines() {
+            let need_wide_bar = RefCell::new(false);
+
+            let s = expand_template(line, |key| {
+                if key == "wide_bar" {
+                    *need_wide_bar.borrow_mut() = true;
+                    "\x00".into()
+                } else if key == "bar" {
+                    // XXX: width?
+                    self.format_bar(state, 20)
+                } else if key == "msg" {
+                    state.message().to_string()
+                } else if key == "pos" {
+                    pos.to_string()
+                } else if key == "len" {
+                    len.to_string()
+                } else {
+                    "".into()
+                }
+            });
+
+            rv.push(if *need_wide_bar.borrow() {
+                let total_width = state.width();
+                let bar_width = total_width - s.len() - 1;
+                s.replace("\x00", &self.format_bar(state, bar_width))
+            } else {
+                s.to_string()
+            });
+        }
+
+        rv
     }
 }
 
@@ -136,6 +175,7 @@ impl Style {
 pub struct ProgressState {
     style: Style,
     draw_target: DrawTarget,
+    width: Option<u16>,
     message: String,
     pos: u64,
     len: u64,
@@ -182,6 +222,15 @@ impl ProgressState {
         }
     }
 
+    /// Returns the completion in percent
+    pub fn percent(&self) -> f32 {
+        if self.len == !0 {
+            0.0
+        } else {
+            self.pos as f32 / self.len as f32
+        }
+    }
+
     /// Returns the position of the status bar as `(pos, len)` tuple.
     pub fn position(&self) -> (u64, u64) {
         (self.pos, self.len)
@@ -190,6 +239,24 @@ impl ProgressState {
     /// Returns the current message of the progress bar.
     pub fn message(&self) -> &str {
         &self.message
+    }
+
+    /// The entire draw width
+    pub fn width(&self) -> usize {
+        if let Some(width) = self.width {
+            width as usize
+        } else {
+            let size = match self.draw_target {
+                DrawTarget::Term(ref term, _) => term.size(),
+                DrawTarget::Remote(..) => terminal_size(),
+                DrawTarget::Hidden => None,
+            };
+            if let Some((_, width)) = size {
+                width as usize
+            } else {
+                74
+            }
+        }
     }
 }
 
@@ -207,6 +274,7 @@ impl ProgressBar {
             state: RwLock::new(ProgressState {
                 style: Default::default(),
                 draw_target: DrawTarget::stdout(),
+                width: None,
                 message: "".into(),
                 pos: 0,
                 len: len,
@@ -339,6 +407,7 @@ impl ProgressBar {
 pub struct MultiProgress {
     objects: usize,
     term: Term,
+    refresh_rate: Option<usize>,
     tx: Sender<(usize, DrawState)>,
     rx: Receiver<(usize, DrawState)>,
 }
@@ -350,6 +419,7 @@ impl MultiProgress {
         MultiProgress {
             objects: 0,
             term: Term::buffered_stdout(),
+            refresh_rate: Some(30),
             tx: tx,
             rx: rx,
         }
@@ -381,25 +451,16 @@ impl MultiProgress {
         self.join_impl(true)
     }
 
-    fn clear(&self, draw_states: &[Option<DrawState>]) -> io::Result<()> {
-        let to_clear = draw_states.iter().map(|ref item_opt| {
-            if let Some(ref item) = **item_opt {
-                item.lines.len()
-            } else {
-                0
-            }
-        }).sum();
-        self.term.clear_last_lines(to_clear)?;
-        Ok(())
-    }
-
     fn join_impl(self, clear: bool) -> io::Result<()> {
         if self.objects == 0 {
             return Ok(());
         }
 
         let mut outstanding = repeat(true).take(self.objects as usize).collect::<Vec<_>>();
+        let mut clear_height = 0;
         let mut draw_states: Vec<Option<DrawState>> = outstanding.iter().map(|_| None).collect();
+        let mut last_draw: Option<Instant> = None;
+        let rate = self.refresh_rate.map(|n| Duration::from_millis(1000 / n as u64));
 
         while outstanding.iter().any(|&x| x) {
             let (idx, draw_state) = self.rx.recv().unwrap();
@@ -408,23 +469,33 @@ impl MultiProgress {
                 outstanding[idx] = false;
             }
 
-            self.clear(&draw_states[..])?;
+            if draw_state.finished ||
+               rate.is_none() ||
+               last_draw.is_none() ||
+               last_draw.unwrap().elapsed() > rate.unwrap() {
+                self.term.clear_last_lines(clear_height)?;
 
-            // update
-            draw_states[idx] = Some(draw_state);
+                // persist the state for to-draw and drawn
+                last_draw = Some(draw_state.ts);
+                draw_states[idx] = Some(draw_state);
 
-            // redraw
-            for draw_state_opt in draw_states.iter() {
-                if let Some(ref draw_state) = *draw_state_opt {
-                    draw_state.draw_to_term(&self.term)?;
+                // paint current state
+                clear_height = 0;
+                for draw_state_opt in draw_states.iter() {
+                    if let Some(ref draw_state) = *draw_state_opt {
+                        draw_state.draw_to_term(&self.term)?;
+                        clear_height += draw_state.lines.len();
+                    }
                 }
-            }
 
-            self.term.flush()?;
+                self.term.flush()?;
+            } else {
+                draw_states[idx] = Some(draw_state);
+            }
         }
 
         if clear {
-            self.clear(&draw_states[..])?;
+            self.term.clear_last_lines(clear_height)?;
             self.term.flush()?;
         }
 
