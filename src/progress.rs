@@ -336,6 +336,13 @@ impl ProgressBar {
         })
     }
 
+    /// Sets the position of the progress bar.
+    pub fn set_position(&self, pos: u64) {
+        self.update_state(|mut state| {
+            state.pos = pos;
+        })
+    }
+
     /// Sets the length of the progress bar.
     pub fn set_length(&self, len: u64) {
         self.update_state(|mut state| {

@@ -19,13 +19,16 @@ fn main() {
         pb.finish_with_message("done");
     });
 
-    let pb = m.add(ProgressBar::new(256));
+    let pb = m.add(ProgressBar::new(128));
     pb.enable_spinner();
     let _ = thread::spawn(move || {
-        for i in 0..256 {
-            pb.set_message(&format!("item #{}", i + 1));
-            pb.inc(1);
-            thread::sleep(Duration::from_millis(8));
+        for _ in 0..3 {
+            pb.set_position(0);
+            for i in 0..128 {
+                pb.set_message(&format!("item #{}", i + 1));
+                pb.inc(1);
+                thread::sleep(Duration::from_millis(8));
+            }
         }
         pb.finish_with_message("done");
     });
@@ -36,7 +39,7 @@ fn main() {
         for i in 0..1024 {
             pb.set_message(&format!("item #{}", i + 1));
             pb.inc(1);
-            thread::sleep(Duration::from_millis(1));
+            thread::sleep(Duration::from_millis(2));
         }
         pb.finish_with_message("done");
     });
