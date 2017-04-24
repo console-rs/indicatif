@@ -5,12 +5,14 @@ use libc;
 
 use term::Term;
 
-pub fn terminal_size() -> Option<(u16, u16)> {
-    let is_tty = unsafe {
+pub fn is_a_terminal() -> bool {
+    unsafe {
         libc::isatty(libc::STDOUT_FILENO) == 1
-    };
+    }
+}
 
-    if !is_tty {
+pub fn terminal_size() -> Option<(u16, u16)> {
+    if !is_a_terminal() {
         return None;
     }
 

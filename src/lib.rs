@@ -15,4 +15,4 @@ mod ansistyle;
 pub use progress::{ProgressBar, MultiProgress, ProgressState, DrawState,
                    DrawTarget, ProgressStyle};
 pub use term::Term;
-pub use ansistyle::{style, Styled, Color, Style};
+pub use ansistyle::{style, Styled, Color, Style, should_style, set_should_style};

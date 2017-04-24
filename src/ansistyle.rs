@@ -1,5 +1,39 @@
+use std::env;
 use std::fmt;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::BTreeSet;
+
+use term::is_a_terminal;
+
+fn supports_styling() -> bool {
+    (&env::var("CLICOLOR").unwrap_or("0".into()) != "0" &&
+     is_a_terminal()) ||
+    &env::var("CLICOLOR_FORCE").unwrap_or("0".into()) != "0"
+}
+
+lazy_static! {
+    static ref ENABLE_STYLING: AtomicBool = AtomicBool::new(supports_styling());
+}
+
+/// Returns if ANSI styles should be used.
+///
+/// This returns `true` if ANSI styles should be used for formatting.  This
+/// honors the `CLICOLOR` and `CLICOLOR_FORCE` environment variables and
+/// defaults to the terminal default.
+///
+/// The `Styled` type will automatically turn itself on and off depending
+/// on the value here.
+pub fn should_style() -> bool {
+    ENABLE_STYLING.load(Ordering::Relaxed)
+}
+
+/// Override styling.
+///
+/// This can be used to forcefully enable or disable coloring for this
+/// library.
+pub fn set_should_style(val: bool) {
+    ENABLE_STYLING.store(val, Ordering::Relaxed);
+}
 
 /// An ANSI color.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -60,6 +94,7 @@ pub struct Styled<D> {
     fg: Option<Color>,
     bg: Option<Color>,
     styles: BTreeSet<Style>,
+    force: Option<bool>,
     val: D,
 }
 
@@ -75,11 +110,19 @@ pub fn style<D>(val: D) -> Styled<D> {
         fg: None,
         bg: None,
         styles: BTreeSet::new(),
+        force: None,
         val: val,
     }
 }
 
 impl<D> Styled<D> {
+    /// Forces styling on or off.
+    #[inline(always)]
+    pub fn force_styling(mut self, value: bool) -> Styled<D> {
+        self.force = Some(value);
+        self
+    }
+
     /// Sets a foreground color.
     #[inline(always)]
     pub fn fg(mut self, color: Color) -> Styled<D> {
@@ -129,17 +172,23 @@ macro_rules! impl_fmt {
     ($name:ident) => {
         impl<D: fmt::$name> fmt::$name for Styled<D> {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                if let Some(fg) = self.fg {
-                    write!(f, "\x1b[{}m", fg.ansi_num() + 30)?;
-                }
-                if let Some(bg) = self.bg {
-                    write!(f, "\x1b[{}m", bg.ansi_num() + 40)?;
-                }
-                for style in &self.styles {
-                    write!(f, "\x1b[{}m", style.ansi_num())?;
+                let mut reset = false;
+                if self.force.unwrap_or_else(should_style) {
+                    if let Some(fg) = self.fg {
+                        write!(f, "\x1b[{}m", fg.ansi_num() + 30)?;
+                        reset = true;
+                    }
+                    if let Some(bg) = self.bg {
+                        write!(f, "\x1b[{}m", bg.ansi_num() + 40)?;
+                        reset = true;
+                    }
+                    for style in &self.styles {
+                        write!(f, "\x1b[{}m", style.ansi_num())?;
+                        reset = true;
+                    }
                 }
                 fmt::$name::fmt(&self.val, f)?;
-                if self.fg.is_some() || self.bg.is_some() || !self.styles.is_empty() {
+                if reset {
                     write!(f, "\x1b[0m")?;
                 }
                 Ok(())
