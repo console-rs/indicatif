@@ -1,6 +1,7 @@
 use std::fmt;
 use std::collections::BTreeSet;
 
+/// An ANSI color.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Color {
     Black,
@@ -14,6 +15,7 @@ pub enum Color {
 }
 
 impl Color {
+    #[inline(always)]
     fn ansi_num(&self) -> usize {
         match *self {
             Color::Black => 0,
@@ -28,6 +30,7 @@ impl Color {
     }
 }
 
+/// An ANSI style.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
 pub enum Style {
     Bold,
@@ -39,6 +42,7 @@ pub enum Style {
 }
 
 impl Style {
+    #[inline(always)]
     fn ansi_num(&self) -> usize {
         match *self {
             Style::Bold => 1,
@@ -51,6 +55,7 @@ impl Style {
     }
 }
 
+/// A formatting wrapper that can be styled for a terminal.
 pub struct Styled<D> {
     fg: Option<Color>,
     bg: Option<Color>,
@@ -58,6 +63,13 @@ pub struct Styled<D> {
     val: D,
 }
 
+/// Wraps an object for formatting for styling.
+///
+/// Example:
+///
+/// ```rust,no_run
+/// format!("Hello {}", style("World").cyan());
+/// ```
 pub fn style<D>(val: D) -> Styled<D> {
     Styled {
         fg: None,
@@ -68,115 +80,49 @@ pub fn style<D>(val: D) -> Styled<D> {
 }
 
 impl<D> Styled<D> {
-    pub fn black(mut self) -> Styled<D> {
-        self.fg = Some(Color::Black);
+    /// Sets a foreground color.
+    #[inline(always)]
+    pub fn fg(mut self, color: Color) -> Styled<D> {
+        self.fg = Some(color);
         self
     }
 
-    pub fn red(mut self) -> Styled<D> {
-        self.fg = Some(Color::Red);
+    /// Sets a background color.
+    #[inline(always)]
+    pub fn bg(mut self, color: Color) -> Styled<D> {
+        self.bg = Some(color);
         self
     }
 
-    pub fn green(mut self) -> Styled<D> {
-        self.fg = Some(Color::Green);
+    /// Adds a style.
+    #[inline(always)]
+    pub fn style(mut self, style: Style) -> Styled<D> {
+        self.styles.insert(style);
         self
     }
 
-    pub fn yellow(mut self) -> Styled<D> {
-        self.fg = Some(Color::Yellow);
-        self
-    }
-
-    pub fn blue(mut self) -> Styled<D> {
-        self.fg = Some(Color::Blue);
-        self
-    }
-
-    pub fn magenta(mut self) -> Styled<D> {
-        self.fg = Some(Color::Magenta);
-        self
-    }
-
-    pub fn cyan(mut self) -> Styled<D> {
-        self.fg = Some(Color::Cyan);
-        self
-    }
-
-    pub fn white(mut self) -> Styled<D> {
-        self.fg = Some(Color::White);
-        self
-    }
-
-    pub fn on_black(mut self) -> Styled<D> {
-        self.bg = Some(Color::Black);
-        self
-    }
-
-    pub fn on_red(mut self) -> Styled<D> {
-        self.bg = Some(Color::Red);
-        self
-    }
-
-    pub fn on_green(mut self) -> Styled<D> {
-        self.bg = Some(Color::Green);
-        self
-    }
-
-    pub fn on_yellow(mut self) -> Styled<D> {
-        self.bg = Some(Color::Yellow);
-        self
-    }
-
-    pub fn on_blue(mut self) -> Styled<D> {
-        self.bg = Some(Color::Blue);
-        self
-    }
-
-    pub fn on_magenta(mut self) -> Styled<D> {
-        self.bg = Some(Color::Magenta);
-        self
-    }
-
-    pub fn on_cyan(mut self) -> Styled<D> {
-        self.bg = Some(Color::Cyan);
-        self
-    }
-
-    pub fn on_white(mut self) -> Styled<D> {
-        self.bg = Some(Color::White);
-        self
-    }
-
-    pub fn bold(mut self) -> Styled<D> {
-        self.styles.insert(Style::Bold);
-        self
-    }
-
-    pub fn dim(mut self) -> Styled<D> {
-        self.styles.insert(Style::Dim);
-        self
-    }
-
-    pub fn underlined(mut self) -> Styled<D> {
-        self.styles.insert(Style::Underlined);
-        self
-    }
-
-    pub fn blink(mut self) -> Styled<D> {
-        self.styles.insert(Style::Blink);
-        self
-    }
-
-    pub fn reverse(mut self) -> Styled<D> {
-        self.styles.insert(Style::Reverse);
-        self
-    }
-
-    pub fn hidden(mut self) -> Styled<D> {
-        self.styles.insert(Style::Hidden);
-        self
-    }
+    #[inline(always)] pub fn black(self) -> Styled<D> { self.fg(Color::Black) }
+    #[inline(always)] pub fn red(self) -> Styled<D> { self.fg(Color::Red) }
+    #[inline(always)] pub fn green(self) -> Styled<D> { self.fg(Color::Green) }
+    #[inline(always)] pub fn yellow(self) -> Styled<D> { self.fg(Color::Yellow) }
+    #[inline(always)] pub fn blue(self) -> Styled<D> { self.fg(Color::Blue) }
+    #[inline(always)] pub fn magenta(self) -> Styled<D> { self.fg(Color::Magenta) }
+    #[inline(always)] pub fn cyan(self) -> Styled<D> { self.fg(Color::Cyan) }
+    #[inline(always)] pub fn white(self) -> Styled<D> { self.fg(Color::White) }
+    #[inline(always)] pub fn on_black(self) -> Styled<D> { self.bg(Color::Black) }
+    #[inline(always)] pub fn on_red(self) -> Styled<D> { self.bg(Color::Red) }
+    #[inline(always)] pub fn on_green(self) -> Styled<D> { self.bg(Color::Green) }
+    #[inline(always)] pub fn on_yellow(self) -> Styled<D> { self.bg(Color::Yellow) }
+    #[inline(always)] pub fn on_blue(self) -> Styled<D> { self.bg(Color::Blue) }
+    #[inline(always)] pub fn on_magenta(self) -> Styled<D> { self.bg(Color::Magenta) }
+    #[inline(always)] pub fn on_cyan(self) -> Styled<D> { self.bg(Color::Cyan) }
+    #[inline(always)] pub fn on_white(self) -> Styled<D> { self.bg(Color::White) }
+    #[inline(always)] pub fn bold(self) -> Styled<D> { self.style(Style::Bold) }
+    #[inline(always)] pub fn dim(self) -> Styled<D> { self.style(Style::Dim) }
+    #[inline(always)] pub fn underlined(self) -> Styled<D> { self.style(Style::Underlined) }
+    #[inline(always)] pub fn blink(self) -> Styled<D> { self.style(Style::Blink) }
+    #[inline(always)] pub fn reverse(self) -> Styled<D> { self.style(Style::Reverse) }
+    #[inline(always)] pub fn hidden(self) -> Styled<D> { self.style(Style::Hidden) }
 }
 
 macro_rules! impl_fmt {
@@ -193,14 +139,8 @@ macro_rules! impl_fmt {
                     write!(f, "\x1b[{}m", style.ansi_num())?;
                 }
                 fmt::$name::fmt(&self.val, f)?;
-                for style in &self.styles {
-                    write!(f, "\x1b[2{}m", style.ansi_num())?;
-                }
-                if let Some(..) = self.bg {
-                    write!(f, "\x1b[{}m", 49)?;
-                }
-                if let Some(..) = self.fg {
-                    write!(f, "\x1b[{}m", 39)?;
+                if self.fg.is_some() || self.bg.is_some() || !self.styles.is_empty() {
+                    write!(f, "\x1b[0m")?;
                 }
                 Ok(())
             }
