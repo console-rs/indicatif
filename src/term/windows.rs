@@ -2,7 +2,7 @@ use std::io;
 use std::mem;
 use std::os::windows::io::{RawHandle, AsRawHandle};
 
-use winapi::{HANDLE, STD_OUTPUT_HANDLE,
+use winapi::{CHAR, DWORD, HANDLE, STD_OUTPUT_HANDLE,
              CONSOLE_SCREEN_BUFFER_INFO, COORD};
 use kernel32::{GetStdHandle, GetConsoleScreenBufferInfo,
                GetConsoleMode, SetConsoleCursorPosition,
@@ -64,8 +64,8 @@ pub fn clear_line(out: &Term) -> io::Result<()> {
                 Y: csbi.dwCursorPosition.Y,
             };
             let mut written;
-            FillConsoleOutputCharacterA(hand, b' ',
-                                        width, pos, &mut written);
+            FillConsoleOutputCharacterA(hand, b' ' as CHAR,
+                                        width as DWORD, pos, &mut written);
         }
     }
     Ok(())
