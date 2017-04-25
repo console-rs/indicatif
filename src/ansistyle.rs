@@ -1,42 +1,10 @@
-use std::env;
 use std::fmt;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::BTreeSet;
 use std::borrow::Cow;
 
-use term::Term;
 use regex::Regex;
 use unicode_width::UnicodeWidthStr;
-
-fn supports_styling() -> bool {
-    (&env::var("CLICOLOR").unwrap_or("0".into()) != "0" &&
-     Term::stdout().is_term()) ||
-    &env::var("CLICOLOR_FORCE").unwrap_or("0".into()) != "0"
-}
-
-lazy_static! {
-    static ref ENABLE_STYLING: AtomicBool = AtomicBool::new(supports_styling());
-}
-
-/// Returns if ANSI styles should be used.
-///
-/// This returns `true` if ANSI styles should be used for formatting.  This
-/// honors the `CLICOLOR` and `CLICOLOR_FORCE` environment variables and
-/// defaults to the terminal default.
-///
-/// The `Styled` type will automatically turn itself on and off depending
-/// on the value here.
-pub fn should_style() -> bool {
-    ENABLE_STYLING.load(Ordering::Relaxed)
-}
-
-/// Override styling.
-///
-/// This can be used to forcefully enable or disable coloring for this
-/// library.
-pub fn set_should_style(val: bool) {
-    ENABLE_STYLING.store(val, Ordering::Relaxed);
-}
+use clicolors_control::colors_enabled;
 
 /// Helper function to strip ansi codes.
 pub fn strip_ansi_codes(s: &str) -> Cow<str> {
@@ -137,7 +105,7 @@ pub fn style<D>(val: D) -> Styled<D> {
 impl<D> Styled<D> {
     /// Forces styling on or off.
     ///
-    /// This overrides the detection from `should_style`.
+    /// This overrides the detection from `clicolors-control`.
     #[inline(always)]
     pub fn force_styling(mut self, value: bool) -> Styled<D> {
         self.force = Some(value);
@@ -194,7 +162,7 @@ macro_rules! impl_fmt {
         impl<D: fmt::$name> fmt::$name for Styled<D> {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 let mut reset = false;
-                if self.force.unwrap_or_else(should_style) {
+                if self.force.unwrap_or_else(colors_enabled) {
                     if let Some(fg) = self.fg {
                         write!(f, "\x1b[{}m", fg.ansi_num() + 30)?;
                         reset = true;
