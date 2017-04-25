@@ -5,6 +5,7 @@ use libc;
 
 use term::Term;
 
+#[inline(always)]
 pub fn is_a_terminal() -> bool {
     unsafe {
         libc::isatty(libc::STDOUT_FILENO) == 1
@@ -29,7 +30,7 @@ pub fn terminal_size() -> Option<(u16, u16)> {
 
 pub fn move_cursor_down(out: &Term, n: usize) -> io::Result<()> {
     if n > 0 {
-        out.write_bytes(format!("\x1b[{}B", n).as_bytes())
+        out.write_str(&format!("\x1b[{}B", n))
     } else {
         Ok(())
     }
@@ -37,20 +38,20 @@ pub fn move_cursor_down(out: &Term, n: usize) -> io::Result<()> {
 
 pub fn move_cursor_up(out: &Term, n: usize) -> io::Result<()> {
     if n > 0 {
-        out.write_bytes(format!("\x1b[{}A", n).as_bytes())
+        out.write_str(&format!("\x1b[{}A", n))
     } else {
         Ok(())
     }
 }
 
 pub fn clear_line(out: &Term) -> io::Result<()> {
-    out.write_bytes(format!("\r\x1b[2K").as_bytes())
+    out.write_str(&format!("\r\x1b[2K"))
 }
 
 pub fn hide_cursor(out: &Term) -> io::Result<()> {
-    out.write_bytes(b"\x1b[?25l")
+    out.write_str("\x1b[?25l")
 }
 
 pub fn show_cursor(out: &Term) -> io::Result<()> {
-    out.write_bytes(b"\x1b[?25h")
+    out.write_str("\x1b[?25h")
 }

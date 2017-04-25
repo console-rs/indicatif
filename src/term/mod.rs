@@ -16,6 +16,7 @@ pub struct Term {
 
 impl Term {
     /// Return a new unbuffered terminal
+    #[inline(always)]
     pub fn stdout() -> Term {
         Term {
             target: TermTarget::Stdout,
@@ -24,6 +25,7 @@ impl Term {
     }
 
     /// Return a new unbuffered terminal to stderr
+    #[inline(always)]
     pub fn stderr() -> Term {
         Term {
             target: TermTarget::Stderr,
@@ -44,6 +46,14 @@ impl Term {
         Term {
             target: TermTarget::Stderr,
             buffer: Some(Mutex::new(vec![])),
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn write_str(&self, s: &str) -> io::Result<()> {
+        match self.buffer {
+            Some(ref buffer) => buffer.lock().write_all(s.as_bytes()),
+            None => self.write_through(s.as_bytes())
         }
     }
 
@@ -77,8 +87,22 @@ impl Term {
         Ok(())
     }
 
+    /// Checks if the terminal is indeed a terminal.
+    pub fn is_term(&self) -> bool {
+        is_a_terminal()
+    }
+
+    /// Returns the terminal size or gets sensible defaults
+    #[inline(always)]
+    pub fn size(&self) -> (u16, u16) {
+        self.size_checked().unwrap_or((24, 80))
+    }
+
     /// Returns the terminal size in rows and columns.
-    pub fn size(&self) -> Option<(u16, u16)> {
+    ///
+    /// If the size cannot be reliably determined None is returned.
+    #[inline(always)]
+    pub fn size_checked(&self) -> Option<(u16, u16)> {
         terminal_size()
     }
 
@@ -131,14 +155,6 @@ impl Term {
             }
         }
         Ok(())
-    }
-
-    #[doc(hidden)]
-    pub fn write_bytes(&self, bytes: &[u8]) -> io::Result<()> {
-        match self.buffer {
-            Some(ref buffer) => buffer.lock().write_all(bytes),
-            None => self.write_through(bytes)
-        }
     }
 }
 

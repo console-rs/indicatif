@@ -4,13 +4,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::BTreeSet;
 use std::borrow::Cow;
 
-use term::is_a_terminal;
+use term::Term;
 use regex::Regex;
 use unicode_width::UnicodeWidthStr;
 
 fn supports_styling() -> bool {
     (&env::var("CLICOLOR").unwrap_or("0".into()) != "0" &&
-     is_a_terminal()) ||
+     Term::stdout().is_term()) ||
     &env::var("CLICOLOR_FORCE").unwrap_or("0".into()) != "0"
 }
 
