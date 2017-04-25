@@ -1,11 +1,11 @@
 use std::io;
 use std::mem;
-use std::os::windows::io::AsRawHandle;
+use std::os::windows::io::{RawHandle, AsRawHandle};
 
 use winapi::{HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE,
              CONSOLE_SCREEN_BUFFER_INFO, COORD, SMALL_RECT};
 use kernel32::{GetStdHandle, GetConsoleScreenBufferInfo,
-               SetConsoleCursorPosition};
+               GetConsoleMode, SetConsoleCursorPosition};
 
 use term::Term;
 
@@ -21,7 +21,8 @@ pub fn is_a_terminal() -> bool {
 }
 
 pub fn terminal_size() -> Option<(u16, u16)> {
-    if let Some((_, csbi)) = get_console_screen_buffer_info(STD_OUTPUT_HANDLE) {
+    let hand = STD_OUTPUT_HANDLE as RawHandle;
+    if let Some((_, csbi)) = get_console_screen_buffer_info(hand) {
         Some(((csbi.srWindow.Right - csbi.srWindow.Left) as u16,
               (csbi.srWindow.Bottom - csbi.srWindow.Top) as u16))
     } else {
@@ -56,15 +57,15 @@ pub fn move_cursor_down(out: &Term, n: usize) -> io::Result<()> {
 pub fn clear_line(out: &Term) -> io::Result<()> {
     if let Some((hand, csbi)) = get_console_screen_buffer_info(out.as_raw_handle()) {
         out.write_bytes(format!("\r{0:width$}\r", "", width=
-            csbi.srWindow.Right - csbi.srWindow.Left).as_bytes())
+            (csbi.srWindow.Right - csbi.srWindow.Left) as usize).as_bytes())
     }
     Ok(())
 }
 
-fn get_console_screen_buffer_info(hand: HANDLE)
+fn get_console_screen_buffer_info(hand: RawHandle)
     -> Option<(HANDLE, CONSOLE_SCREEN_BUFFER_INFO)>
 {
-    let hand: HANDLE = unsafe { GetStdHandle(hand) };
+    let hand: HANDLE = unsafe { GetStdHandle(hand as HANDLE) };
     let mut csbi: CONSOLE_SCREEN_BUFFER_INFO = unsafe { mem::zeroed() };
     match unsafe { GetConsoleScreenBufferInfo(hand, &mut csbi) } {
         0 => None,

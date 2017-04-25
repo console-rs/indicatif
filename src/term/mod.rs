@@ -172,8 +172,8 @@ impl AsRawHandle for Term {
     fn as_raw_handle(&self) -> RawHandle {
         use winapi::{STD_OUTPUT_HANDLE, STD_ERROR_HANDLE};
         match self.target {
-            TermTarget::Stdout => STD_OUTPUT_HANDLE,
-            TermTarget::Stderr => STD_ERROR_HANDLE,
+            TermTarget::Stdout => STD_OUTPUT_HANDLE as RawHandle,
+            TermTarget::Stderr => STD_ERROR_HANDLE as RawHandle,
         }
     }
 }
