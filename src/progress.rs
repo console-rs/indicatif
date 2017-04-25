@@ -7,7 +7,7 @@ use std::sync::mpsc::{channel, Sender, Receiver};
 
 use parking_lot::RwLock;
 
-use term::{Term, terminal_size};
+use term::Term;
 use utils::expand_template;
 use ansistyle::{style, Styled, measure_text_width};
 
@@ -269,7 +269,7 @@ impl ProgressState {
         if let Some(width) = self.width {
             width as usize
         } else {
-            terminal_size().map(|x| x.1).unwrap_or(74) as usize
+            Term::stdout().size().1 as usize
         }
     }
 }
