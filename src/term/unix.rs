@@ -5,6 +5,9 @@ use libc;
 
 use term::Term;
 
+pub const DEFAULT_WIDTH: u16 = 80;
+
+
 #[inline(always)]
 pub fn is_a_terminal() -> bool {
     unsafe {
@@ -46,12 +49,4 @@ pub fn move_cursor_up(out: &Term, n: usize) -> io::Result<()> {
 
 pub fn clear_line(out: &Term) -> io::Result<()> {
     out.write_str(&format!("\r\x1b[2K"))
-}
-
-pub fn hide_cursor(out: &Term) -> io::Result<()> {
-    out.write_str("\x1b[?25l")
-}
-
-pub fn show_cursor(out: &Term) -> io::Result<()> {
-    out.write_str("\x1b[?25h")
 }

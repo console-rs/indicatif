@@ -1,6 +1,11 @@
 use std::io;
 use std::io::Write;
 
+#[cfg(unix)]
+use std::os::unix::io::{AsRawFd, RawFd};
+#[cfg(windows)]
+use std::os::windows::io::{AsRawHandle, RawHandle};
+
 use parking_lot::Mutex;
 
 enum TermTarget {
@@ -92,10 +97,10 @@ impl Term {
         is_a_terminal()
     }
 
-    /// Returns the terminal size or gets sensible defaults
+    /// Returns the terminal size or gets sensible defaults.
     #[inline(always)]
     pub fn size(&self) -> (u16, u16) {
-        self.size_checked().unwrap_or((24, 80))
+        self.size_checked().unwrap_or((24, DEFAULT_WIDTH))
     }
 
     /// Returns the terminal size in rows and columns.
@@ -114,15 +119,6 @@ impl Term {
     /// Moves the cursor down `n` lines
     pub fn move_cursor_down(&self, n: usize) -> io::Result<()> {
         move_cursor_down(self, n)
-    }
-
-    /// Shows or hides the cursor
-    pub fn show_cursor(&self, val: bool) -> io::Result<()> {
-        if val {
-            show_cursor(self)
-        } else {
-            hide_cursor(self)
-        }
     }
 
     /// Clears the current line.
@@ -159,6 +155,35 @@ impl Term {
 }
 
 #[cfg(unix)]
+impl AsRawFd for Term {
+
+    fn as_raw_fd(&self) -> RawFd {
+        use libc;
+        match self.target {
+            TermTarget::Stdout => libc::STDOUT_FILENO,
+            TermTarget::Stderr => libc::STDERR_FILENO,
+        }
+    }
+}
+
+#[cfg(windows)]
+impl AsRawHandle for Term {
+
+    fn as_raw_handle(&self) -> RawHandle {
+        use winapi::{STD_OUTPUT_HANDLE, STD_ERROR_HANDLE};
+        match self.target {
+            TermTarget::Stdout => STD_OUTPUT_HANDLE,
+            TermTarget::Stderr => STD_ERROR_HANDLE,
+        }
+    }
+}
+
+#[cfg(unix)]
 mod unix;
 #[cfg(unix)]
 pub use self::unix::*;
+
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+pub use self::windows::*;

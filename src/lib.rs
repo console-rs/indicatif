@@ -2,6 +2,8 @@
 //!
 //! Comes with progress bars and spinners currently.
 #[cfg(unix)] extern crate libc;
+#[cfg(windows)] extern crate winapi;
+#[cfg(windows)] extern crate kernel32;
 extern crate parking_lot;
 extern crate regex;
 #[macro_use] extern crate lazy_static;
