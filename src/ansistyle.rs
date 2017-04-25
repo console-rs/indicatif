@@ -232,5 +232,5 @@ impl_fmt!(UpperHex);
 #[test]
 fn test_text_width() {
     let s = style("foo").red().on_black().bold().force_styling(true).to_string();
-    assert_eq!(get_terminal_text_width(&s), 3);
+    assert_eq!(measure_text_width(&s), 3);
 }
