@@ -2,10 +2,11 @@ use std::io;
 use std::mem;
 use std::os::windows::io::{RawHandle, AsRawHandle};
 
-use winapi::{HANDLE, STD_OUTPUT_HANDLE,
+use winapi::{WCHAR, HANDLE, STD_OUTPUT_HANDLE,
              CONSOLE_SCREEN_BUFFER_INFO, COORD};
 use kernel32::{GetStdHandle, GetConsoleScreenBufferInfo,
-               GetConsoleMode, SetConsoleCursorPosition};
+               GetConsoleMode, SetConsoleCursorPosition,
+               FillConsoleOutputCharacter};
 
 use term::Term;
 
@@ -55,9 +56,17 @@ pub fn move_cursor_down(out: &Term, n: usize) -> io::Result<()> {
 }
 
 pub fn clear_line(out: &Term) -> io::Result<()> {
-    if let Some((_, csbi)) = get_console_screen_buffer_info(out.as_raw_handle()) {
-        out.write_str(&format!("\r{0:width$}\r", "", width=
-            (csbi.srWindow.Right - csbi.srWindow.Left) as usize))?;
+    if let Some((hand, csbi)) = get_console_screen_buffer_info(out.as_raw_handle()) {
+        unsafe {
+            let width = csbi.srWindow.Right - csbi.srWindow.Left;
+            let pos = COORD {
+                X: 0,
+                Y: csbi.dwCursorPosition.Y,
+            };
+            let mut written;
+            FillConsoleOutputCharacter(hand, b' ' as WCHAR,
+                                       width, pos, &mut written);
+        }
     }
     Ok(())
 }
