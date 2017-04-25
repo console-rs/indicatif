@@ -170,7 +170,8 @@ impl AsRawFd for Term {
 impl AsRawHandle for Term {
 
     fn as_raw_handle(&self) -> RawHandle {
-        use winapi::{GetStdHandle, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE};
+        use winapi::{STD_OUTPUT_HANDLE, STD_ERROR_HANDLE};
+        use kernel32::GetStdHandle;
         GetStdHandle(match self.target {
             TermTarget::Stdout => STD_OUTPUT_HANDLE,
             TermTarget::Stderr => STD_ERROR_HANDLE,

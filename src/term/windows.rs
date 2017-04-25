@@ -57,7 +57,7 @@ pub fn move_cursor_down(out: &Term, n: usize) -> io::Result<()> {
 pub fn clear_line(out: &Term) -> io::Result<()> {
     if let Some((hand, csbi)) = get_console_screen_buffer_info(out.as_raw_handle()) {
         out.write_str(&format!("\r{0:width$}\r", "", width=
-            (csbi.srWindow.Right - csbi.srWindow.Left) as usize))
+            (csbi.srWindow.Right - csbi.srWindow.Left) as usize))?;
     }
     Ok(())
 }
@@ -65,7 +65,6 @@ pub fn clear_line(out: &Term) -> io::Result<()> {
 fn get_console_screen_buffer_info(hand: HANDLE)
     -> Option<(HANDLE, CONSOLE_SCREEN_BUFFER_INFO)>
 {
-    let hand: HANDLE = unsafe { GetStdHandle(hand as HANDLE) };
     let mut csbi: CONSOLE_SCREEN_BUFFER_INFO = unsafe { mem::zeroed() };
     match unsafe { GetConsoleScreenBufferInfo(hand, &mut csbi) } {
         0 => None,
