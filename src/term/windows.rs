@@ -2,7 +2,7 @@ use std::io;
 use std::mem;
 use std::os::windows::io::{RawHandle, AsRawHandle};
 
-use winapi::{HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE,
+use winapi::{HANDLE, STD_OUTPUT_HANDLE,
              CONSOLE_SCREEN_BUFFER_INFO, COORD, SMALL_RECT};
 use kernel32::{GetStdHandle, GetConsoleScreenBufferInfo,
                GetConsoleMode, SetConsoleCursorPosition};
@@ -56,13 +56,13 @@ pub fn move_cursor_down(out: &Term, n: usize) -> io::Result<()> {
 
 pub fn clear_line(out: &Term) -> io::Result<()> {
     if let Some((hand, csbi)) = get_console_screen_buffer_info(out.as_raw_handle()) {
-        out.write_bytes(format!("\r{0:width$}\r", "", width=
-            (csbi.srWindow.Right - csbi.srWindow.Left) as usize).as_bytes())
+        out.write_str(&format!("\r{0:width$}\r", "", width=
+            (csbi.srWindow.Right - csbi.srWindow.Left) as usize))
     }
     Ok(())
 }
 
-fn get_console_screen_buffer_info(hand: RawHandle)
+fn get_console_screen_buffer_info(hand: HANDLE)
     -> Option<(HANDLE, CONSOLE_SCREEN_BUFFER_INFO)>
 {
     let hand: HANDLE = unsafe { GetStdHandle(hand as HANDLE) };
