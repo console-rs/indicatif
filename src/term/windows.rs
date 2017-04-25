@@ -2,11 +2,11 @@ use std::io;
 use std::mem;
 use std::os::windows::io::{RawHandle, AsRawHandle};
 
-use winapi::{WCHAR, HANDLE, STD_OUTPUT_HANDLE,
+use winapi::{HANDLE, STD_OUTPUT_HANDLE,
              CONSOLE_SCREEN_BUFFER_INFO, COORD};
 use kernel32::{GetStdHandle, GetConsoleScreenBufferInfo,
                GetConsoleMode, SetConsoleCursorPosition,
-               FillConsoleOutputCharacter};
+               FillConsoleOutputCharacterA};
 
 use term::Term;
 
@@ -64,8 +64,8 @@ pub fn clear_line(out: &Term) -> io::Result<()> {
                 Y: csbi.dwCursorPosition.Y,
             };
             let mut written;
-            FillConsoleOutputCharacter(hand, b' ' as WCHAR,
-                                       width, pos, &mut written);
+            FillConsoleOutputCharacterA(hand, b' ',
+                                        width, pos, &mut written);
         }
     }
     Ok(())
