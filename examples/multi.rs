@@ -13,8 +13,8 @@ fn main() {
     sty.bar_template = Cow::Owned(
         format!("  {}   {{msg}}\n {{wide_bar}} {{pos}}/{{len}}  ", style("{spinner}").blue()));
     sty.progress_styles = vec![
-        style('█').cyan(),
-        style('█').white(),
+        style('█'),
+        style('█'),
         style(' ')
     ];
 

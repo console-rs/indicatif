@@ -77,6 +77,7 @@ impl DrawTarget {
                    last_draw.is_none() ||
                    last_draw.unwrap().elapsed() > rate.unwrap() {
                     if let Some(ref last_state) = *last_state {
+                        //term.move_cursor_up(last_state.lines.len())?;
                         last_state.clear_term(term)?;
                     }
                     draw_state.draw_to_term(term)?;
@@ -309,9 +310,7 @@ impl ProgressBar {
 
     /// Overrides the stored style.
     pub fn set_style(&self, style: ProgressStyle) {
-        self.update_state(|mut state| {
-            state.style = style;
-        });
+        self.state.write().style = style;
     }
 
     /// Enables the spinner.
@@ -320,29 +319,27 @@ impl ProgressBar {
     /// bar with `new_spinner` but optionally a spinner can be added
     /// to a progress bar itself.
     pub fn enable_spinner(&self) {
-        self.update_state(|mut state| {
-            if state.tick == !0 {
-                state.tick = 0;
-            }
-        });
+        let mut state = self.state.write();
+        if state.tick == !0 {
+            state.tick = 0;
+        }
     }
 
     /// Disables a spinner.
     ///
     /// This should not be called if the progress bar is a spinner itself.
     pub fn disable_spinner(&self) {
-        self.update_state(|mut state| {
-            if state.tick != !0 {
-                state.tick = !0;
-            }
-        });
+        let mut state = self.state.write();
+        if state.tick != !0 {
+            state.tick = !0;
+        }
     }
 
     /// Manually ticks the spinner or progress bar.
     ///
     /// This automatically happens on any other change to a progress bar.
     pub fn tick(&self) {
-        self.update_state(|mut state| {
+        self.update_and_draw(|mut state| {
             if state.tick == !0 {
                 state.tick = 0;
             } else {
@@ -353,7 +350,7 @@ impl ProgressBar {
 
     /// Advances the position of a progress bar by delta.
     pub fn inc(&self, delta: u64) {
-        self.update_state(|mut state| {
+        self.update_and_draw(|mut state| {
             state.pos += delta;
             if state.tick != !0 {
                 state.tick += 1;
@@ -363,14 +360,14 @@ impl ProgressBar {
 
     /// Sets the position of the progress bar.
     pub fn set_position(&self, pos: u64) {
-        self.update_state(|mut state| {
+        self.update_and_draw(|mut state| {
             state.pos = pos;
         })
     }
 
     /// Sets the length of the progress bar.
     pub fn set_length(&self, len: u64) {
-        self.update_state(|mut state| {
+        self.update_and_draw(|mut state| {
             state.len = len;
         })
     }
@@ -378,7 +375,7 @@ impl ProgressBar {
     /// Sets the current message of the progress bar.
     pub fn set_message(&self, msg: &str) {
         let msg = msg.to_string();
-        self.update_state(|mut state| {
+        self.update_and_draw(|mut state| {
             state.message = msg;
         })
     }
@@ -386,7 +383,7 @@ impl ProgressBar {
     /// Finishes the progress bar and sets a message.
     pub fn finish_with_message(&self, msg: &str) {
         let msg = msg.to_string();
-        self.update_state(|mut state| {
+        self.update_and_draw(|mut state| {
             state.message = msg;
             state.pos = state.len;
             state.status = Status::DoneVisible;
@@ -395,7 +392,7 @@ impl ProgressBar {
 
     /// Finishes the progress bar and completely clears it.
     pub fn finish_and_clear(&self) {
-        self.update_state(|mut state| {
+        self.update_and_draw(|mut state| {
             state.pos = state.len;
             state.status = Status::DoneHidden;
         });
@@ -415,7 +412,7 @@ impl ProgressBar {
         self.state.write().draw_target = target;
     }
 
-    fn update_state<F: FnOnce(&mut ProgressState)>(&self, f: F) {
+    fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, f: F) {
         {
             let mut state = self.state.write();
             f(&mut state);
@@ -542,7 +539,7 @@ impl Drop for ProgressBar {
         if self.state.read().is_finished() {
             return;
         }
-        self.update_state(|mut state| {
+        self.update_and_draw(|mut state| {
             state.status = Status::DoneHidden;
         });
     }
