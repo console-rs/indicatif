@@ -63,7 +63,7 @@ pub fn clear_line(out: &Term) -> io::Result<()> {
                 X: 0,
                 Y: csbi.dwCursorPosition.Y,
             };
-            let mut written;
+            let mut written = 0;
             FillConsoleOutputCharacterA(hand, b' ' as CHAR,
                                         width as DWORD, pos, &mut written);
         }
