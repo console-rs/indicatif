@@ -9,6 +9,10 @@
 //! Progress bars are `Sync` and `Send` objects which means that they are
 //! internally locked and can be passed from thread to thread.
 //!
+//! Additionally a `MultiProgress` utility is provided that can manage
+//! rendering multiple progress bars at once (eg: for instance from
+//! multiple threads).
+//!
 //! Progress bars are manually advanced and by default draw to stdout.
 //! When you are done the progress bar can be finished either visibly
 //! (eg: the progress bar stays on the screen) or cleared (the progress
@@ -24,6 +28,50 @@
 //! }
 //! bar.finish();
 //! ```
+//!
+//! # Templates
+//!
+//! Progress bars can be styled with simple format strings similar to the
+//! ones in Rust itself.  The format for a placeholder is `{key:options}`
+//! where the `options` part is optional.  If provided the format is this:
+//!
+//! ```
+//! [<^]            for an optional alignment specification
+//! WIDTH           an optional width as positive integer
+//! !               an optional exclamation mark to enable truncation
+//! .STYLE          an optional dot separated style string
+//! /STYLE          an optional dot separated alternative style string
+//! ```
+//!
+//! For the style component see `Styled::from_dotted_str` for more
+//! information.
+//!
+//! Some examples for templates:
+//!
+//! ```
+//! [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}
+//! ```
+//!
+//! This sets a progress bar that is 40 characters wide and has cyan
+//! as primary style color and blue as alternative style color.
+//! Alternative styles are currently only used for progress bars.
+//!
+//! The following keys exist:
+//!
+//! * `bar`: renders a progress bar. By default 20 characters wide.  The
+//!   style string is used to color the elapsed part, the alternative
+//!   style is used for the bar that is yet to render.
+//! * `wide_bar`: like `bar` but always fills the remaining space.
+//! * `spinner`: renders the spinner (current tick char)
+//! * `msg`: renders the currently set message on the progress bar.
+//! * `pos`: renders the current position of the bar as integer
+//! * `len`: renders the total length of the bar as integer
+//! * `bytes`: renders the current position of the bar as bytes.
+//! * `total_bytes`: renders the total length of the bar as bytes.
+//! * `elapsed_precise`: renders the elapsed time as `HH:MM:SS`.
+//! * `elapased`: renders the elapsed time as `42s`, `1m` etc.
+//! * `eta_precise`: the remaining time (like `elapsed_precise`).
+//! * `eta`: the remaining time (like `elapsed`).
 //!
 //! The design of the progress bar can be altered with the integrated
 //! template functionality.
