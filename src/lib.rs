@@ -2,6 +2,12 @@
 //! interfaces that report progress to users.  It comes with various
 //! tools and utilities for formatting anything that indicates progress.
 //!
+//! Platform support:
+//!
+//! * Linux
+//! * OS X
+//! * Windows (colors require Windows 10)
+//!
 //! # Progress Bars and Spinners
 //!
 //! indicatif comes with a `ProgressBar` type that support both bounded
