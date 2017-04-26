@@ -112,7 +112,7 @@ impl Default for ProgressStyle {
         ProgressStyle {
             tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
             progress_chars: "██░".chars().collect(),
-            bar_template: Cow::Borrowed("{msg}\n{wide_bar} {pos}/{len}"),
+            bar_template: Cow::Borrowed("{wide_bar} {pos}/{len}"),
             spinner_template: Cow::Borrowed("{spinner} {msg}"),
         }
     }
@@ -307,7 +307,7 @@ impl ProgressBar {
                 message: "".into(),
                 pos: 0,
                 len: len,
-                tick: !0,
+                tick: 0,
                 status: Status::InProgress,
                 started: Instant::now(),
             }),
@@ -318,9 +318,7 @@ impl ProgressBar {
     ///
     /// This spinner by default draws directly to stdout.
     pub fn new_spinner() -> ProgressBar {
-        let rv = ProgressBar::new(!0);
-        rv.enable_spinner();
-        rv
+        ProgressBar::new(!0)
     }
 
     /// Overrides the stored style.
@@ -328,38 +326,12 @@ impl ProgressBar {
         self.state.write().style = style;
     }
 
-    /// Enables the spinner.
-    ///
-    /// This is obviously enabled by default if you create a progress
-    /// bar with `new_spinner` but optionally a spinner can be added
-    /// to a progress bar itself.
-    pub fn enable_spinner(&self) {
-        let mut state = self.state.write();
-        if state.tick == !0 {
-            state.tick = 0;
-        }
-    }
-
-    /// Disables a spinner.
-    ///
-    /// This should not be called if the progress bar is a spinner itself.
-    pub fn disable_spinner(&self) {
-        let mut state = self.state.write();
-        if state.tick != !0 {
-            state.tick = !0;
-        }
-    }
-
     /// Manually ticks the spinner or progress bar.
     ///
     /// This automatically happens on any other change to a progress bar.
     pub fn tick(&self) {
         self.update_and_draw(|mut state| {
-            if state.tick == !0 {
-                state.tick = 0;
-            } else {
-                state.tick += 1;
-            }
+            state.tick += 1;
         });
     }
 
@@ -367,9 +339,7 @@ impl ProgressBar {
     pub fn inc(&self, delta: u64) {
         self.update_and_draw(|mut state| {
             state.pos += delta;
-            if state.tick != !0 {
-                state.tick += 1;
-            }
+            state.tick += 1;
         })
     }
 
@@ -377,9 +347,7 @@ impl ProgressBar {
     pub fn set_position(&self, pos: u64) {
         self.update_and_draw(|mut state| {
             state.pos = pos;
-            if state.tick != !0 {
-                state.tick += 1;
-            }
+            state.tick += 1;
         })
     }
 
@@ -395,9 +363,7 @@ impl ProgressBar {
         let msg = msg.to_string();
         self.update_and_draw(|mut state| {
             state.message = msg;
-            if state.tick != !0 {
-                state.tick += 1;
-            }
+            state.tick += 1;
         })
     }
 

@@ -14,7 +14,6 @@ fn main() {
     sty.progress_chars = "##-".chars().collect();
 
     let pb = m.add(ProgressBar::new(128));
-    pb.enable_spinner();
     pb.set_style(sty.clone());
     let _ = thread::spawn(move || {
         for i in 0..128 {
@@ -26,7 +25,6 @@ fn main() {
     });
 
     let pb = m.add(ProgressBar::new(128));
-    pb.enable_spinner();
     pb.set_style(sty.clone());
     let _ = thread::spawn(move || {
         for _ in 0..3 {
@@ -41,7 +39,6 @@ fn main() {
     });
 
     let pb = m.add(ProgressBar::new(1024));
-    pb.enable_spinner();
     pb.set_style(sty.clone());
     let _ = thread::spawn(move || {
         for i in 0..1024 {

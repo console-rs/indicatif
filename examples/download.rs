@@ -16,7 +16,6 @@ fn main() {
     sty.bar_template = Cow::Borrowed("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes}");
     sty.progress_chars = "#>-".chars().collect();
     pb.set_style(sty);
-    pb.enable_spinner();
 
     while downloaded < total_size {
         let new = min(downloaded + 223211, total_size);
