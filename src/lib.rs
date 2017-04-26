@@ -48,7 +48,7 @@
 //!
 //! Some examples for templates:
 //!
-//! ```
+//! ```text
 //! [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}
 //! ```
 //!
@@ -74,13 +74,42 @@
 //! * `eta`: the remaining time (like `elapsed`).
 //!
 //! The design of the progress bar can be altered with the integrated
-//! template functionality.
+//! template functionality.  The template can be set by changing a
+//! `ProgressStyle` and attaching it to the progress bar.
 //!
-//! # Colors
+//! # Terminal Access
+//!
+//! The library provides a basic abstraction over working with terminals
+//! through the `Term` object.  For instance you can use it to move
+//! cursors or clear contents.
+//!
+//! # Colors and Styles
 //!
 //! `indicatif` uses `clicolors-control` to control colors.  It also
 //! provides higher level wrappers for styling text and other things
 //! that can be displayed with the `style` function.
+//!
+//! Example usage:
+//!
+//! ```
+//! use indicatif::style;
+//!
+//! println!("This is {} neat", style("fo").cyan());
+//! ```
+//!
+//! # Human Readable Formatting
+//!
+//! There are some formatting wrappers for showing elapsed time and
+//! file sizes for human users:
+//!
+//! ```ignore
+//! use std::time::Instant;
+//! use indicatif::{HumanDuration, HumanBytes};
+//!
+//! let started = Instant::now();
+//! println!("The file is {} large", HumanBytes(file.size));
+//! println!("The script took {}", HumanDuration(started.elapsed()));
+//! ```
 #[cfg(unix)] extern crate libc;
 #[cfg(windows)] extern crate winapi;
 #[cfg(windows)] extern crate kernel32;
