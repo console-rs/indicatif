@@ -2,16 +2,14 @@ extern crate indicatif;
 
 use std::thread;
 use std::time::Duration;
-use std::borrow::Cow;
 
 use indicatif::{ProgressBar, MultiProgress, ProgressStyle};
 
 fn main() {
     let mut m = MultiProgress::new();
-    let mut sty = ProgressStyle::default();
-    sty.tick_chars = "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect();
-    sty.bar_template = Cow::Borrowed("{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}");
-    sty.progress_chars = "##-".chars().collect();
+    let sty = ProgressStyle::default_bar()
+        .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+        .progress_chars("##-");
 
     let pb = m.add(ProgressBar::new(128));
     pb.set_style(sty.clone());

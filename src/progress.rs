@@ -15,10 +15,9 @@ use ansistyle::{style, measure_text_width};
 /// Controls the rendering style of progress bars.
 #[derive(Clone)]
 pub struct ProgressStyle {
-    pub tick_chars: Vec<char>,
-    pub progress_chars: Vec<char>,
-    pub bar_template: Cow<'static, str>,
-    pub spinner_template: Cow<'static, str>,
+    tick_chars: Vec<char>,
+    progress_chars: Vec<char>,
+    template: Cow<'static, str>,
 }
 
 /// The drawn state of an element.
@@ -107,14 +106,41 @@ impl DrawState {
     }
 }
 
-impl Default for ProgressStyle {
-    fn default() -> ProgressStyle {
+impl ProgressStyle {
+    /// Returns the default progress bar style for bars.
+    pub fn default_bar() -> ProgressStyle {
         ProgressStyle {
             tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
             progress_chars: "██░".chars().collect(),
-            bar_template: Cow::Borrowed("{wide_bar} {pos}/{len}"),
-            spinner_template: Cow::Borrowed("{spinner} {msg}"),
+            template: Cow::Borrowed("{wide_bar} {pos}/{len}"),
         }
+    }
+
+    /// Returns the default progress bar style for spinners.
+    pub fn default_spinner() -> ProgressStyle {
+        ProgressStyle {
+            tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
+            progress_chars: "██░".chars().collect(),
+            template: Cow::Borrowed("{spinner} {msg}"),
+        }
+    }
+
+    /// Sets the tick character sequence for spinners.
+    pub fn tick_chars(mut self, s: &str) -> ProgressStyle {
+        self.tick_chars = s.chars().collect();
+        self
+    }
+
+    /// Sets the three progress characters `(filled, current, to do)`.
+    pub fn progress_chars(mut self, s: &str) -> ProgressStyle {
+        self.progress_chars = s.chars().collect();
+        self
+    }
+
+    /// Sets the template string for the progress bar.
+    pub fn template(mut self, s: &str) -> ProgressStyle {
+        self.template = Cow::Owned(s.into());
+        self
     }
 }
 
@@ -156,13 +182,7 @@ impl ProgressStyle {
         let (pos, len) = state.position();
         let mut rv = vec![];
 
-        let tmpl = if state.has_progress() {
-            &self.bar_template
-        } else {
-            &self.spinner_template
-        };
-
-        for line in tmpl.lines() {
+        for line in self.template.lines() {
             let need_wide_bar = RefCell::new(None);
 
             let s = expand_template(line, |var| {
@@ -321,7 +341,7 @@ impl ProgressBar {
     pub fn new(len: u64) -> ProgressBar {
         ProgressBar {
             state: RwLock::new(ProgressState {
-                style: Default::default(),
+                style: ProgressStyle::default_bar(),
                 draw_target: DrawTarget::stdout(),
                 width: None,
                 message: "".into(),
@@ -337,9 +357,12 @@ impl ProgressBar {
 
     /// Creates a new spinner.
     ///
-    /// This spinner by default draws directly to stdout.
+    /// This spinner by default draws directly to stdout.  This adds the
+    /// default spinner style to it.
     pub fn new_spinner() -> ProgressBar {
-        ProgressBar::new(!0)
+        let rv = ProgressBar::new(!0);
+        rv.set_style(ProgressStyle::default_spinner());
+        rv
     }
 
     /// Overrides the stored style.
