@@ -334,6 +334,8 @@ pub struct ProgressBar {
     state: RwLock<ProgressState>,
 }
 
+unsafe impl Sync for ProgressBar {}
+
 impl ProgressBar {
     /// Creates a new progress bar with a given length.
     ///
@@ -481,29 +483,42 @@ impl ProgressBar {
 }
 
 
+struct MultiObject {
+    done: bool,
+    draw_state: Option<DrawState>,
+}
+
+struct MultiProgressState {
+    objects: Vec<MultiObject>,
+    draw_target: DrawTarget,
+}
+
 /// Manages multiple progress bars from different threads.
 pub struct MultiProgress {
-    objects: usize,
-    draw_target: DrawTarget,
+    state: RwLock<MultiProgressState>,
     tx: Sender<(usize, DrawState)>,
     rx: Receiver<(usize, DrawState)>,
 }
+
+unsafe impl Sync for MultiProgress {}
 
 impl MultiProgress {
     /// Creates a new multi progress object that draws to stdout.
     pub fn new() -> MultiProgress {
         let (tx, rx) = channel();
         MultiProgress {
-            objects: 0,
-            draw_target: DrawTarget::stdout(),
+            state: RwLock::new(MultiProgressState {
+                objects: vec![],
+                draw_target: DrawTarget::stdout(),
+            }),
             tx: tx,
             rx: rx,
         }
     }
 
     /// Sets a different draw target for the multiprogress bar.
-    pub fn set_draw_target(&mut self, target: DrawTarget) {
-        self.draw_target = target;
+    pub fn set_draw_target(&self, target: DrawTarget) {
+        self.state.write().draw_target = target;
     }
 
     /// Adds a progress bar.
@@ -511,10 +526,14 @@ impl MultiProgress {
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
     /// object.
-    pub fn add(&mut self, bar: ProgressBar) -> ProgressBar {
-        bar.set_draw_target(DrawTarget::Remote(self.objects,
-                                               self.tx.clone()));
-        self.objects += 1;
+    pub fn add(&self, bar: ProgressBar) -> ProgressBar {
+        let mut state = self.state.write();
+        let idx = state.objects.len();
+        state.objects.push(MultiObject {
+            done: false,
+            draw_state: None,
+        });
+        bar.set_draw_target(DrawTarget::Remote(idx, self.tx.clone()));
         bar
     }
 
@@ -523,50 +542,59 @@ impl MultiProgress {
     /// You need to call this as this will request the draw instructions
     /// from the remote progress bars.  Not calling this will deadlock
     /// your program.
-    pub fn join(self) -> io::Result<()> {
+    pub fn join(&self) -> io::Result<()> {
         self.join_impl(false)
     }
 
     /// Works like `join` but clears the progress bar in the end.
-    pub fn join_and_clear(self) -> io::Result<()> {
+    pub fn join_and_clear(&self) -> io::Result<()> {
         self.join_impl(true)
     }
 
-    fn join_impl(mut self, clear: bool) -> io::Result<()> {
-        if self.objects == 0 {
-            return Ok(());
+    fn is_done(&self) -> bool {
+        let state = self.state.read();
+        if state.objects.is_empty() {
+            return true;
         }
+        for obj in &state.objects {
+            if !obj.done {
+                return false;
+            }
+        }
+        true
+    }
 
-        let mut outstanding = repeat(true).take(self.objects as usize).collect::<Vec<_>>();
-        let mut draw_states: Vec<Option<DrawState>> = outstanding.iter().map(|_| None).collect();
-
-        while outstanding.iter().any(|&x| x) {
+    fn join_impl(&self, clear: bool) -> io::Result<()> {
+        while !self.is_done() {
             let (idx, draw_state) = self.rx.recv().unwrap();
             let ts = draw_state.ts;
             let force_draw = draw_state.finished || draw_state.force_draw;
 
+            let mut state = self.state.write();
             if draw_state.finished {
-                outstanding[idx] = false;
+                state.objects[idx].done = true;
             }
-            draw_states[idx] = Some(draw_state);
+            state.objects[idx].draw_state = Some(draw_state);
 
             let mut lines = vec![];
-            for draw_state_opt in draw_states.iter() {
-                if let Some(ref draw_state) = *draw_state_opt {
+            for obj in state.objects.iter() {
+                if let Some(ref draw_state) = obj.draw_state {
                     lines.extend_from_slice(&draw_state.lines[..]);
                 }
             }
 
-            self.draw_target.apply_draw_state(DrawState {
+            let finished = !state.objects.iter().any(|ref x| x.done);
+            state.draw_target.apply_draw_state(DrawState {
                 lines: lines,
                 force_draw: force_draw,
-                finished: !outstanding.iter().any(|&x| x),
+                finished: finished,
                 ts: ts,
             })?;
         }
 
         if clear {
-            self.draw_target.apply_draw_state(DrawState {
+            let mut state = self.state.write();
+            state.draw_target.apply_draw_state(DrawState {
                 lines: vec![],
                 finished: true,
                 force_draw: true,
