@@ -14,6 +14,7 @@ mod term;
 mod progress;
 mod utils;
 mod ansistyle;
+mod format;
 
 pub use progress::{ProgressBar, MultiProgress, ProgressState, DrawState,
                    DrawTarget, ProgressStyle};
