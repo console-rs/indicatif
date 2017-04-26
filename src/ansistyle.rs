@@ -4,7 +4,32 @@ use std::borrow::Cow;
 
 use regex::Regex;
 use unicode_width::UnicodeWidthStr;
-use clicolors_control::colors_enabled;
+use clicolors_control;
+
+/// Returns `true` if colors should be enabled.
+///
+/// This honors the [clicolors spec](http://bixense.com/clicolors/).
+///
+/// * `CLICOLOR != 0`: ANSI colors are supported and should be used when the program isn't piped.
+/// * `CLICOLOR == 0`: Don't output ANSI color escape codes.
+/// * `CLICOLOR_FORCE != 0`: ANSI colors should be enabled no matter what.
+///
+/// This internally uses `clicolors-control`.
+#[inline(always)]
+pub fn colors_enabled() -> bool {
+    clicolors_control::colors_enabled()
+}
+
+/// Forces colorization on or off.
+///
+/// This overrides the default for the current process and changes the return value of the
+/// `colors_enabled` function.
+///
+/// This internally uses `clicolors-control`.
+#[inline(always)]
+pub fn set_colors_enabled(val: bool) {
+    clicolors_control::set_colors_enabled(val)
+}
 
 /// Helper function to strip ansi codes.
 pub fn strip_ansi_codes(s: &str) -> Cow<str> {

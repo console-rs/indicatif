@@ -411,6 +411,14 @@ impl ProgressBar {
         })
     }
 
+    /// Finishes the progress bar and leaves the current message.
+    pub fn finish(&self) {
+        self.update_and_draw(|mut state| {
+            state.pos = state.len;
+            state.status = Status::DoneVisible;
+        });
+    }
+
     /// Finishes the progress bar and sets a message.
     pub fn finish_with_message(&self, msg: &str) {
         let msg = msg.to_string();
