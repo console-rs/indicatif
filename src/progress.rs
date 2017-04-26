@@ -8,7 +8,7 @@ use std::sync::mpsc::{channel, Sender, Receiver};
 use parking_lot::RwLock;
 
 use term::Term;
-use utils::expand_template;
+use utils::{expand_template, Estimate, duration_to_secs, secs_to_duration};
 use format::{FormattedDuration, HumanDuration, HumanBytes};
 use ansistyle::{style, measure_text_width};
 
@@ -190,6 +190,10 @@ impl ProgressStyle {
                     format!("{}", FormattedDuration(state.started.elapsed()))
                 } else if key == "elapsed" {
                     format!("{:#}", HumanDuration(state.started.elapsed()))
+                } else if key == "eta_precise" {
+                    format!("{}", FormattedDuration(state.eta()))
+                } else if key == "eta" {
+                    format!("{:#}", HumanDuration(state.eta()))
                 } else {
                     "".into()
                 }
@@ -219,6 +223,7 @@ pub struct ProgressState {
     tick: u64,
     status: Status,
     started: Instant,
+    est: Estimate,
 }
 
 impl ProgressState {
@@ -287,6 +292,21 @@ impl ProgressState {
             Term::stdout().size().1 as usize
         }
     }
+
+    /// Return the current average time per step
+    pub fn avg_time_per_step(&self) -> Duration {
+        self.est.time_per_step()
+    }
+
+    /// The expected ETA
+    pub fn eta(&self) -> Duration {
+        if self.len == !0 || self.is_finished() {
+            return Duration::new(0, 0);
+        }
+        let t = duration_to_secs(self.avg_time_per_step());
+        // add 0.75 to leave 0.25 sec of 0s for the user
+        secs_to_duration(t * (self.len - self.pos) as f64 + 0.75)
+    }
 }
 
 /// A progress bar or spinner.
@@ -310,6 +330,7 @@ impl ProgressBar {
                 tick: 0,
                 status: Status::InProgress,
                 started: Instant::now(),
+                est: Estimate::new(),
             }),
         }
     }
@@ -402,7 +423,12 @@ impl ProgressBar {
     fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, f: F) {
         {
             let mut state = self.state.write();
+            let old_pos = state.pos;
             f(&mut state);
+            let new_pos = state.pos;
+            if new_pos != old_pos {
+                state.est.record_step(new_pos);
+            }
         }
         self.draw().ok();
     }

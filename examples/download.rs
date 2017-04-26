@@ -13,7 +13,7 @@ fn main() {
 
     let pb = ProgressBar::new(total_size);
     let mut sty = ProgressStyle::default();
-    sty.bar_template = Cow::Borrowed("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes}");
+    sty.bar_template = Cow::Borrowed("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})");
     sty.progress_chars = "#>-".chars().collect();
     pb.set_style(sty);
 

@@ -1,9 +1,62 @@
 use std::borrow::Cow;
+use std::time::{Instant, Duration};
 
 use regex::{Regex, Captures};
 
 use ansistyle::{style, measure_text_width};
 
+
+pub fn duration_to_secs(d: Duration) -> f64 {
+    d.as_secs() as f64 + d.subsec_nanos() as f64 / 1_000_000_000f64
+}
+
+pub fn secs_to_duration(s: f64) -> Duration {
+    let secs = s.trunc() as u64;
+    let nanos = (s.fract() * 1_000_000_000f64) as u32;
+    Duration::new(secs, nanos)
+}
+
+
+pub struct Estimate {
+    buf: Vec<f64>,
+    buf_cap: usize,
+    last_idx: usize,
+    started: Instant,
+}
+
+impl Estimate {
+    pub fn new() -> Estimate {
+        Estimate {
+            buf: vec![],
+            buf_cap: 10,
+            last_idx: 0,
+            started: Instant::now(),
+        }
+    }
+
+    pub fn record_step(&mut self, value: u64) {
+        let item = if value == 0 {
+            0.0
+        } else {
+            duration_to_secs(self.started.elapsed()) / value as f64
+        };
+        if self.buf.len() >= self.buf_cap {
+            let idx = self.last_idx % self.buf.len();
+            self.buf[idx] = item;
+        } else {
+            self.buf.push(item);
+        }
+        self.last_idx += 1;
+    }
+
+    pub fn time_per_step(&self) -> Duration {
+        if self.buf.is_empty() {
+            Duration::new(0, 0)
+        } else {
+            secs_to_duration(self.buf.iter().sum::<f64>() / self.buf.len() as f64)
+        }
+    }
+}
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub enum Alignment {
@@ -140,8 +193,8 @@ fn test_expand_template_flags() {
 
     let rv = expand_template("{foo:.red.on_blue}", |var| {
         assert_eq!(var.key, "foo");
-        assert_eq!(var.width, Some(5));
-        assert_eq!(var.align, Alignment::Center);
+        assert_eq!(var.width, None);
+        assert_eq!(var.align, Alignment::Left);
         assert_eq!(var.style, Some("red.on_blue"));
         "XXX".into()
     });
@@ -165,4 +218,11 @@ fn test_expand_template_flags() {
         "XXX".into()
     });
     assert_eq!(&rv, "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
+}
+
+#[test]
+fn test_duration_stuff() {
+    let duration = Duration::new(42, 100_000_000);
+    let secs = duration_to_secs(duration);
+    assert_eq!(secs_to_duration(secs), duration);
 }

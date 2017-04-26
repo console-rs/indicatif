@@ -21,3 +21,4 @@ pub use progress::{ProgressBar, MultiProgress, ProgressState, DrawState,
 pub use term::Term;
 pub use ansistyle::{style, Styled, Color, Style,
                     strip_ansi_codes, measure_text_width};
+pub use format::{HumanDuration, FormattedDuration, HumanBytes};
