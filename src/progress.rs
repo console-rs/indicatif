@@ -9,13 +9,13 @@ use parking_lot::RwLock;
 
 use term::Term;
 use utils::expand_template;
-use ansistyle::{style, Styled, measure_text_width};
+use ansistyle::{style, measure_text_width};
 
 /// Controls the rendering style of progress bars.
 #[derive(Clone)]
 pub struct ProgressStyle {
     pub tick_chars: Vec<char>,
-    pub progress_styles: Vec<Styled<char>>,
+    pub progress_chars: Vec<char>,
     pub bar_template: Cow<'static, str>,
     pub spinner_template: Cow<'static, str>,
 }
@@ -77,7 +77,6 @@ impl DrawTarget {
                    last_draw.is_none() ||
                    last_draw.unwrap().elapsed() > rate.unwrap() {
                     if let Some(ref last_state) = *last_state {
-                        //term.move_cursor_up(last_state.lines.len())?;
                         last_state.clear_term(term)?;
                     }
                     draw_state.draw_to_term(term)?;
@@ -111,11 +110,7 @@ impl Default for ProgressStyle {
     fn default() -> ProgressStyle {
         ProgressStyle {
             tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
-            progress_styles: vec![
-                style('█'),
-                style('█'),
-                style('░')
-            ],
+            progress_chars: "██░".chars().collect(),
             bar_template: Cow::Borrowed("{msg}\n{wide_bar} {pos}/{len}"),
             spinner_template: Cow::Borrowed("{spinner} {msg}"),
         }
@@ -134,7 +129,8 @@ impl ProgressStyle {
         self.tick_chars[self.tick_chars.len() - 1]
     }
 
-    pub fn format_bar(&self, state: &ProgressState, width: usize) -> String {
+    fn format_bar(&self, state: &ProgressState, width: usize,
+                      alt_style: &str) -> String {
         let pct = state.percent();
         let mut fill = (pct * width as f32) as usize;
         let mut head = 0;
@@ -143,32 +139,40 @@ impl ProgressStyle {
             head = 1;
         }
 
-        let bar = repeat(state.style.progress_styles[0].to_string())
+        let bar = repeat(state.style.progress_chars[0])
             .take(fill).collect::<String>();
         let cur = if head == 1 {
-            state.style.progress_styles[1].to_string()
+            state.style.progress_chars[1].to_string()
         } else {
             "".into()
         };
-        let rest = repeat(state.style.progress_styles[2].to_string())
+        let rest = repeat(state.style.progress_chars[2])
             .take(width - fill - head).collect::<String>();
-        format!("{}{}{}", bar, cur, rest)
+        format!("{}{}{}", bar, cur, style(rest).from_dotted_str(alt_style))
     }
 
     pub fn format_state(&self, state: &ProgressState) -> Vec<String> {
         let (pos, len) = state.position();
         let mut rv = vec![];
 
-        for line in self.bar_template.lines() {
-            let need_wide_bar = RefCell::new(false);
+        let tmpl = if state.has_progress() {
+            &self.bar_template
+        } else {
+            &self.spinner_template
+        };
 
-            let s = expand_template(line, |key| {
+        for line in tmpl.lines() {
+            let need_wide_bar = RefCell::new(None);
+
+            let s = expand_template(line, |var| {
+                let key = var.key;
                 if key == "wide_bar" {
-                    *need_wide_bar.borrow_mut() = true;
+                    *need_wide_bar.borrow_mut() = Some(
+                        var.alt_style.unwrap_or("").to_string());
                     "\x00".into()
                 } else if key == "bar" {
-                    // XXX: width?
-                    self.format_bar(state, 20)
+                    self.format_bar(state, var.width.unwrap_or(20),
+                                    var.alt_style.unwrap_or(""))
                 } else if key == "spinner" {
                     state.current_tick_char().to_string()
                 } else if key == "msg" {
@@ -182,10 +186,10 @@ impl ProgressStyle {
                 }
             });
 
-            rv.push(if *need_wide_bar.borrow() {
+            rv.push(if let Some(ref style) = *need_wide_bar.borrow() {
                 let total_width = state.width();
                 let bar_width = total_width - measure_text_width(&s);
-                s.replace("\x00", &self.format_bar(state, bar_width))
+                s.replace("\x00", &self.format_bar(state, bar_width, &style))
             } else {
                 s.to_string()
             });
@@ -377,6 +381,9 @@ impl ProgressBar {
         let msg = msg.to_string();
         self.update_and_draw(|mut state| {
             state.message = msg;
+            if state.tick != !0 {
+                state.tick += 1;
+            }
         })
     }
 

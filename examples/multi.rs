@@ -4,19 +4,13 @@ use std::thread;
 use std::time::Duration;
 use std::borrow::Cow;
 
-use indicatif::{ProgressBar, MultiProgress, ProgressStyle, style};
+use indicatif::{ProgressBar, MultiProgress, ProgressStyle};
 
 fn main() {
     let mut m = MultiProgress::new();
     let mut sty = ProgressStyle::default();
-    sty.tick_chars = "■□▪▫ ".chars().collect();
-    sty.bar_template = Cow::Owned(
-        format!("  {}   {{msg}}\n {{wide_bar}} {{pos}}/{{len}}  ", style("{spinner}").blue()));
-    sty.progress_styles = vec![
-        style('█'),
-        style('█'),
-        style(' ')
-    ];
+    sty.tick_chars = "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect();
+    sty.bar_template = Cow::Borrowed("{spinner:.cyan} {msg}\n {wide_bar:.cyan/blue} {pos}/{len}");
 
     let pb = m.add(ProgressBar::new(128));
     pb.enable_spinner();
@@ -53,6 +47,16 @@ fn main() {
             pb.set_message(&format!("item #{}", i + 1));
             pb.inc(1);
             thread::sleep(Duration::from_millis(2));
+        }
+        pb.finish_with_message("done");
+    });
+
+    let pb = m.add(ProgressBar::new_spinner());
+    pb.set_style(sty);
+    let _ = thread::spawn(move || {
+        for i in 0..512 {
+            pb.set_message(&format!("item #{}", i + 1));
+            thread::sleep(Duration::from_millis(4));
         }
         pb.finish_with_message("done");
     });

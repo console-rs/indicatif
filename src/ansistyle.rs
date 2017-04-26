@@ -155,6 +155,38 @@ impl<D> Styled<D> {
     #[inline(always)] pub fn blink(self) -> Styled<D> { self.style(Style::Blink) }
     #[inline(always)] pub fn reverse(self) -> Styled<D> { self.style(Style::Reverse) }
     #[inline(always)] pub fn hidden(self) -> Styled<D> { self.style(Style::Hidden) }
+
+    pub fn from_dotted_str(self, s: &str) -> Styled<D> {
+        let mut rv = self;
+        for part in s.split('.') {
+            rv = match part {
+                "black" => rv.black(),
+                "red" => rv.red(),
+                "green" => rv.green(),
+                "yellow" => rv.yellow(),
+                "blue" => rv.blue(),
+                "magenta" => rv.magenta(),
+                "cyan" => rv.cyan(),
+                "white" => rv.white(),
+                "on_black" => rv.on_black(),
+                "on_red" => rv.on_red(),
+                "on_green" => rv.on_green(),
+                "on_yellow" => rv.on_yellow(),
+                "on_blue" => rv.on_blue(),
+                "on_magenta" => rv.on_magenta(),
+                "on_cyan" => rv.on_cyan(),
+                "on_white" => rv.on_white(),
+                "bold" => rv.bold(),
+                "dim" => rv.dim(),
+                "underlined" => rv.underlined(),
+                "blink" => rv.blink(),
+                "reverse" => rv.reverse(),
+                "hidden" => rv.hidden(),
+                _ => { continue; }
+            };
+        }
+        rv
+    }
 }
 
 macro_rules! impl_fmt {
