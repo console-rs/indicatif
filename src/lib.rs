@@ -36,7 +36,7 @@
 //! where the `options` part is optional.  If provided the format is this:
 //!
 //! ```
-//! [<^]            for an optional alignment specification
+//! [<^>]           for an optional alignment specification
 //! WIDTH           an optional width as positive integer
 //! !               an optional exclamation mark to enable truncation
 //! .STYLE          an optional dot separated style string
