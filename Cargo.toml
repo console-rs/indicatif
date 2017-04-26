@@ -1,7 +1,13 @@
 [package]
 name = "indicatif"
+description = "A progress bar and cli reporting library for Rust"
 version = "0.1.0"
+keywords = ["cli", "progress", "pb", "colors", "progressbar"]
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
+license = "MIT"
+homepage = "https://github.com/mitsuhiko/indicatif"
+documentation = "https://docs.rs/indicatif"
+readme = "README.md"
 
 [dependencies]
 libc = "0"
