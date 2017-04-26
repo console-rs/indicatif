@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::time::Duration;
 
 use regex::{Regex, Captures};
 
@@ -119,6 +120,22 @@ pub fn pad_str<'a>(s: &'a str, width: usize,
         rv.push(' ');
     }
     Cow::Owned(rv)
+}
+
+pub fn format_duration(dur: Duration) -> String {
+    let mut t = dur.as_secs();
+    let seconds = t % 60;
+    t /= 60;
+    let minutes = t % 60;
+    t /= 60;
+    let hours = t % 24;
+    t /= 24;
+    if t > 0 {
+        let days = t;
+        format!("{}d {:02}:{:02}:{:02}", days, hours, minutes, seconds)
+    } else {
+        format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
+    }
 }
 
 #[test]

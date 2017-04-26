@@ -8,7 +8,7 @@ use std::sync::mpsc::{channel, Sender, Receiver};
 use parking_lot::RwLock;
 
 use term::Term;
-use utils::expand_template;
+use utils::{expand_template, format_duration};
 use ansistyle::{style, measure_text_width};
 
 /// Controls the rendering style of progress bars.
@@ -181,6 +181,8 @@ impl ProgressStyle {
                     pos.to_string()
                 } else if key == "len" {
                     len.to_string()
+                } else if key == "elapsed" {
+                    format_duration(state.started.elapsed())
                 } else {
                     "".into()
                 }
@@ -209,6 +211,7 @@ pub struct ProgressState {
     len: u64,
     tick: u64,
     status: Status,
+    started: Instant,
 }
 
 impl ProgressState {
@@ -299,6 +302,7 @@ impl ProgressBar {
                 len: len,
                 tick: !0,
                 status: Status::InProgress,
+                started: Instant::now(),
             }),
         }
     }
