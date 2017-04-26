@@ -181,6 +181,12 @@ impl<D> Styled<D> {
     #[inline(always)] pub fn reverse(self) -> Styled<D> { self.style(Style::Reverse) }
     #[inline(always)] pub fn hidden(self) -> Styled<D> { self.style(Style::Hidden) }
 
+    /// Applies styles from a dotted string.
+    ///
+    /// Effectively the string is split at each dot and then the
+    /// terms in between are applied.  For instance `red.on_blue` will
+    /// create a string that is red on blue background.  Unknown terms
+    /// are ignored.
     pub fn from_dotted_str(self, s: &str) -> Styled<D> {
         let mut rv = self;
         for part in s.split('.') {

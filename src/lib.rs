@@ -75,6 +75,12 @@
 //!
 //! The design of the progress bar can be altered with the integrated
 //! template functionality.
+//!
+//! # Colors
+//!
+//! `indicatif` uses `clicolors-control` to control colors.  It also
+//! provides higher level wrappers for styling text and other things
+//! that can be displayed with the `style` function.
 #[cfg(unix)] extern crate libc;
 #[cfg(windows)] extern crate winapi;
 #[cfg(windows)] extern crate kernel32;
