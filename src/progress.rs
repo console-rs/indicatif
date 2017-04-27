@@ -280,6 +280,17 @@ impl ProgressState {
         self.len != !0
     }
 
+    /// Indicates that this progress bar is completely hidden.
+    pub fn is_hidden(&self) -> bool {
+        if let Status::DoneHidden = self.status {
+            true
+        } else if let DrawTarget::Hidden = self.draw_target {
+            true
+        } else {
+            false
+        }
+    }
+
     /// Indicates that the progress bar finished.
     pub fn is_finished(&self) -> bool {
         match self.status {
@@ -507,6 +518,9 @@ impl ProgressBar {
 
     fn draw(&self) -> io::Result<()> {
         let mut state = self.state.write();
+        if state.is_hidden() {
+            return Ok(());
+        }
         let draw_state = DrawState {
             lines: if state.should_render() {
                 state.style.format_state(&*state)
