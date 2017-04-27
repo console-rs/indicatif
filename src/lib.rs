@@ -37,6 +37,10 @@
 //! rendering multiple progress bars at once (eg: for instance from
 //! multiple threads).
 //!
+//! To wet your appetite, this is what this can look like:
+//!
+//! <img src="https://github.com/mitsuhiko/indicatif/raw/master/screenshots/yarn.gif?raw=true" width="60%">
+//!
 //! Progress bars are manually advanced and by default draw to stdout.
 //! When you are done the progress bar can be finished either visibly
 //! (eg: the progress bar stays on the screen) or cleared (the progress
