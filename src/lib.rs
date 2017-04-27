@@ -29,7 +29,7 @@
 //!
 //! let bar = ProgressBar::new(1000);
 //! for _ in 0..1000 {
-//!     bar.inc();
+//!     bar.inc(1);
 //!     // ...
 //! }
 //! bar.finish();
@@ -41,7 +41,7 @@
 //! ones in Rust itself.  The format for a placeholder is `{key:options}`
 //! where the `options` part is optional.  If provided the format is this:
 //!
-//! ```
+//! ```text
 //! [<^>]           for an optional alignment specification
 //! WIDTH           an optional width as positive integer
 //! !               an optional exclamation mark to enable truncation
