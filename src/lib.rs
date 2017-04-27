@@ -150,7 +150,7 @@ mod utils;
 mod ansistyle;
 mod format;
 
-pub use progress::{ProgressBar, MultiProgress, ProgressState,
+pub use progress::{ProgressBar, MultiProgress,
                    ProgressDrawTarget, ProgressStyle};
 pub use term::{Term, user_attended};
 pub use ansistyle::{style, Style, StyledObject, Color, Attribute,

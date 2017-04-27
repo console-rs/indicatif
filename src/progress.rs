@@ -40,23 +40,44 @@ enum Status {
     DoneHidden,
 }
 
-/// Target for draw operations
 enum ProgressDrawTargetKind {
-    /// Draws into a terminal
     Term(Term, Option<ProgressDrawState>, Option<Duration>),
-    /// Draws to a remote receiver
     Remote(usize, Sender<(usize, ProgressDrawState)>),
-    /// Do not draw at all
     Hidden,
 }
 
 /// Target for draw operations
+///
+/// This tells a progress bar or a multi progress object where to paint to.
+/// The draw target is a stateful wrapper over a drawing destination and
+/// internally optimizes how often the state is painted to the output
+/// device.
 pub struct ProgressDrawTarget {
     kind: ProgressDrawTargetKind,
 }
 
 impl ProgressDrawTarget {
-    /// Draw to a terminal, optionally with a refresh rate.
+    /// Draw to a buffered stdout terminal at a max of 15 times a second.
+    ///
+    /// This is the default draw target for progress bars.  For more
+    /// information see `ProgressDrawTarget::to_term`.
+    pub fn stdout() -> ProgressDrawTarget {
+        ProgressDrawTarget::to_term(Term::buffered_stdout(), Some(15))
+    }
+
+    /// Draw to a buffered stderr terminal at a max of 15 times a second.
+    ///
+    /// For more information see `ProgressDrawTarget::to_term`.
+    pub fn stderr() -> ProgressDrawTarget {
+        ProgressDrawTarget::to_term(Term::buffered_stderr(), Some(15))
+    }
+
+    /// Draw to a terminal, optionally with a specific refresh rate.
+    ///
+    /// Progress bars are by default drawn to terminals however if the
+    /// terminal is not user attended the entire progress bar will be
+    /// hidden.  This is done so that piping to a file will not produce
+    /// useless escape codes in that file.
     pub fn to_term(term: Term, refresh_rate: Option<u64>) -> ProgressDrawTarget {
         let rate = refresh_rate.map(|x| Duration::from_millis(1000 / x));
         ProgressDrawTarget {
@@ -64,24 +85,19 @@ impl ProgressDrawTarget {
         }
     }
 
-    /// Draw to a buffered stdout terminal at a max of 15 times a second.
-    pub fn stdout() -> ProgressDrawTarget {
-        ProgressDrawTarget::to_term(Term::buffered_stdout(), Some(15))
-    }
-
-    /// Draw to a buffered stderr terminal at a max of 15 times a second.
-    pub fn stderr() -> ProgressDrawTarget {
-        ProgressDrawTarget::to_term(Term::buffered_stderr(), Some(15))
-    }
-
     /// A hidden draw target.
+    ///
+    /// This forces a progress bar to be not rendered at all.
     pub fn hidden() -> ProgressDrawTarget {
         ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Hidden,
         }
     }
 
-    /// Returns true if the draw target is hidden
+    /// Returns true if the draw target is hidden.
+    ///
+    /// This is internally used in progress bars to figure out if overhead
+    /// from drawing can be prevented.
     pub fn is_hidden(&self) -> bool {
         match self.kind {
             ProgressDrawTargetKind::Hidden => true,
@@ -206,7 +222,7 @@ impl ProgressStyle {
         format!("{}{}{}", bar, cur, alt_style.unwrap_or(&Style::new()).apply_to(rest))
     }
 
-    pub fn format_state(&self, state: &ProgressState) -> Vec<String> {
+    fn format_state(&self, state: &ProgressState) -> Vec<String> {
         let (pos, len) = state.position();
         let mut rv = vec![];
 
@@ -262,7 +278,7 @@ impl ProgressStyle {
 }
 
 /// The state of a progress bar at a moment in time.
-pub struct ProgressState {
+struct ProgressState {
     style: ProgressStyle,
     draw_target: ProgressDrawTarget,
     width: Option<u16>,
