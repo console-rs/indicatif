@@ -100,7 +100,7 @@ impl Attribute {
 }
 
 /// A stored style that can be applied.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Style {
     fg: Option<Color>,
     bg: Option<Color>,
@@ -118,6 +118,44 @@ impl Style {
             attrs: BTreeSet::new(),
             force: None,
         }
+    }
+
+    /// Creates a style from a dotted string.
+    ///
+    /// Effectively the string is split at each dot and then the
+    /// terms in between are applied.  For instance `red.on_blue` will
+    /// create a string that is red on blue background.  Unknown terms
+    /// are ignored.
+    pub fn from_dotted_str(s: &str) -> Style {
+        let mut rv = Style::new();
+        for part in s.split('.') {
+            rv = match part {
+                "black" => rv.black(),
+                "red" => rv.red(),
+                "green" => rv.green(),
+                "yellow" => rv.yellow(),
+                "blue" => rv.blue(),
+                "magenta" => rv.magenta(),
+                "cyan" => rv.cyan(),
+                "white" => rv.white(),
+                "on_black" => rv.on_black(),
+                "on_red" => rv.on_red(),
+                "on_green" => rv.on_green(),
+                "on_yellow" => rv.on_yellow(),
+                "on_blue" => rv.on_blue(),
+                "on_magenta" => rv.on_magenta(),
+                "on_cyan" => rv.on_cyan(),
+                "on_white" => rv.on_white(),
+                "bold" => rv.bold(),
+                "dim" => rv.dim(),
+                "underlined" => rv.underlined(),
+                "blink" => rv.blink(),
+                "reverse" => rv.reverse(),
+                "hidden" => rv.hidden(),
+                _ => { continue; }
+            };
+        }
+        rv
     }
 
     /// Apply the style to something that can be displayed.
@@ -156,44 +194,6 @@ impl Style {
     pub fn attr(mut self, attr: Attribute) -> Style {
         self.attrs.insert(attr);
         self
-    }
-
-    /// Applies attrs from a dotted string.
-    ///
-    /// Effectively the string is split at each dot and then the
-    /// terms in between are applied.  For instance `red.on_blue` will
-    /// create a string that is red on blue background.  Unknown terms
-    /// are ignored.
-    pub fn from_dotted_str(self, s: &str) -> Style {
-        let mut rv = self;
-        for part in s.split('.') {
-            rv = match part {
-                "black" => rv.black(),
-                "red" => rv.red(),
-                "green" => rv.green(),
-                "yellow" => rv.yellow(),
-                "blue" => rv.blue(),
-                "magenta" => rv.magenta(),
-                "cyan" => rv.cyan(),
-                "white" => rv.white(),
-                "on_black" => rv.on_black(),
-                "on_red" => rv.on_red(),
-                "on_green" => rv.on_green(),
-                "on_yellow" => rv.on_yellow(),
-                "on_blue" => rv.on_blue(),
-                "on_magenta" => rv.on_magenta(),
-                "on_cyan" => rv.on_cyan(),
-                "on_white" => rv.on_white(),
-                "bold" => rv.bold(),
-                "dim" => rv.dim(),
-                "underlined" => rv.underlined(),
-                "blink" => rv.blink(),
-                "reverse" => rv.reverse(),
-                "hidden" => rv.hidden(),
-                _ => { continue; }
-            };
-        }
-        rv
     }
 
     #[inline(always)] pub fn black(self) -> Style { self.fg(Color::Black) }
@@ -275,17 +275,6 @@ impl<D> StyledObject<D> {
     #[inline(always)]
     pub fn attr(mut self, attr: Attribute) -> StyledObject<D> {
         self.style = self.style.attr(attr);
-        self
-    }
-
-    /// Applies attrs from a dotted string.
-    ///
-    /// Effectively the string is split at each dot and then the
-    /// terms in between are applied.  For instance `red.on_blue` will
-    /// create a string that is red on blue background.  Unknown terms
-    /// are ignored.
-    pub fn from_dotted_str(mut self, s: &str) -> StyledObject<D> {
-        self.style = self.style.from_dotted_str(s);
         self
     }
 

@@ -11,7 +11,7 @@ use parking_lot::RwLock;
 use term::Term;
 use utils::{expand_template, Estimate, duration_to_secs, secs_to_duration};
 use format::{FormattedDuration, HumanDuration, HumanBytes};
-use ansistyle::{style, measure_text_width};
+use ansistyle::{style, Style, measure_text_width};
 
 /// Controls the rendering style of progress bars.
 #[derive(Clone)]
@@ -185,7 +185,7 @@ impl ProgressStyle {
     }
 
     fn format_bar(&self, state: &ProgressState, width: usize,
-                      alt_style: &str) -> String {
+                  alt_style: Option<&Style>) -> String {
         let pct = state.percent();
         let mut fill = (pct * width as f32) as usize;
         let mut head = 0;
@@ -203,7 +203,7 @@ impl ProgressStyle {
         };
         let rest = repeat(state.style.progress_chars[2])
             .take(width - fill - head).collect::<String>();
-        format!("{}{}{}", bar, cur, style(rest).from_dotted_str(alt_style))
+        format!("{}{}{}", bar, cur, alt_style.unwrap_or(&Style::new()).apply_to(rest))
     }
 
     pub fn format_state(&self, state: &ProgressState) -> Vec<String> {
@@ -216,12 +216,11 @@ impl ProgressStyle {
             let s = expand_template(line, |var| {
                 let key = var.key;
                 if key == "wide_bar" {
-                    *need_wide_bar.borrow_mut() = Some(
-                        var.alt_style.unwrap_or("").to_string());
+                    *need_wide_bar.borrow_mut() = Some(var.alt_style.clone());
                     "\x00".into()
                 } else if key == "bar" {
                     self.format_bar(state, var.width.unwrap_or(20),
-                                    var.alt_style.unwrap_or(""))
+                                    var.alt_style.as_ref())
                 } else if key == "spinner" {
                     state.current_tick_char().to_string()
                 } else if key == "msg" {
@@ -252,7 +251,7 @@ impl ProgressStyle {
             rv.push(if let Some(ref style) = *need_wide_bar.borrow() {
                 let total_width = state.width();
                 let bar_width = total_width - measure_text_width(&s);
-                s.replace("\x00", &self.format_bar(state, bar_width, &style))
+                s.replace("\x00", &self.format_bar(state, bar_width, style.as_ref()))
             } else {
                 s.to_string()
             });

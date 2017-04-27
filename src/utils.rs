@@ -3,7 +3,7 @@ use std::time::{Instant, Duration};
 
 use regex::{Regex, Captures};
 
-use ansistyle::{style, measure_text_width};
+use ansistyle::{Style, measure_text_width};
 
 
 pub fn duration_to_secs(d: Duration) -> f64 {
@@ -71,8 +71,8 @@ pub struct TemplateVar<'a> {
     pub align: Alignment,
     pub truncate: bool,
     pub width: Option<usize>,
-    pub style: Option<&'a str>,
-    pub alt_style: Option<&'a str>,
+    pub style: Option<Style>,
+    pub alt_style: Option<Style>,
 }
 
 pub fn expand_template<'a, F: Fn(&TemplateVar) -> String>(s: &'a str, f: F) -> Cow<'a, str> {
@@ -125,10 +125,10 @@ pub fn expand_template<'a, F: Fn(&TemplateVar) -> String>(s: &'a str, f: F) -> C
                 var.truncate = true;
             }
             if let Some(style) = opt_caps.get(5) {
-                var.style = Some(style.as_str());
+                var.style = Some(Style::from_dotted_str(style.as_str()));
             }
             if let Some(alt_style) = opt_caps.get(6) {
-                var.alt_style = Some(alt_style.as_str());
+                var.alt_style = Some(Style::from_dotted_str(alt_style.as_str()));
             }
         }
         let mut rv = f(&var);
@@ -136,7 +136,7 @@ pub fn expand_template<'a, F: Fn(&TemplateVar) -> String>(s: &'a str, f: F) -> C
             rv = pad_str(&rv, width, var.align, var.truncate).to_string()
         }
         if let Some(s) = var.style {
-            rv = style(rv).from_dotted_str(s).to_string();
+            rv = s.apply_to(rv).to_string();
         }
         rv
     })
