@@ -303,16 +303,6 @@ impl ProgressState {
         }
     }
 
-    /// Indicates that a spinner should be drawn.
-    pub fn has_spinner(&self) -> bool {
-        self.tick != !0
-    }
-
-    /// Indicates that a progress bar should be drawn.
-    pub fn has_progress(&self) -> bool {
-        self.len != !0
-    }
-
     /// Indicates that the progress bar finished.
     pub fn is_finished(&self) -> bool {
         match self.status {

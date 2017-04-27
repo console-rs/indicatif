@@ -8,6 +8,24 @@
 //! * OS X
 //! * Windows (colors require Windows 10)
 //!
+//! # Crate Contents
+//!
+//! * **Progress bars**
+//!   * [`ProgressBar`](struct.ProgressBar.html) for bars and spinners
+//!   * [`MultiProgress`](struct.MultiProgress.html) for multiple bars
+//! * **Terminal support**
+//!   * [`Term`](struct.Term.html) for controlling the terminal
+//!   * [`user_attended`](fn.user_attended.html) for checking if there is a terminal
+//!   * [`measure_text_width`](fn.measure_text_width.html) for calculating text width
+//! * **Colors and Styling**
+//!   * [`colors_enabled`](fn.colors_enabled.html) for checking if colors are on
+//!   * [`set_colors_enabled`](fn.set_colors_enabled.html) for turning colors off and on
+//!   * [`strip_ansi_codes`](fn.strip_ansi_codes.html) for stripping ANSI codes from a string
+//!   * [`style`](fn.style.html) / [`Style`](struct.Style.html) for coloring stuff
+//! * **Data Formatting**
+//!   * [`HumanBytes`](struct.HumanBytes.html) for formatting bytes
+//!   * [`HumanDuration`](struct.HumanDuration.html) for formatting durations
+//!
 //! # Progress Bars and Spinners
 //!
 //! indicatif comes with a `ProgressBar` type that support both bounded
