@@ -373,7 +373,7 @@ impl ProgressBar {
     /// have a length or render in any way.
     pub fn hidden() -> ProgressBar {
         let rv = ProgressBar::new(!0);
-        rv.set_style(ProgressBar::hidden());
+        rv.set_style(ProgressStyle::hidden());
         rv.set_draw_target(DrawTarget::Hidden);
         rv
     }
