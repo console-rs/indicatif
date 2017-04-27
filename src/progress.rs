@@ -23,7 +23,7 @@ pub struct ProgressStyle {
 
 /// The drawn state of an element.
 #[derive(Clone)]
-pub struct DrawState {
+struct ProgressDrawState {
     /// The lines to print (can contain ANSI codes)
     pub lines: Vec<String>,
     /// True if the bar no longer needs drawing.
@@ -41,49 +41,63 @@ enum Status {
 }
 
 /// Target for draw operations
-pub enum DrawTarget {
+enum ProgressDrawTargetKind {
     /// Draws into a terminal
-    Term(Term, Option<DrawState>, Option<Duration>),
+    Term(Term, Option<ProgressDrawState>, Option<Duration>),
     /// Draws to a remote receiver
-    Remote(usize, Sender<(usize, DrawState)>),
+    Remote(usize, Sender<(usize, ProgressDrawState)>),
     /// Do not draw at all
     Hidden,
 }
 
-impl DrawTarget {
+/// Target for draw operations
+pub struct ProgressDrawTarget {
+    kind: ProgressDrawTargetKind,
+}
+
+impl ProgressDrawTarget {
     /// Draw to a terminal, optionally with a refresh rate.
-    pub fn to_term(term: Term, refresh_rate: Option<u64>) -> DrawTarget {
+    pub fn to_term(term: Term, refresh_rate: Option<u64>) -> ProgressDrawTarget {
         let rate = refresh_rate.map(|x| Duration::from_millis(1000 / x));
-        DrawTarget::Term(term, None, rate)
+        ProgressDrawTarget {
+            kind: ProgressDrawTargetKind::Term(term, None, rate),
+        }
     }
 
     /// Draw to a buffered stdout terminal at a max of 15 times a second.
-    pub fn stdout() -> DrawTarget {
-        DrawTarget::to_term(Term::buffered_stdout(), Some(15))
+    pub fn stdout() -> ProgressDrawTarget {
+        ProgressDrawTarget::to_term(Term::buffered_stdout(), Some(15))
     }
 
     /// Draw to a buffered stderr terminal at a max of 15 times a second.
-    pub fn stderr() -> DrawTarget {
-        DrawTarget::to_term(Term::buffered_stderr(), Some(15))
+    pub fn stderr() -> ProgressDrawTarget {
+        ProgressDrawTarget::to_term(Term::buffered_stderr(), Some(15))
+    }
+
+    /// A hidden draw target.
+    pub fn hidden() -> ProgressDrawTarget {
+        ProgressDrawTarget {
+            kind: ProgressDrawTargetKind::Hidden,
+        }
     }
 
     /// Returns true if the draw target is hidden
     pub fn is_hidden(&self) -> bool {
-        match *self {
-            DrawTarget::Hidden => true,
-            DrawTarget::Term(ref term, ..) => !term.is_term(),
+        match self.kind {
+            ProgressDrawTargetKind::Hidden => true,
+            ProgressDrawTargetKind::Term(ref term, ..) => !term.is_term(),
             _ => false,
         }
     }
 
     /// Apply the given draw state (draws it).
-    pub fn apply_draw_state(&mut self, draw_state: DrawState) -> io::Result<()> {
+    fn apply_draw_state(&mut self, draw_state: ProgressDrawState) -> io::Result<()> {
         // no need to apply anything to hidden draw targets.
         if self.is_hidden() {
             return Ok(());
         }
-        match *self {
-            DrawTarget::Term(ref term, ref mut last_state, rate) => {
+        match self.kind {
+            ProgressDrawTargetKind::Term(ref term, ref mut last_state, rate) => {
                 let last_draw = last_state.as_ref().map(|x| x.ts);
                 if draw_state.finished ||
                    draw_state.force_draw ||
@@ -98,16 +112,16 @@ impl DrawTarget {
                     *last_state = Some(draw_state);
                 }
             }
-            DrawTarget::Remote(idx, ref chan) => {
+            ProgressDrawTargetKind::Remote(idx, ref chan) => {
                 chan.send((idx, draw_state)).unwrap();
             }
-            DrawTarget::Hidden => {}
+            ProgressDrawTargetKind::Hidden => {}
         }
         Ok(())
     }
 }
 
-impl DrawState {
+impl ProgressDrawState {
     pub fn clear_term(&self, term: &Term) -> io::Result<()> {
         term.clear_last_lines(self.lines.len())
     }
@@ -251,7 +265,7 @@ impl ProgressStyle {
 /// The state of a progress bar at a moment in time.
 pub struct ProgressState {
     style: ProgressStyle,
-    draw_target: DrawTarget,
+    draw_target: ProgressDrawTarget,
     width: Option<u16>,
     message: String,
     prefix: String,
@@ -366,7 +380,7 @@ impl ProgressBar {
         ProgressBar {
             state: RwLock::new(ProgressState {
                 style: ProgressStyle::default_bar(),
-                draw_target: DrawTarget::stdout(),
+                draw_target: ProgressDrawTarget::stdout(),
                 width: None,
                 message: "".into(),
                 prefix: "".into(),
@@ -386,7 +400,7 @@ impl ProgressBar {
     /// have a length or render in any way.
     pub fn hidden() -> ProgressBar {
         let rv = ProgressBar::new(!0);
-        rv.set_draw_target(DrawTarget::Hidden);
+        rv.set_draw_target(ProgressDrawTarget::hidden());
         rv
     }
 
@@ -487,11 +501,11 @@ impl ProgressBar {
     /// for instance:
     ///
     /// ```rust,no_run
-    /// # use indicatif::{ProgressBar, DrawTarget};
+    /// # use indicatif::{ProgressBar, ProgressDrawTarget};
     /// let pb = ProgressBar::new(100);
-    /// pb.set_draw_target(DrawTarget::stderr());
+    /// pb.set_draw_target(ProgressDrawTarget::stderr());
     /// ```
-    pub fn set_draw_target(&self, target: DrawTarget) {
+    pub fn set_draw_target(&self, target: ProgressDrawTarget) {
         self.state.write().draw_target = target;
     }
 
@@ -516,7 +530,7 @@ impl ProgressBar {
             return Ok(());
         }
 
-        let draw_state = DrawState {
+        let draw_state = ProgressDrawState {
             lines: if state.should_render() {
                 state.style.format_state(&*state)
             } else {
@@ -533,20 +547,20 @@ impl ProgressBar {
 
 struct MultiObject {
     done: bool,
-    draw_state: Option<DrawState>,
+    draw_state: Option<ProgressDrawState>,
 }
 
 struct MultiProgressState {
     objects: Vec<MultiObject>,
-    draw_target: DrawTarget,
+    draw_target: ProgressDrawTarget,
 }
 
 /// Manages multiple progress bars from different threads.
 pub struct MultiProgress {
     state: RwLock<MultiProgressState>,
     joining: AtomicBool,
-    tx: Sender<(usize, DrawState)>,
-    rx: Receiver<(usize, DrawState)>,
+    tx: Sender<(usize, ProgressDrawState)>,
+    rx: Receiver<(usize, ProgressDrawState)>,
 }
 
 unsafe impl Sync for MultiProgress {}
@@ -558,7 +572,7 @@ impl MultiProgress {
         MultiProgress {
             state: RwLock::new(MultiProgressState {
                 objects: vec![],
-                draw_target: DrawTarget::stdout(),
+                draw_target: ProgressDrawTarget::stdout(),
             }),
             joining: AtomicBool::new(false),
             tx: tx,
@@ -567,7 +581,7 @@ impl MultiProgress {
     }
 
     /// Sets a different draw target for the multiprogress bar.
-    pub fn set_draw_target(&self, target: DrawTarget) {
+    pub fn set_draw_target(&self, target: ProgressDrawTarget) {
         self.state.write().draw_target = target;
     }
 
@@ -583,7 +597,9 @@ impl MultiProgress {
             done: false,
             draw_state: None,
         });
-        bar.set_draw_target(DrawTarget::Remote(idx, self.tx.clone()));
+        bar.set_draw_target(ProgressDrawTarget {
+            kind: ProgressDrawTargetKind::Remote(idx, self.tx.clone()),
+        });
         bar
     }
 
@@ -644,7 +660,7 @@ impl MultiProgress {
             }
 
             let finished = !state.objects.iter().any(|ref x| x.done);
-            state.draw_target.apply_draw_state(DrawState {
+            state.draw_target.apply_draw_state(ProgressDrawState {
                 lines: lines,
                 force_draw: force_draw,
                 finished: finished,
@@ -654,7 +670,7 @@ impl MultiProgress {
 
         if clear {
             let mut state = self.state.write();
-            state.draw_target.apply_draw_state(DrawState {
+            state.draw_target.apply_draw_state(ProgressDrawState {
                 lines: vec![],
                 finished: true,
                 force_draw: true,
