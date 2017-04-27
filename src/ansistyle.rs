@@ -45,7 +45,7 @@ pub fn measure_text_width(s: &str) -> usize {
     strip_ansi_codes(s).width()
 }
 
-/// An ANSI color.
+/// A terminal color.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Color {
     Black,
@@ -74,9 +74,9 @@ impl Color {
     }
 }
 
-/// An ANSI style.
+/// A terminal style attribute.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
-pub enum Style {
+pub enum Attribute {
     Bold,
     Dim,
     Underlined,
@@ -85,109 +85,86 @@ pub enum Style {
     Hidden,
 }
 
-impl Style {
+impl Attribute {
     #[inline(always)]
     fn ansi_num(&self) -> usize {
         match *self {
-            Style::Bold => 1,
-            Style::Dim => 2,
-            Style::Underlined => 4,
-            Style::Blink => 5,
-            Style::Reverse => 7,
-            Style::Hidden => 8,
+            Attribute::Bold => 1,
+            Attribute::Dim => 2,
+            Attribute::Underlined => 4,
+            Attribute::Blink => 5,
+            Attribute::Reverse => 7,
+            Attribute::Hidden => 8,
         }
     }
 }
 
-/// A formatting wrapper that can be styled for a terminal.
+/// A stored style that can be applied.
 #[derive(Clone)]
-pub struct Styled<D> {
+pub struct Style {
     fg: Option<Color>,
     bg: Option<Color>,
-    styles: BTreeSet<Style>,
+    attrs: BTreeSet<Attribute>,
     force: Option<bool>,
-    val: D,
 }
 
-/// Wraps an object for formatting for styling.
-///
-/// Example:
-///
-/// ```rust,no_run
-/// # use indicatif::style;
-/// format!("Hello {}", style("World").cyan());
-/// ```
-pub fn style<D>(val: D) -> Styled<D> {
-    Styled {
-        fg: None,
-        bg: None,
-        styles: BTreeSet::new(),
-        force: None,
-        val: val,
+impl Style {
+
+    /// Returns an empty default style.
+    pub fn new() -> Style {
+        Style {
+            fg: None,
+            bg: None,
+            attrs: BTreeSet::new(),
+            force: None,
+        }
     }
-}
 
-impl<D> Styled<D> {
+    /// Apply the style to something that can be displayed.
+    pub fn apply_to<D>(&self, val: D) -> StyledObject<D> {
+        StyledObject {
+            style: self.clone(),
+            val: val
+        }
+    }
+
     /// Forces styling on or off.
     ///
     /// This overrides the detection from `clicolors-control`.
     #[inline(always)]
-    pub fn force_styling(mut self, value: bool) -> Styled<D> {
+    pub fn force_styling(mut self, value: bool) -> Style {
         self.force = Some(value);
         self
     }
 
     /// Sets a foreground color.
     #[inline(always)]
-    pub fn fg(mut self, color: Color) -> Styled<D> {
+    pub fn fg(mut self, color: Color) -> Style {
         self.fg = Some(color);
         self
     }
 
     /// Sets a background color.
     #[inline(always)]
-    pub fn bg(mut self, color: Color) -> Styled<D> {
+    pub fn bg(mut self, color: Color) -> Style {
         self.bg = Some(color);
         self
     }
 
-    /// Adds a style.
+    /// Adds a attr.
     #[inline(always)]
-    pub fn style(mut self, style: Style) -> Styled<D> {
-        self.styles.insert(style);
+    pub fn attr(mut self, attr: Attribute) -> Style {
+        self.attrs.insert(attr);
         self
     }
 
-    #[inline(always)] pub fn black(self) -> Styled<D> { self.fg(Color::Black) }
-    #[inline(always)] pub fn red(self) -> Styled<D> { self.fg(Color::Red) }
-    #[inline(always)] pub fn green(self) -> Styled<D> { self.fg(Color::Green) }
-    #[inline(always)] pub fn yellow(self) -> Styled<D> { self.fg(Color::Yellow) }
-    #[inline(always)] pub fn blue(self) -> Styled<D> { self.fg(Color::Blue) }
-    #[inline(always)] pub fn magenta(self) -> Styled<D> { self.fg(Color::Magenta) }
-    #[inline(always)] pub fn cyan(self) -> Styled<D> { self.fg(Color::Cyan) }
-    #[inline(always)] pub fn white(self) -> Styled<D> { self.fg(Color::White) }
-    #[inline(always)] pub fn on_black(self) -> Styled<D> { self.bg(Color::Black) }
-    #[inline(always)] pub fn on_red(self) -> Styled<D> { self.bg(Color::Red) }
-    #[inline(always)] pub fn on_green(self) -> Styled<D> { self.bg(Color::Green) }
-    #[inline(always)] pub fn on_yellow(self) -> Styled<D> { self.bg(Color::Yellow) }
-    #[inline(always)] pub fn on_blue(self) -> Styled<D> { self.bg(Color::Blue) }
-    #[inline(always)] pub fn on_magenta(self) -> Styled<D> { self.bg(Color::Magenta) }
-    #[inline(always)] pub fn on_cyan(self) -> Styled<D> { self.bg(Color::Cyan) }
-    #[inline(always)] pub fn on_white(self) -> Styled<D> { self.bg(Color::White) }
-    #[inline(always)] pub fn bold(self) -> Styled<D> { self.style(Style::Bold) }
-    #[inline(always)] pub fn dim(self) -> Styled<D> { self.style(Style::Dim) }
-    #[inline(always)] pub fn underlined(self) -> Styled<D> { self.style(Style::Underlined) }
-    #[inline(always)] pub fn blink(self) -> Styled<D> { self.style(Style::Blink) }
-    #[inline(always)] pub fn reverse(self) -> Styled<D> { self.style(Style::Reverse) }
-    #[inline(always)] pub fn hidden(self) -> Styled<D> { self.style(Style::Hidden) }
-
-    /// Applies styles from a dotted string.
+    /// Applies attrs from a dotted string.
     ///
     /// Effectively the string is split at each dot and then the
     /// terms in between are applied.  For instance `red.on_blue` will
     /// create a string that is red on blue background.  Unknown terms
     /// are ignored.
-    pub fn from_dotted_str(self, s: &str) -> Styled<D> {
+    pub fn from_dotted_str(self, s: &str) -> Style {
         let mut rv = self;
         for part in s.split('.') {
             rv = match part {
@@ -218,24 +195,140 @@ impl<D> Styled<D> {
         }
         rv
     }
+
+    #[inline(always)] pub fn black(self) -> Style { self.fg(Color::Black) }
+    #[inline(always)] pub fn red(self) -> Style { self.fg(Color::Red) }
+    #[inline(always)] pub fn green(self) -> Style { self.fg(Color::Green) }
+    #[inline(always)] pub fn yellow(self) -> Style { self.fg(Color::Yellow) }
+    #[inline(always)] pub fn blue(self) -> Style { self.fg(Color::Blue) }
+    #[inline(always)] pub fn magenta(self) -> Style { self.fg(Color::Magenta) }
+    #[inline(always)] pub fn cyan(self) -> Style { self.fg(Color::Cyan) }
+    #[inline(always)] pub fn white(self) -> Style { self.fg(Color::White) }
+    #[inline(always)] pub fn on_black(self) -> Style { self.bg(Color::Black) }
+    #[inline(always)] pub fn on_red(self) -> Style { self.bg(Color::Red) }
+    #[inline(always)] pub fn on_green(self) -> Style { self.bg(Color::Green) }
+    #[inline(always)] pub fn on_yellow(self) -> Style { self.bg(Color::Yellow) }
+    #[inline(always)] pub fn on_blue(self) -> Style { self.bg(Color::Blue) }
+    #[inline(always)] pub fn on_magenta(self) -> Style { self.bg(Color::Magenta) }
+    #[inline(always)] pub fn on_cyan(self) -> Style { self.bg(Color::Cyan) }
+    #[inline(always)] pub fn on_white(self) -> Style { self.bg(Color::White) }
+    #[inline(always)] pub fn bold(self) -> Style { self.attr(Attribute::Bold) }
+    #[inline(always)] pub fn dim(self) -> Style { self.attr(Attribute::Dim) }
+    #[inline(always)] pub fn underlined(self) -> Style { self.attr(Attribute::Underlined) }
+    #[inline(always)] pub fn blink(self) -> Style { self.attr(Attribute::Blink) }
+    #[inline(always)] pub fn reverse(self) -> Style { self.attr(Attribute::Reverse) }
+    #[inline(always)] pub fn hidden(self) -> Style { self.attr(Attribute::Hidden) }
+}
+
+/// Wraps an object for formatting for styling.
+///
+/// Example:
+///
+/// ```rust,no_run
+/// # use indicatif::style;
+/// format!("Hello {}", style("World").cyan());
+/// ```
+///
+/// This is a shortcut for making a new style and applying it
+/// to a value:
+///
+/// ```rust,no_run
+/// # use indicatif::Style;
+/// format!("Hello {}", Style::new().cyan().apply_to("World"));
+/// ```
+pub fn style<D>(val: D) -> StyledObject<D> {
+    Style::new().apply_to(val)
+}
+
+/// A formatting wrapper that can be styled for a terminal.
+#[derive(Clone)]
+pub struct StyledObject<D> {
+    style: Style,
+    val: D,
+}
+
+impl<D> StyledObject<D> {
+    /// Forces styling on or off.
+    ///
+    /// This overrides the detection from `clicolors-control`.
+    #[inline(always)]
+    pub fn force_styling(mut self, value: bool) -> StyledObject<D> {
+        self.style = self.style.force_styling(value);
+        self
+    }
+
+    /// Sets a foreground color.
+    #[inline(always)]
+    pub fn fg(mut self, color: Color) -> StyledObject<D> {
+        self.style = self.style.fg(color);
+        self
+    }
+
+    /// Sets a background color.
+    #[inline(always)]
+    pub fn bg(mut self, color: Color) -> StyledObject<D> {
+        self.style = self.style.bg(color);
+        self
+    }
+
+    /// Adds a attr.
+    #[inline(always)]
+    pub fn attr(mut self, attr: Attribute) -> StyledObject<D> {
+        self.style = self.style.attr(attr);
+        self
+    }
+
+    /// Applies attrs from a dotted string.
+    ///
+    /// Effectively the string is split at each dot and then the
+    /// terms in between are applied.  For instance `red.on_blue` will
+    /// create a string that is red on blue background.  Unknown terms
+    /// are ignored.
+    pub fn from_dotted_str(mut self, s: &str) -> StyledObject<D> {
+        self.style = self.style.from_dotted_str(s);
+        self
+    }
+
+    #[inline(always)] pub fn black(self) -> StyledObject<D> { self.fg(Color::Black) }
+    #[inline(always)] pub fn red(self) -> StyledObject<D> { self.fg(Color::Red) }
+    #[inline(always)] pub fn green(self) -> StyledObject<D> { self.fg(Color::Green) }
+    #[inline(always)] pub fn yellow(self) -> StyledObject<D> { self.fg(Color::Yellow) }
+    #[inline(always)] pub fn blue(self) -> StyledObject<D> { self.fg(Color::Blue) }
+    #[inline(always)] pub fn magenta(self) -> StyledObject<D> { self.fg(Color::Magenta) }
+    #[inline(always)] pub fn cyan(self) -> StyledObject<D> { self.fg(Color::Cyan) }
+    #[inline(always)] pub fn white(self) -> StyledObject<D> { self.fg(Color::White) }
+    #[inline(always)] pub fn on_black(self) -> StyledObject<D> { self.bg(Color::Black) }
+    #[inline(always)] pub fn on_red(self) -> StyledObject<D> { self.bg(Color::Red) }
+    #[inline(always)] pub fn on_green(self) -> StyledObject<D> { self.bg(Color::Green) }
+    #[inline(always)] pub fn on_yellow(self) -> StyledObject<D> { self.bg(Color::Yellow) }
+    #[inline(always)] pub fn on_blue(self) -> StyledObject<D> { self.bg(Color::Blue) }
+    #[inline(always)] pub fn on_magenta(self) -> StyledObject<D> { self.bg(Color::Magenta) }
+    #[inline(always)] pub fn on_cyan(self) -> StyledObject<D> { self.bg(Color::Cyan) }
+    #[inline(always)] pub fn on_white(self) -> StyledObject<D> { self.bg(Color::White) }
+    #[inline(always)] pub fn bold(self) -> StyledObject<D> { self.attr(Attribute::Bold) }
+    #[inline(always)] pub fn dim(self) -> StyledObject<D> { self.attr(Attribute::Dim) }
+    #[inline(always)] pub fn underlined(self) -> StyledObject<D> { self.attr(Attribute::Underlined) }
+    #[inline(always)] pub fn blink(self) -> StyledObject<D> { self.attr(Attribute::Blink) }
+    #[inline(always)] pub fn reverse(self) -> StyledObject<D> { self.attr(Attribute::Reverse) }
+    #[inline(always)] pub fn hidden(self) -> StyledObject<D> { self.attr(Attribute::Hidden) }
 }
 
 macro_rules! impl_fmt {
     ($name:ident) => {
-        impl<D: fmt::$name> fmt::$name for Styled<D> {
+        impl<D: fmt::$name> fmt::$name for StyledObject<D> {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 let mut reset = false;
-                if self.force.unwrap_or_else(colors_enabled) {
-                    if let Some(fg) = self.fg {
+                if self.style.force.unwrap_or_else(colors_enabled) {
+                    if let Some(fg) = self.style.fg {
                         write!(f, "\x1b[{}m", fg.ansi_num() + 30)?;
                         reset = true;
                     }
-                    if let Some(bg) = self.bg {
+                    if let Some(bg) = self.style.bg {
                         write!(f, "\x1b[{}m", bg.ansi_num() + 40)?;
                         reset = true;
                     }
-                    for style in &self.styles {
-                        write!(f, "\x1b[{}m", style.ansi_num())?;
+                    for attr in &self.style.attrs {
+                        write!(f, "\x1b[{}m", attr.ansi_num())?;
                         reset = true;
                     }
                 }

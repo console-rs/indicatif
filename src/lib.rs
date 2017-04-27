@@ -153,7 +153,7 @@ mod format;
 pub use progress::{ProgressBar, MultiProgress, ProgressState,
                    ProgressDrawTarget, ProgressStyle};
 pub use term::{Term, user_attended};
-pub use ansistyle::{style, Styled, Color, Style,
+pub use ansistyle::{style, Style, StyledObject, Color, Attribute,
                     strip_ansi_codes, measure_text_width,
                     colors_enabled, set_colors_enabled};
 pub use format::{HumanDuration, FormattedDuration, HumanBytes};
