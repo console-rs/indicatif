@@ -366,7 +366,7 @@ impl ProgressState {
         }
         let t = duration_to_secs(self.avg_time_per_step());
         // add 0.75 to leave 0.25 sec of 0s for the user
-        secs_to_duration(t * (self.len - self.pos) as f64 + 0.75)
+        secs_to_duration(t * self.len.saturating_sub(self.pos) as f64 + 0.75)
     }
 }
 
