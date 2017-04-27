@@ -4,7 +4,7 @@ use std::os::windows::io::{RawHandle, AsRawHandle};
 
 use winapi::{CHAR, DWORD, HANDLE, STD_OUTPUT_HANDLE,
              CONSOLE_SCREEN_BUFFER_INFO, COORD};
-use kernel32::{GetStdHandle, GetConsoleScreenBufferInfo,
+use kernel32::{GetConsoleScreenBufferInfo,
                GetConsoleMode, SetConsoleCursorPosition,
                FillConsoleOutputCharacterA};
 

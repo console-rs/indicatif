@@ -184,6 +184,9 @@ fn test_expand_template() {
 
 #[test]
 fn test_expand_template_flags() {
+    use ansistyle::set_colors_enabled;
+    set_colors_enabled(true);
+
     let rv = expand_template("{foo:5}", |var| {
         assert_eq!(var.key, "foo");
         assert_eq!(var.width, Some(5));
