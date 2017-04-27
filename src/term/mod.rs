@@ -94,7 +94,7 @@ impl Term {
 
     /// Checks if the terminal is indeed a terminal.
     pub fn is_term(&self) -> bool {
-        is_a_terminal()
+        is_a_terminal(self)
     }
 
     /// Returns the terminal size or gets sensible defaults.
@@ -152,6 +152,14 @@ impl Term {
         }
         Ok(())
     }
+}
+
+/// A fast way to check if the application has a user attended.
+///
+/// This means that stdout is connected to a terminal instead of a
+/// file or redirected by other means.
+pub fn user_attended() -> bool {
+    Term::stdout().is_term()
 }
 
 #[cfg(unix)]

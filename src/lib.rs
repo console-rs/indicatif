@@ -75,7 +75,7 @@
 //! Example configuration:
 //!
 //! ```ignore
-//! progress_bar.set_style(ProgressStyle::default_bar()
+//! bar.set_style(ProgressStyle::default_bar()
 //!     .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
 //!     .progress_chars("##-"));
 //! ```
@@ -152,7 +152,7 @@ mod format;
 
 pub use progress::{ProgressBar, MultiProgress, ProgressState, DrawState,
                    DrawTarget, ProgressStyle};
-pub use term::Term;
+pub use term::{Term, user_attended};
 pub use ansistyle::{style, Styled, Color, Style,
                     strip_ansi_codes, measure_text_width,
                     colors_enabled, set_colors_enabled};

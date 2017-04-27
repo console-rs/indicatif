@@ -13,11 +13,10 @@ use term::Term;
 pub const DEFAULT_WIDTH: u16 = 79;
 
 
-pub fn is_a_terminal() -> bool {
+pub fn is_a_terminal(out: &Term) -> bool {
     unsafe {
-        let handle = GetStdHandle(STD_OUTPUT_HANDLE);
         let mut out = 0;
-        GetConsoleMode(handle, &mut out) != 0
+        GetConsoleMode(out.as_raw_handle(), &mut out) != 0
     }
 }
 
