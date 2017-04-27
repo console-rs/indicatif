@@ -208,6 +208,8 @@ impl ProgressStyle {
                     state.current_tick_char().to_string()
                 } else if key == "msg" {
                     state.message().to_string()
+                } else if key == "prefix" {
+                    state.prefix().to_string()
                 } else if key == "pos" {
                     pos.to_string()
                 } else if key == "len" {
@@ -248,6 +250,7 @@ pub struct ProgressState {
     draw_target: DrawTarget,
     width: Option<u16>,
     message: String,
+    prefix: String,
     pos: u64,
     len: u64,
     tick: u64,
@@ -314,6 +317,11 @@ impl ProgressState {
         &self.message
     }
 
+    /// Returns the current prefix of the progress bar.
+    pub fn prefix(&self) -> &str {
+        &self.prefix
+    }
+
     /// The entire draw width
     pub fn width(&self) -> usize {
         if let Some(width) = self.width {
@@ -357,6 +365,7 @@ impl ProgressBar {
                 draw_target: DrawTarget::stdout(),
                 width: None,
                 message: "".into(),
+                prefix: "".into(),
                 pos: 0,
                 len: len,
                 tick: 0,
@@ -422,6 +431,15 @@ impl ProgressBar {
     pub fn set_length(&self, len: u64) {
         self.update_and_draw(|mut state| {
             state.len = len;
+        })
+    }
+
+    /// Sets the current prefix of the progress bar.
+    pub fn set_prefix(&self, prefix: &str) {
+        let prefix = prefix.to_string();
+        self.update_and_draw(|mut state| {
+            state.prefix = prefix;
+            state.tick += 1;
         })
     }
 

@@ -17,6 +17,9 @@ lazy_static = "0.2"
 unicode-width = "0.1"
 clicolors-control = "0"
 
+[dev-dependencies]
+rand = "0"
+
 [target.'cfg(windows)'.dependencies]
 winapi = "0"
 kernel32-sys = "0"
