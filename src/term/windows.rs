@@ -15,8 +15,8 @@ pub const DEFAULT_WIDTH: u16 = 79;
 
 pub fn is_a_terminal(out: &Term) -> bool {
     unsafe {
-        let mut out = 0;
-        GetConsoleMode(out.as_raw_handle(), &mut out) != 0
+        let mut tmp = 0;
+        GetConsoleMode(out.as_raw_handle(), &mut tmp) != 0
     }
 }
 
