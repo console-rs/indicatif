@@ -126,6 +126,15 @@ impl ProgressStyle {
         }
     }
 
+    /// Creates a hidden style.
+    pub fn hidden() -> ProgressStyle {
+        ProgressStyle {
+            tick_chars: vec![' ', ' '],
+            progress_chars: vec![' ', ' ', ' '],
+            template: Cow::Borrowed(""),
+        }
+    }
+
     /// Sets the tick character sequence for spinners.
     pub fn tick_chars(mut self, s: &str) -> ProgressStyle {
         self.tick_chars = s.chars().collect();
@@ -356,6 +365,17 @@ impl ProgressBar {
                 est: Estimate::new(),
             }),
         }
+    }
+
+    /// Creates a completely hidden progress bar.
+    ///
+    /// This progress bar still responds to API changes but it does not
+    /// have a length or render in any way.
+    pub fn hidden() -> ProgressBar {
+        let rv = ProgressBar::new(!0);
+        rv.set_style(ProgressBar::hidden());
+        rv.set_draw_target(DrawTarget::Hidden);
+        rv
     }
 
     /// Creates a new spinner.
