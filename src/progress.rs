@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
 use std::sync::mpsc::{channel, Sender, Receiver};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use parking_lot::RwLock;
 
@@ -496,6 +497,7 @@ struct MultiProgressState {
 /// Manages multiple progress bars from different threads.
 pub struct MultiProgress {
     state: RwLock<MultiProgressState>,
+    joining: AtomicBool,
     tx: Sender<(usize, DrawState)>,
     rx: Receiver<(usize, DrawState)>,
 }
@@ -511,6 +513,7 @@ impl MultiProgress {
                 objects: vec![],
                 draw_target: DrawTarget::stdout(),
             }),
+            joining: AtomicBool::new(false),
             tx: tx,
             rx: rx,
         }
@@ -565,6 +568,11 @@ impl MultiProgress {
     }
 
     fn join_impl(&self, clear: bool) -> io::Result<()> {
+        if self.joining.load(Ordering::Acquire) {
+            panic!("Already joining!");
+        }
+        self.joining.store(true, Ordering::Release);
+
         while !self.is_done() {
             let (idx, draw_state) = self.rx.recv().unwrap();
             let ts = draw_state.ts;
@@ -601,6 +609,8 @@ impl MultiProgress {
                 ts: Instant::now(),
             })?;
         }
+
+        self.joining.store(false, Ordering::Release);
 
         Ok(())
     }
