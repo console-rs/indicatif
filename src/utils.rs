@@ -195,7 +195,7 @@ fn test_expand_template_flags() {
         assert_eq!(var.key, "foo");
         assert_eq!(var.width, None);
         assert_eq!(var.align, Alignment::Left);
-        assert_eq!(var.style, Some("red.on_blue"));
+        assert_eq!(var.style, Some(Style::new().red().on_blue()));
         "XXX".into()
     });
     assert_eq!(&rv, "\u{1b}[31m\u{1b}[44mXXX\u{1b}[0m");
@@ -204,7 +204,7 @@ fn test_expand_template_flags() {
         assert_eq!(var.key, "foo");
         assert_eq!(var.width, Some(5));
         assert_eq!(var.align, Alignment::Center);
-        assert_eq!(var.style, Some("red.on_blue"));
+        assert_eq!(var.style, Some(Style::new().red().on_blue()));
         "XXX".into()
     });
     assert_eq!(&rv, "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
@@ -213,8 +213,8 @@ fn test_expand_template_flags() {
         assert_eq!(var.key, "foo");
         assert_eq!(var.width, Some(5));
         assert_eq!(var.align, Alignment::Center);
-        assert_eq!(var.style, Some("red.on_blue"));
-        assert_eq!(var.alt_style, Some("green.on_cyan"));
+        assert_eq!(var.style, Some(Style::new().red().on_blue()));
+        assert_eq!(var.alt_style, Some(Style::new().green().on_cyan()));
         "XXX".into()
     });
     assert_eq!(&rv, "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");

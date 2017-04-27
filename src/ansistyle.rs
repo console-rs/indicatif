@@ -100,12 +100,18 @@ impl Attribute {
 }
 
 /// A stored style that can be applied.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Style {
     fg: Option<Color>,
     bg: Option<Color>,
     attrs: BTreeSet<Attribute>,
     force: Option<bool>,
+}
+
+impl Default for Style {
+    fn default() -> Style {
+        Style::new()
+    }
 }
 
 impl Style {
