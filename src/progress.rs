@@ -78,6 +78,10 @@ impl DrawTarget {
 
     /// Apply the given draw state (draws it).
     pub fn apply_draw_state(&mut self, draw_state: DrawState) -> io::Result<()> {
+        // no need to apply anything to hidden draw targets.
+        if self.is_hidden() {
+            return Ok(());
+        }
         match *self {
             DrawTarget::Term(ref term, ref mut last_state, rate) => {
                 let last_draw = last_state.as_ref().map(|x| x.ts);
@@ -516,9 +520,12 @@ impl ProgressBar {
 
     fn draw(&self) -> io::Result<()> {
         let mut state = self.state.write();
+
+        // we can bail early if the draw target is hidden.
         if state.draw_target.is_hidden() {
             return Ok(());
         }
+
         let draw_state = DrawState {
             lines: if state.should_render() {
                 state.style.format_state(&*state)
@@ -633,6 +640,8 @@ impl MultiProgress {
                 state.objects[idx].done = true;
             }
             state.objects[idx].draw_state = Some(draw_state);
+
+            // the rest from here is only drawing, we can skip it.
             if state.draw_target.is_hidden() {
                 continue;
             }
