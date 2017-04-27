@@ -1,6 +1,6 @@
 use std::io;
 use std::mem;
-use std::os::unix::io::{AsRawFd, RawFd};
+use std::os::unix::io::AsRawFd;
 
 use libc;
 
