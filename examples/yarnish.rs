@@ -35,25 +35,18 @@ pub fn main() {
     let spinner_style = ProgressStyle::default_spinner()
         .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
         .template("{prefix:.bold.dim} {spinner} {msg}");
-    let progress_style = ProgressStyle::default_spinner()
-        .template("{prefix:.bold.dim} {msg}\n{wide_bar} {pos}/{len}");
 
     println!("{} 🔍  Resolving packages...", style("[1/4]").bold().dim());
     println!("{} 🚚  Fetching packages...", style("[2/4]").bold().dim());
 
+    println!("{} 🔗  Linking dependencies...", style("[3/4]").bold().dim());
     let deps = 1232;
     let pb = ProgressBar::new(deps);
-    pb.set_style(progress_style);
-    pb.set_prefix("[3/4]");
-    pb.set_message("🔗  Linking dependencies...");
-
     for _ in 0..deps {
         pb.inc(1);
         thread::sleep(Duration::from_millis(3));
     }
-
     pb.finish_and_clear();
-    println!("{} 🔗  Linking dependencies...", style("[3/4]").bold().dim());
 
     println!("{} 📃  Building fresh packages...", style("[4/4]").bold().dim());
     let m = MultiProgress::new();
