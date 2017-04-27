@@ -35,6 +35,16 @@
 //! bar.finish();
 //! ```
 //!
+//! General progress bar behaviors:
+//!
+//! * if a non terminal is detected the progress bar will be completely
+//!   hidden.  This makes piping programs to logfiles make sense out of
+//!   the box.
+//! * progress bars should be explicitly finished to reset the rendering
+//!   for others.  Either by also clearing them or by replacing them with
+//!   a new message / retaining the current message.
+//! * the default template renders neither message nor prefix.
+//!
 //! # Templates
 //!
 //! Progress bars can be styled with simple format strings similar to the
@@ -69,6 +79,7 @@
 //!   style is used for the bar that is yet to render.
 //! * `wide_bar`: like `bar` but always fills the remaining space.
 //! * `spinner`: renders the spinner (current tick char)
+//! * `prefix`: renders the prefix set on the progress bar.
 //! * `msg`: renders the currently set message on the progress bar.
 //! * `pos`: renders the current position of the bar as integer
 //! * `len`: renders the total length of the bar as integer
