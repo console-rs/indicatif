@@ -67,6 +67,15 @@ impl DrawTarget {
         DrawTarget::to_term(Term::buffered_stderr(), Some(15))
     }
 
+    /// Returns true if the draw target is hidden
+    pub fn is_hidden(&self) -> bool {
+        match *self {
+            DrawTarget::Hidden => true,
+            DrawTarget::Term(ref term, ..) => !term.is_term(),
+            _ => false,
+        }
+    }
+
     /// Apply the given draw state (draws it).
     pub fn apply_draw_state(&mut self, draw_state: DrawState) -> io::Result<()> {
         match *self {
@@ -278,17 +287,6 @@ impl ProgressState {
     /// Indicates that a progress bar should be drawn.
     pub fn has_progress(&self) -> bool {
         self.len != !0
-    }
-
-    /// Indicates that this progress bar is completely hidden.
-    pub fn is_hidden(&self) -> bool {
-        if let Status::DoneHidden = self.status {
-            true
-        } else if let DrawTarget::Hidden = self.draw_target {
-            true
-        } else {
-            false
-        }
     }
 
     /// Indicates that the progress bar finished.
@@ -518,7 +516,7 @@ impl ProgressBar {
 
     fn draw(&self) -> io::Result<()> {
         let mut state = self.state.write();
-        if state.is_hidden() {
+        if state.draw_target.is_hidden() {
             return Ok(());
         }
         let draw_state = DrawState {
@@ -635,6 +633,9 @@ impl MultiProgress {
                 state.objects[idx].done = true;
             }
             state.objects[idx].draw_state = Some(draw_state);
+            if state.draw_target.is_hidden() {
+                continue;
+            }
 
             let mut lines = vec![];
             for obj in state.objects.iter() {
