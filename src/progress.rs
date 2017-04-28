@@ -514,6 +514,28 @@ impl ProgressBar {
         self.state.write().draw_target = target;
     }
 
+    /// Wraps an iterator with the progress bar.
+    ///
+    /// This operation consumes the progress bar and currently automatically calls `finish()` once
+    /// iteration is done.
+    ///
+    /// ```rust,norun
+    /// # use indicatif::ProgressBar;
+    /// let v = vec![1, 2, 3];
+    /// let pb = ProgressBar::new(3);
+    /// for item in pb.wrap_iter(v.iter()) {
+    ///     // ...
+    /// }
+    /// ```
+    ///
+    /// TODO: call `finish()` when the progress bar is dropped.
+    pub fn wrap_iter<It: Iterator>(self, it: It) -> ProgressBarIter<It> {
+        ProgressBarIter {
+            bar: self,
+            it: it,
+        }
+    }
+
     fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, f: F) {
         {
             let mut state = self.state.write();
@@ -697,5 +719,39 @@ impl Drop for ProgressBar {
         self.update_and_draw(|mut state| {
             state.status = Status::DoneHidden;
         });
+    }
+}
+
+pub struct ProgressBarIter<It: Iterator> {
+    bar: ProgressBar,
+    it: It,
+}
+
+impl<It: Iterator> Iterator for ProgressBarIter<It> {
+    type Item = It::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let item = self.it.next();
+
+        if item.is_some() {
+            self.bar.inc(1);
+        } else {
+            self.bar.finish(); // TODO: remove this once `finish()` is called automatically
+        }
+
+        item
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_can_wrap_an_iterator() {
+        let v = vec![1, 2, 3];
+        let pb = ProgressBar::new(v.len() as u64);
+        let w: Vec<_> = pb.wrap_iter(v.iter()).map(|x| x * 2).collect();
+        assert_eq!(w, vec![2, 4, 6]);
     }
 }
