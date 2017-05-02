@@ -516,9 +516,6 @@ impl ProgressBar {
 
     /// Wraps an iterator with the progress bar.
     ///
-    /// This operation consumes the progress bar and currently automatically calls `finish()` once
-    /// iteration is done.
-    ///
     /// ```rust,norun
     /// # use indicatif::ProgressBar;
     /// let v = vec![1, 2, 3];
@@ -527,11 +524,9 @@ impl ProgressBar {
     ///     // ...
     /// }
     /// ```
-    ///
-    /// TODO: call `finish()` when the progress bar is dropped.
-    pub fn wrap_iter<It: Iterator>(self, it: It) -> ProgressBarIter<It> {
+    pub fn wrap_iter<It: Iterator>(&self, it: It) -> ProgressBarIter<It> {
         ProgressBarIter {
-            bar: self,
+            bar: &self,
             it: it,
         }
     }
@@ -722,12 +717,12 @@ impl Drop for ProgressBar {
     }
 }
 
-pub struct ProgressBarIter<It: Iterator> {
-    bar: ProgressBar,
+pub struct ProgressBarIter<'a, It: Iterator> {
+    bar: &'a ProgressBar,
     it: It,
 }
 
-impl<It: Iterator> Iterator for ProgressBarIter<It> {
+impl<'a, It: Iterator> Iterator for ProgressBarIter<'a, It> {
     type Item = It::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -735,8 +730,6 @@ impl<It: Iterator> Iterator for ProgressBarIter<It> {
 
         if item.is_some() {
             self.bar.inc(1);
-        } else {
-            self.bar.finish(); // TODO: remove this once `finish()` is called automatically
         }
 
         item
