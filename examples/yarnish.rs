@@ -7,7 +7,7 @@ use std::time::{Instant, Duration};
 use rand::Rng;
 
 use indicatif::{ProgressBar, ProgressStyle, MultiProgress, HumanDuration};
-use console::style;
+use console::{Emoji, style};
 
 
 static PACKAGES: &'static [&'static str] = &[
@@ -30,6 +30,12 @@ static COMMANDS: &'static [&'static str] = &[
     "make test",
 ];
 
+static LOOKING_GLASS: Emoji = Emoji("🔍  ", "");
+static TRUCK: Emoji = Emoji("🚚  ", "");
+static CLIP: Emoji = Emoji("🔗  ", "");
+static PAPER: Emoji = Emoji("📃  ", "");
+static SPARKLE: Emoji = Emoji("✨ ", ":-)");
+
 
 pub fn main() {
     let mut rng = rand::thread_rng();
@@ -38,10 +44,10 @@ pub fn main() {
         .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
         .template("{prefix:.bold.dim} {spinner} {msg}");
 
-    println!("{} 🔍  Resolving packages...", style("[1/4]").bold().dim());
-    println!("{} 🚚  Fetching packages...", style("[2/4]").bold().dim());
+    println!("{} {}Resolving packages...", style("[1/4]").bold().dim(), LOOKING_GLASS);
+    println!("{} {}Fetching packages...", style("[2/4]").bold().dim(), TRUCK);
 
-    println!("{} 🔗  Linking dependencies...", style("[3/4]").bold().dim());
+    println!("{} {}Linking dependencies...", style("[3/4]").bold().dim(), CLIP);
     let deps = 1232;
     let pb = ProgressBar::new(deps);
     for _ in 0..deps {
@@ -50,7 +56,7 @@ pub fn main() {
     }
     pb.finish_and_clear();
 
-    println!("{} 📃  Building fresh packages...", style("[4/4]").bold().dim());
+    println!("{} {}Building fresh packages...", style("[4/4]").bold().dim(), PAPER);
     let m = MultiProgress::new();
     for i in 0..4 {
         let count = rng.gen_range(30, 80);
@@ -71,5 +77,5 @@ pub fn main() {
     }
     m.join_and_clear().unwrap();
 
-    println!("✨  Done in {}", HumanDuration(started.elapsed()));
+    println!("{} Done in {}", HumanDuration(started.elapsed()), SPARKLE);
 }
