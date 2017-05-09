@@ -3,7 +3,7 @@ use std::time::{Instant, Duration};
 
 use regex::{Regex, Captures};
 
-use ansistyle::{Style, measure_text_width};
+use console::{Style, measure_text_width};
 
 
 pub fn duration_to_secs(d: Duration) -> f64 {
@@ -184,7 +184,7 @@ fn test_expand_template() {
 
 #[test]
 fn test_expand_template_flags() {
-    use ansistyle::set_colors_enabled;
+    use console::set_colors_enabled;
     set_colors_enabled(true);
 
     let rv = expand_template("{foo:5}", |var| {

@@ -1,11 +1,13 @@
 extern crate indicatif;
+extern crate console;
 extern crate rand;
 
 use std::thread;
 use std::time::{Instant, Duration};
 use rand::Rng;
 
-use indicatif::{ProgressBar, ProgressStyle, MultiProgress, HumanDuration, style};
+use indicatif::{ProgressBar, ProgressStyle, MultiProgress, HumanDuration};
+use console::style;
 
 
 static PACKAGES: &'static [&'static str] = &[

@@ -8,20 +8,15 @@
 //! * OS X
 //! * Windows (colors require Windows 10)
 //!
+//! Best paired with other libraries in the family:
+//!
+//! * [console](https://crates.io/crates/console)
+//!
 //! # Crate Contents
 //!
 //! * **Progress bars**
 //!   * [`ProgressBar`](struct.ProgressBar.html) for bars and spinners
 //!   * [`MultiProgress`](struct.MultiProgress.html) for multiple bars
-//! * **Terminal support**
-//!   * [`Term`](struct.Term.html) for controlling the terminal
-//!   * [`user_attended`](fn.user_attended.html) for checking if there is a terminal
-//!   * [`measure_text_width`](fn.measure_text_width.html) for calculating text width
-//! * **Colors and Styling**
-//!   * [`colors_enabled`](fn.colors_enabled.html) for checking if colors are on
-//!   * [`set_colors_enabled`](fn.set_colors_enabled.html) for turning colors off and on
-//!   * [`strip_ansi_codes`](fn.strip_ansi_codes.html) for stripping ANSI codes from a string
-//!   * [`style`](fn.style.html) / [`Style`](struct.Style.html) for coloring stuff
 //! * **Data Formatting**
 //!   * [`HumanBytes`](struct.HumanBytes.html) for formatting bytes
 //!   * [`HumanDuration`](struct.HumanDuration.html) for formatting durations
@@ -124,26 +119,6 @@
 //! template functionality.  The template can be set by changing a
 //! `ProgressStyle` and attaching it to the progress bar.
 //!
-//! # Terminal Access
-//!
-//! The library provides a basic abstraction over working with terminals
-//! through the `Term` object.  For instance you can use it to move
-//! cursors or clear contents.
-//!
-//! # Colors and Styles
-//!
-//! `indicatif` uses `clicolors-control` to control colors.  It also
-//! provides higher level wrappers for styling text and other things
-//! that can be displayed with the `style` function.
-//!
-//! Example usage:
-//!
-//! ```
-//! use indicatif::style;
-//!
-//! println!("This is {} neat", style("fo").cyan());
-//! ```
-//!
 //! # Human Readable Formatting
 //!
 //! There are some formatting wrappers for showing elapsed time and
@@ -157,25 +132,15 @@
 //! println!("The file is {} large", HumanBytes(file.size));
 //! println!("The script took {}", HumanDuration(started.elapsed()));
 //! ```
-#[cfg(unix)] extern crate libc;
-#[cfg(windows)] extern crate winapi;
-#[cfg(windows)] extern crate kernel32;
 extern crate parking_lot;
 extern crate regex;
 #[macro_use] extern crate lazy_static;
-extern crate unicode_width;
-extern crate clicolors_control;
+extern crate console;
 
-mod term;
 mod progress;
 mod utils;
-mod ansistyle;
 mod format;
 
 pub use progress::{ProgressBar, MultiProgress,
                    ProgressDrawTarget, ProgressStyle};
-pub use term::{Term, user_attended};
-pub use ansistyle::{style, Style, StyledObject, Color, Attribute,
-                    strip_ansi_codes, measure_text_width,
-                    colors_enabled, set_colors_enabled};
 pub use format::{HumanDuration, FormattedDuration, HumanBytes};

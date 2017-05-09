@@ -8,10 +8,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use parking_lot::RwLock;
 
-use term::Term;
+use console::{Term, Style, measure_text_width};
 use utils::{expand_template, Estimate, duration_to_secs, secs_to_duration};
 use format::{FormattedDuration, HumanDuration, HumanBytes};
-use ansistyle::{Style, measure_text_width};
 
 /// Controls the rendering style of progress bars.
 #[derive(Clone)]
