@@ -1,24 +1,43 @@
 use std::borrow::Cow;
 use std::time::{Instant, Duration};
+use std::ops;
 
 use regex::{Regex, Captures};
 
 use console::{Style, measure_text_width};
 
+#[derive(PartialEq, PartialOrd, Copy, Clone, Default, Debug)]
+pub struct Seconds(pub f64);
 
-pub fn duration_to_secs(d: Duration) -> f64 {
-    d.as_secs() as f64 + d.subsec_nanos() as f64 / 1_000_000_000f64
+impl Seconds {
+    pub fn from_duration(d: Duration) -> Seconds {
+        Seconds(d.as_secs() as f64 + d.subsec_nanos() as f64 / 1_000_000_000f64)
+    }
+
+    pub fn to_duration(&self) -> Duration {
+        let secs = self.0.trunc() as u64;
+        let nanos = (self.0.fract() * 1_000_000_000f64) as u32;
+        Duration::new(secs, nanos)
+    }
 }
 
-pub fn secs_to_duration(s: f64) -> Duration {
-    let secs = s.trunc() as u64;
-    let nanos = (s.fract() * 1_000_000_000f64) as u32;
-    Duration::new(secs, nanos)
+impl ops::Add for Seconds {
+    type Output = Seconds;
+    fn add(self, rhs: Self) -> Seconds { Seconds(self.0 + rhs.0) }
 }
 
+impl ops::Mul<f64> for Seconds {
+    type Output = Seconds;
+    fn mul(self, rhs: f64) -> Seconds { Seconds(self.0 * rhs) }
+}
+
+impl ops::Div<f64> for Seconds {
+    type Output = Seconds;
+    fn div(self, rhs: f64) -> Seconds { Seconds(self.0 / rhs) }
+}
 
 pub struct Estimate {
-    buf: Vec<f64>,
+    buf: Vec<Seconds>,
     buf_cap: usize,
     last_idx: usize,
     started: Instant,
@@ -36,9 +55,9 @@ impl Estimate {
 
     pub fn record_step(&mut self, value: u64) {
         let item = if value == 0 {
-            0.0
+            Seconds(0.0)
         } else {
-            duration_to_secs(self.started.elapsed()) / value as f64
+            Seconds::from_duration(self.started.elapsed()) / value as f64
         };
         if self.buf.len() >= self.buf_cap {
             let idx = self.last_idx % self.buf.len();
@@ -49,10 +68,10 @@ impl Estimate {
         self.last_idx += 1;
     }
 
-    pub fn time_per_step(&self) -> f64 {
+    pub fn time_per_step(&self) -> Seconds {
         match self.buf.len() {
-            0 => 0.0,
-            n => self.buf.iter().sum::<f64>() / n as f64
+            0 => Seconds(0.0),
+            n => Seconds(self.buf.iter().map(|s| s.0).sum::<f64>()) / n as f64
         }
     }
 }
@@ -225,6 +244,14 @@ fn test_expand_template_flags() {
 #[test]
 fn test_duration_stuff() {
     let duration = Duration::new(42, 100_000_000);
-    let secs = duration_to_secs(duration);
-    assert_eq!(secs_to_duration(secs), duration);
+    let secs = Seconds::from_duration(duration);
+    assert_eq!(secs.to_duration(), duration);
+}
+
+#[test]
+fn test_seconds_ops() {
+    let s = Seconds(5.0);
+    assert_eq!(s + Seconds(6.0), Seconds(11.0));
+    assert_eq!(s * 2.0, Seconds(10.0));
+    assert_eq!(s / 2.0, Seconds(2.5));
 }
