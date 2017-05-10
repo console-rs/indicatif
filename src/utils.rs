@@ -49,11 +49,10 @@ impl Estimate {
         self.last_idx += 1;
     }
 
-    pub fn time_per_step(&self) -> Duration {
-        if self.buf.is_empty() {
-            Duration::new(0, 0)
-        } else {
-            secs_to_duration(self.buf.iter().sum::<f64>() / self.buf.len() as f64)
+    pub fn time_per_step(&self) -> f64 {
+        match self.buf.len() {
+            0 => 0.0,
+            n => self.buf.iter().sum::<f64>() / n as f64
         }
     }
 }

@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use parking_lot::RwLock;
 
 use console::{Term, Style, measure_text_width};
-use utils::{expand_template, Estimate, duration_to_secs, secs_to_duration};
+use utils::{expand_template, Estimate, secs_to_duration};
 use format::{FormattedDuration, HumanDuration, HumanBytes};
 
 /// Controls the rendering style of progress bars.
@@ -354,7 +354,7 @@ impl ProgressState {
     }
 
     /// Return the current average time per step
-    pub fn avg_time_per_step(&self) -> Duration {
+    pub fn avg_time_per_step(&self) -> f64 {
         self.est.time_per_step()
     }
 
@@ -363,7 +363,7 @@ impl ProgressState {
         if self.len == !0 || self.is_finished() {
             return Duration::new(0, 0);
         }
-        let t = duration_to_secs(self.avg_time_per_step());
+        let t = self.avg_time_per_step();
         // add 0.75 to leave 0.25 sec of 0s for the user
         secs_to_duration(t * self.len.saturating_sub(self.pos) as f64 + 0.75)
     }
