@@ -11,6 +11,7 @@
 //! Best paired with other libraries in the family:
 //!
 //! * [console](https://crates.io/crates/console)
+//! * [dialoguer](https://crates.io/crates/dialoguer)
 //!
 //! # Crate Contents
 //!
