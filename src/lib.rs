@@ -10,8 +10,8 @@
 //!
 //! Best paired with other libraries in the family:
 //!
-//! * [console](https://crates.io/crates/console)
-//! * [dialoguer](https://crates.io/crates/dialoguer)
+//! * [console](https://docs.rs/console)
+//! * [dialoguer](https://docs.rs/dialoguer)
 //!
 //! # Crate Contents
 //!
