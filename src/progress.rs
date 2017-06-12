@@ -322,11 +322,12 @@ impl ProgressState {
 
     /// Returns the completion in percent
     pub fn percent(&self) -> f32 {
-        if self.len == !0 {
-            0.0
-        } else {
-            self.pos as f32 / self.len as f32
-        }
+        let pct = match (self.pos, self.len) {
+            (_, 0) => 100.0,
+            (0, _) => 0.0,
+            (pos, len) => pos as f32 / len as f32,
+        };
+        pct.max(0.0).min(100.0)
     }
 
     /// Returns the position of the status bar as `(pos, len)` tuple.
@@ -548,6 +549,17 @@ impl ProgressBar {
     }
 }
 
+#[test]
+fn test_pbar_zero() {
+    let pb = ProgressBar::new(0);
+    assert_eq!(pb.state.read().percent(), 100.0);
+}
+
+#[test]
+fn test_pbar_maxu64() {
+    let pb = ProgressBar::new(!0);
+    assert_eq!(pb.state.read().percent(), 0.0);
+}
 
 struct MultiObject {
     done: bool,
