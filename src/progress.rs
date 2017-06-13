@@ -216,8 +216,9 @@ impl ProgressStyle {
         } else {
             "".into()
         };
+        let bg = width.saturating_sub(fill).saturating_sub(head);
         let rest = repeat(state.style.progress_chars[2])
-            .take(width - fill - head).collect::<String>();
+            .take(bg).collect::<String>();
         format!("{}{}{}", bar, cur, alt_style.unwrap_or(&Style::new()).apply_to(rest))
     }
 
@@ -559,6 +560,14 @@ fn test_pbar_zero() {
 fn test_pbar_maxu64() {
     let pb = ProgressBar::new(!0);
     assert_eq!(pb.state.read().percent(), 0.0);
+}
+
+#[test]
+fn test_pbar_overflow() {
+    let pb = ProgressBar::new(1);
+    pb.set_draw_target(ProgressDrawTarget::hidden());
+    pb.inc(2);
+    pb.finish();
 }
 
 struct MultiObject {
