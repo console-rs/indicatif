@@ -162,7 +162,7 @@ impl ProgressDrawTarget {
 
 impl ProgressDrawState {
     pub fn clear_term(&self, term: &Term) -> io::Result<()> {
-        term.clear_last_lines(self.lines.len())
+        term.move_cursor_up(self.lines.len())
     }
 
     pub fn draw_to_term(&self, term: &Term) -> io::Result<()> {
