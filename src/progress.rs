@@ -144,7 +144,11 @@ impl ProgressDrawTarget {
                    last_draw.is_none() ||
                    last_draw.unwrap().elapsed() > rate.unwrap() {
                     if let Some(ref last_state) = *last_state {
-                        last_state.clear_term(term)?;
+                        if draw_state.finished {
+                            last_state.clear_term(term)?;
+                        } else {
+                            last_state.move_cursor(term)?;
+                        }
                     }
                     draw_state.draw_to_term(term)?;
                     term.flush()?;
@@ -162,6 +166,10 @@ impl ProgressDrawTarget {
 
 impl ProgressDrawState {
     pub fn clear_term(&self, term: &Term) -> io::Result<()> {
+        term.clear_last_lines(self.lines.len())
+    }
+    
+    pub fn move_cursor(&self, term: &Term) -> io::Result<()> {
         term.move_cursor_up(self.lines.len())
     }
 
