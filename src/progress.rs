@@ -144,7 +144,7 @@ impl ProgressDrawTarget {
                    last_draw.is_none() ||
                    last_draw.unwrap().elapsed() > rate.unwrap() {
                     if let Some(ref last_state) = *last_state {
-                        if draw_state.finished {
+                        if draw_state.lines.is_empty() {
                             last_state.clear_term(term)?;
                         } else {
                             last_state.move_cursor(term)?;
