@@ -73,6 +73,7 @@ pub struct TemplateVar<'a> {
     pub width: Option<usize>,
     pub style: Option<Style>,
     pub alt_style: Option<Style>,
+    pub last_element: bool,
 }
 
 impl<'a> TemplateVar<'a> {
@@ -84,6 +85,7 @@ impl<'a> TemplateVar<'a> {
             width: self.width,
             style: self.style.clone(),
             alt_style: self.alt_style.clone(),
+            last_element: self.last_element,
         }
     }
 }
@@ -120,6 +122,7 @@ pub fn expand_template<'a, F: Fn(&TemplateVar) -> String>(s: &'a str, f: F) -> C
             width: None,
             style: None,
             alt_style: None,
+            last_element: caps.get(0).unwrap().end() >= s.len(),
         };
         if let Some(opt_caps) = KEY_RE.captures(&key[..key.len() - 1]) {
             if let Some(short_key) = opt_caps.get(1) {

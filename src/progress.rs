@@ -276,8 +276,12 @@ impl ProgressStyle {
                     s.replace("\x00", &self.format_bar(state, bar_width, var.alt_style.as_ref()))
                 } else if var.key == "msg" {
                     let msg_width = total_width - measure_text_width(&s);
-                    s.replace("\x00", &pad_str(state.message(), msg_width,
-                                               var.align, true))
+                    let msg = pad_str(state.message(), msg_width, var.align, true);
+                    s.replace("\x00", if var.last_element {
+                        msg.trim_right()
+                    } else {
+                        &msg
+                    })
                 } else {
                     unreachable!()
                 }
