@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use parking_lot::RwLock;
 
 use console::{Term, Style, measure_text_width};
-use utils::{expand_template, Estimate, duration_to_secs, secs_to_duration};
+use utils::{expand_template, Estimate, duration_to_secs, secs_to_duration, pad_str};
 use format::{FormattedDuration, HumanDuration, HumanBytes};
 
 /// Controls the rendering style of progress bars.
@@ -227,18 +227,23 @@ impl ProgressStyle {
         let mut rv = vec![];
 
         for line in self.template.lines() {
-            let need_wide_bar = RefCell::new(None);
+            let wide_element = RefCell::new(None);
 
             let s = expand_template(line, |var| {
                 let key = var.key;
                 if key == "wide_bar" {
-                    *need_wide_bar.borrow_mut() = Some(var.alt_style.clone());
+                    *wide_element.borrow_mut() = Some(
+                        var.duplicate_for_key("bar"));
                     "\x00".into()
                 } else if key == "bar" {
                     self.format_bar(state, var.width.unwrap_or(20),
                                     var.alt_style.as_ref())
                 } else if key == "spinner" {
                     state.current_tick_char().to_string()
+                } else if key == "wide_msg" {
+                    *wide_element.borrow_mut() = Some(
+                        var.duplicate_for_key("msg"));
+                    "\x00".into()
                 } else if key == "msg" {
                     state.message().to_string()
                 } else if key == "prefix" {
@@ -264,10 +269,18 @@ impl ProgressStyle {
                 }
             });
 
-            rv.push(if let Some(ref style) = *need_wide_bar.borrow() {
+            rv.push(if let Some(ref var) = *wide_element.borrow() {
                 let total_width = state.width();
-                let bar_width = total_width - measure_text_width(&s);
-                s.replace("\x00", &self.format_bar(state, bar_width, style.as_ref()))
+                if var.key == "bar" {
+                    let bar_width = total_width - measure_text_width(&s);
+                    s.replace("\x00", &self.format_bar(state, bar_width, var.alt_style.as_ref()))
+                } else if var.key == "msg" {
+                    let msg_width = total_width - measure_text_width(&s);
+                    s.replace("\x00", &pad_str(state.message(), msg_width,
+                                               var.align, true))
+                } else {
+                    unreachable!()
+                }
             } else {
                 s.to_string()
             });

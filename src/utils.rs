@@ -75,6 +75,19 @@ pub struct TemplateVar<'a> {
     pub alt_style: Option<Style>,
 }
 
+impl<'a> TemplateVar<'a> {
+    pub fn duplicate_for_key<'b>(&self, key: &'b str) -> TemplateVar<'b> {
+        TemplateVar {
+            key: key,
+            align: self.align,
+            truncate: self.truncate,
+            width: self.width,
+            style: self.style.clone(),
+            alt_style: self.alt_style.clone(),
+        }
+    }
+}
+
 pub fn expand_template<'a, F: Fn(&TemplateVar) -> String>(s: &'a str, f: F) -> Cow<'a, str> {
     lazy_static! {
         static ref VAR_RE: Regex = Regex::new(
