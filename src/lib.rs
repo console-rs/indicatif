@@ -143,6 +143,6 @@ mod progress;
 mod utils;
 mod format;
 
-pub use progress::{ProgressBar, MultiProgress,
+pub use progress::{ProgressBar, MultiProgress, ProgressBarIter,
                    ProgressDrawTarget, ProgressStyle};
 pub use format::{HumanDuration, FormattedDuration, HumanBytes};
