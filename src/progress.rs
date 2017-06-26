@@ -1,8 +1,10 @@
 use std::io;
+use std::thread;
 use std::iter::repeat;
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
+use std::sync::Arc;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -329,7 +331,11 @@ struct ProgressState {
     status: Status,
     started: Instant,
     est: Estimate,
+    tick_thread: Option<thread::JoinHandle<()>>,
+    steady_tick: u64,
 }
+
+unsafe impl Sync for ProgressState {}
 
 impl ProgressState {
     /// Returns the character that should be drawn for the
@@ -412,7 +418,7 @@ impl ProgressState {
 
 /// A progress bar or spinner.
 pub struct ProgressBar {
-    state: RwLock<ProgressState>,
+    state: Arc<RwLock<ProgressState>>,
 }
 
 unsafe impl Sync for ProgressBar {}
@@ -423,7 +429,7 @@ impl ProgressBar {
     /// This progress bar by default draws directly to stderr.
     pub fn new(len: u64) -> ProgressBar {
         ProgressBar {
-            state: RwLock::new(ProgressState {
+            state: Arc::new(RwLock::new(ProgressState {
                 style: ProgressStyle::default_bar(),
                 draw_target: ProgressDrawTarget::stderr(),
                 width: None,
@@ -435,7 +441,9 @@ impl ProgressBar {
                 status: Status::InProgress,
                 started: Instant::now(),
                 est: Estimate::new(),
-            }),
+                tick_thread: None,
+                steady_tick: 0,
+            })),
         }
     }
 
@@ -464,12 +472,53 @@ impl ProgressBar {
         self.state.write().style = style;
     }
 
+    /// Spawns a background thread to tick the progress bar.
+    ///
+    /// When this is enabled a background thread will regularly tick the
+    /// progress back in the given interval (milliseconds).  This is
+    /// useful to advance progress bars that are very slow by themselves.
+    ///
+    /// When steady ticks are enabled calling `.tick()` on a progress
+    /// bar does not do anything.
+    pub fn enable_steady_tick(&self, ms: u64) {
+        let mut state = self.state.write();
+        state.steady_tick = ms;
+        if state.tick_thread.is_some() {
+            return;
+        }
+
+        let state_arc = self.state.clone();
+        state.tick_thread = Some(thread::spawn(move || {
+            loop {
+                thread::sleep(Duration::from_millis(ms));
+                {
+                    let mut state = state_arc.write();
+                    if state.is_finished() || state.steady_tick == 0 {
+                        break;
+                    }
+                    if state.tick != 0 {
+                        state.tick += 1;
+                    }
+                }
+
+                draw_state(&state_arc).ok();
+            }
+        }));
+    }
+
+    /// Undoes `enable_steady_tick`.
+    pub fn disable_steady_tick(&self) {
+        self.enable_steady_tick(0);
+    }
+
     /// Manually ticks the spinner or progress bar.
     ///
     /// This automatically happens on any other change to a progress bar.
     pub fn tick(&self) {
         self.update_and_draw(|mut state| {
-            state.tick += 1;
+            if state.steady_tick == 0 || state.tick == 0 {
+                state.tick += 1;
+            }
         });
     }
 
@@ -477,7 +526,9 @@ impl ProgressBar {
     pub fn inc(&self, delta: u64) {
         self.update_and_draw(|mut state| {
             state.pos += delta;
-            state.tick += 1;
+            if state.steady_tick == 0 || state.tick == 0 {
+                state.tick += 1;
+            }
         })
     }
 
@@ -485,7 +536,9 @@ impl ProgressBar {
     pub fn set_position(&self, pos: u64) {
         self.update_and_draw(|mut state| {
             state.pos = pos;
-            state.tick += 1;
+            if state.steady_tick == 0 || state.tick == 0 {
+                state.tick += 1;
+            }
         })
     }
 
@@ -501,7 +554,9 @@ impl ProgressBar {
         let prefix = prefix.to_string();
         self.update_and_draw(|mut state| {
             state.prefix = prefix;
-            state.tick += 1;
+            if state.steady_tick == 0 || state.tick == 0 {
+                state.tick += 1;
+            }
         })
     }
 
@@ -510,7 +565,9 @@ impl ProgressBar {
         let msg = msg.to_string();
         self.update_and_draw(|mut state| {
             state.message = msg;
-            state.tick += 1;
+            if state.steady_tick == 0 || state.tick == 0 {
+                state.tick += 1;
+            }
         })
     }
 
@@ -566,7 +623,7 @@ impl ProgressBar {
     /// ```
     pub fn wrap_iter<It: Iterator>(&self, it: It) -> ProgressBarIter<It> {
         ProgressBarIter {
-            bar: &self,
+            bar: self,
             it: it,
         }
     }
@@ -585,25 +642,29 @@ impl ProgressBar {
     }
 
     fn draw(&self) -> io::Result<()> {
-        let mut state = self.state.write();
-
-        // we can bail early if the draw target is hidden.
-        if state.draw_target.is_hidden() {
-            return Ok(());
-        }
-
-        let draw_state = ProgressDrawState {
-            lines: if state.should_render() {
-                state.style.format_state(&*state)
-            } else {
-                vec![]
-            },
-            finished: state.is_finished(),
-            force_draw: false,
-            ts: Instant::now(),
-        };
-        state.draw_target.apply_draw_state(draw_state)
+        draw_state(&self.state)
     }
+}
+
+fn draw_state(state: &Arc<RwLock<ProgressState>>) -> io::Result<()> {
+    let mut state = state.write();
+
+    // we can bail early if the draw target is hidden.
+    if state.draw_target.is_hidden() {
+        return Ok(());
+    }
+
+    let draw_state = ProgressDrawState {
+        lines: if state.should_render() {
+            state.style.format_state(&*state)
+        } else {
+            vec![]
+        },
+        finished: state.is_finished(),
+        force_draw: false,
+        ts: Instant::now(),
+    };
+    state.draw_target.apply_draw_state(draw_state)
 }
 
 #[test]
@@ -776,13 +837,13 @@ impl Drop for ProgressBar {
     }
 }
 
-pub struct ProgressBarIter<'a, It: Iterator> {
+pub struct ProgressBarIter<'a, I> {
     bar: &'a ProgressBar,
-    it: It,
+    it: I,
 }
 
-impl<'a, It: Iterator> Iterator for ProgressBarIter<'a, It> {
-    type Item = It::Item;
+impl<'a, I: Iterator> Iterator for ProgressBarIter<'a, I> {
+    type Item = I::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
         let item = self.it.next();
