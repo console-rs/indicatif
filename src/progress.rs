@@ -554,6 +554,23 @@ impl ProgressBar {
         self.state.write().draw_target = target;
     }
 
+    /// Wraps an iterator with the progress bar.
+    ///
+    /// ```rust,norun
+    /// # use indicatif::ProgressBar;
+    /// let v = vec![1, 2, 3];
+    /// let pb = ProgressBar::new(3);
+    /// for item in pb.wrap_iter(v.iter()) {
+    ///     // ...
+    /// }
+    /// ```
+    pub fn wrap_iter<It: Iterator>(&self, it: It) -> ProgressBarIter<It> {
+        ProgressBarIter {
+            bar: &self,
+            it: it,
+        }
+    }
+
     fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, f: F) {
         {
             let mut state = self.state.write();
@@ -756,5 +773,37 @@ impl Drop for ProgressBar {
         self.update_and_draw(|mut state| {
             state.status = Status::DoneHidden;
         });
+    }
+}
+
+pub struct ProgressBarIter<'a, It: Iterator> {
+    bar: &'a ProgressBar,
+    it: It,
+}
+
+impl<'a, It: Iterator> Iterator for ProgressBarIter<'a, It> {
+    type Item = It::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let item = self.it.next();
+
+        if item.is_some() {
+            self.bar.inc(1);
+        }
+
+        item
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_can_wrap_an_iterator() {
+        let v = vec![1, 2, 3];
+        let pb = ProgressBar::new(v.len() as u64);
+        let w: Vec<_> = pb.wrap_iter(v.iter()).map(|x| x * 2).collect();
+        assert_eq!(w, vec![2, 4, 6]);
     }
 }
