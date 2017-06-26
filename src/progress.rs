@@ -58,17 +58,39 @@ pub struct ProgressDrawTarget {
 impl ProgressDrawTarget {
     /// Draw to a buffered stdout terminal at a max of 15 times a second.
     ///
-    /// This is the default draw target for progress bars.  For more
-    /// information see `ProgressDrawTarget::to_term`.
+    /// For more information see `ProgressDrawTarget::to_term`.
     pub fn stdout() -> ProgressDrawTarget {
         ProgressDrawTarget::to_term(Term::buffered_stdout(), Some(15))
     }
 
     /// Draw to a buffered stderr terminal at a max of 15 times a second.
     ///
-    /// For more information see `ProgressDrawTarget::to_term`.
+    /// This is the default draw target for progress bars.  For more
+    /// information see `ProgressDrawTarget::to_term`.
     pub fn stderr() -> ProgressDrawTarget {
         ProgressDrawTarget::to_term(Term::buffered_stderr(), Some(15))
+    }
+
+    /// Draw to a buffered stdout terminal without max framerate.
+    ///
+    /// This is useful when data is known to come in very slowly and
+    /// not rendering some updates would be a problem (for instance
+    /// when messages are used extensively).
+    ///
+    /// For more information see `ProgressDrawTarget::to_term`.
+    pub fn stdout_nohz() -> ProgressDrawTarget {
+        ProgressDrawTarget::to_term(Term::buffered_stdout(), None)
+    }
+
+    /// Draw to a buffered stderr terminal without max framerate.
+    ///
+    /// This is useful when data is known to come in very slowly and
+    /// not rendering some updates would be a problem (for instance
+    /// when messages are used extensively).
+    ///
+    /// For more information see `ProgressDrawTarget::to_term`.
+    pub fn stderr_nohz() -> ProgressDrawTarget {
+        ProgressDrawTarget::to_term(Term::buffered_stderr(), None)
     }
 
     /// Draw to a terminal, optionally with a specific refresh rate.
@@ -398,12 +420,12 @@ unsafe impl Sync for ProgressBar {}
 impl ProgressBar {
     /// Creates a new progress bar with a given length.
     ///
-    /// This progress bar by default draws directly to stdout.
+    /// This progress bar by default draws directly to stderr.
     pub fn new(len: u64) -> ProgressBar {
         ProgressBar {
             state: RwLock::new(ProgressState {
                 style: ProgressStyle::default_bar(),
-                draw_target: ProgressDrawTarget::stdout(),
+                draw_target: ProgressDrawTarget::stderr(),
                 width: None,
                 message: "".into(),
                 prefix: "".into(),
@@ -608,13 +630,13 @@ pub struct MultiProgress {
 unsafe impl Sync for MultiProgress {}
 
 impl MultiProgress {
-    /// Creates a new multi progress object that draws to stdout.
+    /// Creates a new multi progress object that draws to stderr.
     pub fn new() -> MultiProgress {
         let (tx, rx) = channel();
         MultiProgress {
             state: RwLock::new(MultiProgressState {
                 objects: vec![],
-                draw_target: ProgressDrawTarget::stdout(),
+                draw_target: ProgressDrawTarget::stderr(),
             }),
             joining: AtomicBool::new(false),
             tx: tx,
