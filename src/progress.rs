@@ -494,6 +494,7 @@ impl ProgressBar {
                 {
                     let mut state = state_arc.write();
                     if state.is_finished() || state.steady_tick == 0 {
+                        state.steady_tick = 0;
                         break;
                     }
                     if state.tick != 0 {
