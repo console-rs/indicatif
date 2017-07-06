@@ -113,7 +113,7 @@
 //! * `bytes`: renders the current position of the bar as bytes.
 //! * `total_bytes`: renders the total length of the bar as bytes.
 //! * `elapsed_precise`: renders the elapsed time as `HH:MM:SS`.
-//! * `elapased`: renders the elapsed time as `42s`, `1m` etc.
+//! * `elapsed`: renders the elapsed time as `42s`, `1m` etc.
 //! * `eta_precise`: the remaining time (like `elapsed_precise`).
 //! * `eta`: the remaining time (like `elapsed`).
 //!
