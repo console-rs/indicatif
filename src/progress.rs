@@ -31,6 +31,8 @@ struct ProgressDrawState {
     pub finished: bool,
     /// True if drawing should be forced.
     pub force_draw: bool,
+    /// True if we should move the cursor up when possible instead of clearing lines.
+    pub move_cursor: bool,
     /// Time when the draw state was created.
     pub ts: Instant,
 }
@@ -144,10 +146,10 @@ impl ProgressDrawTarget {
                    last_draw.is_none() ||
                    last_draw.unwrap().elapsed() > rate.unwrap() {
                     if let Some(ref last_state) = *last_state {
-                        if draw_state.lines.is_empty() {
-                            last_state.clear_term(term)?;
-                        } else {
+                        if !draw_state.lines.is_empty() && draw_state.move_cursor {
                             last_state.move_cursor(term)?;
+                        } else {
+                            last_state.clear_term(term)?;
                         }
                     }
                     draw_state.draw_to_term(term)?;
@@ -671,6 +673,7 @@ fn draw_state(state: &Arc<RwLock<ProgressState>>) -> io::Result<()> {
         },
         finished: state.is_finished(),
         force_draw: false,
+        move_cursor: false,
         ts: Instant::now(),
     };
     state.draw_target.apply_draw_state(draw_state)
@@ -704,6 +707,7 @@ struct MultiObject {
 struct MultiProgressState {
     objects: Vec<MultiObject>,
     draw_target: ProgressDrawTarget,
+    move_cursor: bool,
 }
 
 /// Manages multiple progress bars from different threads.
@@ -724,6 +728,7 @@ impl MultiProgress {
             state: RwLock::new(MultiProgressState {
                 objects: vec![],
                 draw_target: ProgressDrawTarget::stderr(),
+                move_cursor: false,
             }),
             joining: AtomicBool::new(false),
             tx: tx,
@@ -734,6 +739,14 @@ impl MultiProgress {
     /// Sets a different draw target for the multiprogress bar.
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
         self.state.write().draw_target = target;
+    }
+
+    /// Set whether we should try to move the cursor when possible instead of clearing lines.
+    /// 
+    /// This can reduce flickering, but do not enable it if you intend to change the number of
+    /// progress bars.
+    pub fn set_move_cursor(&self, move_cursor: bool) {
+        self.state.write().move_cursor = move_cursor;
     }
 
     /// Adds a progress bar.
@@ -787,6 +800,7 @@ impl MultiProgress {
         }
         self.joining.store(true, Ordering::Release);
 
+        let move_cursor = self.state.read().move_cursor;
         while !self.is_done() {
             let (idx, draw_state) = self.rx.recv().unwrap();
             let ts = draw_state.ts;
@@ -812,10 +826,11 @@ impl MultiProgress {
 
             let finished = !state.objects.iter().any(|ref x| x.done);
             state.draw_target.apply_draw_state(ProgressDrawState {
-                lines: lines,
-                force_draw: force_draw,
-                finished: finished,
-                ts: ts,
+                lines,
+                force_draw,
+                move_cursor,
+                finished,
+                ts,
             })?;
         }
 
@@ -825,6 +840,7 @@ impl MultiProgress {
                 lines: vec![],
                 finished: true,
                 force_draw: true,
+                move_cursor,
                 ts: Instant::now(),
             })?;
         }
