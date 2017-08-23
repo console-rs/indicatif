@@ -111,6 +111,7 @@
 //! * `pos`: renders the current position of the bar as integer
 //! * `len`: renders the total length of the bar as integer
 //! * `bytes`: renders the current position of the bar as bytes.
+//! * `percent`: renders the current position of the bar as a percentage of the total length.
 //! * `total_bytes`: renders the total length of the bar as bytes.
 //! * `elapsed_precise`: renders the elapsed time as `HH:MM:SS`.
 //! * `elapased`: renders the elapsed time as `42s`, `1m` etc.
