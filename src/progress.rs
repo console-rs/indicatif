@@ -864,4 +864,12 @@ mod tests {
         let w: Vec<_> = pb.wrap_iter(v.iter()).map(|x| x * 2).collect();
         assert_eq!(w, vec![2, 4, 6]);
     }
+
+    #[test]
+    fn progress_bar_sync_send() {
+        let _: Box<Sync> = Box::new(ProgressBar::new(1));
+        let _: Box<Send> = Box::new(ProgressBar::new(1));
+        let _: Box<Sync> = Box::new(MultiProgress::new());
+        let _: Box<Send> = Box::new(MultiProgress::new());
+    }
 }
