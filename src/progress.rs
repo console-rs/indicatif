@@ -276,6 +276,8 @@ impl ProgressStyle {
                     pos.to_string()
                 } else if key == "len" {
                     len.to_string()
+                } else if key == "percent" {
+                    format!("{:.*}", 0, state.percent() * 100f32)
                 } else if key == "bytes" {
                     format!("{}", HumanBytes(state.pos))
                 } else if key == "total_bytes" {
