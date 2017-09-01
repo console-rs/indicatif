@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use parking_lot::RwLock;
+use parking_lot::{Mutex,RwLock};
 
 use console::{Term, Style, measure_text_width};
 use utils::{expand_template, Estimate, duration_to_secs, secs_to_duration, pad_str};
@@ -43,7 +43,7 @@ enum Status {
 
 enum ProgressDrawTargetKind {
     Term(Term, Option<ProgressDrawState>, Option<Duration>),
-    Remote(usize, Sender<(usize, ProgressDrawState)>),
+    Remote(usize, Mutex<Sender<(usize, ProgressDrawState)>>),
     Hidden,
 }
 
@@ -152,7 +152,7 @@ impl ProgressDrawTarget {
                 }
             }
             ProgressDrawTargetKind::Remote(idx, ref chan) => {
-                chan.send((idx, draw_state)).unwrap();
+                chan.lock().send((idx, draw_state)).unwrap();
             }
             ProgressDrawTargetKind::Hidden => {}
         }
@@ -335,8 +335,6 @@ struct ProgressState {
     steady_tick: u64,
 }
 
-unsafe impl Sync for ProgressState {}
-
 impl ProgressState {
     /// Returns the character that should be drawn for the
     /// current spinner character.
@@ -420,8 +418,6 @@ impl ProgressState {
 pub struct ProgressBar {
     state: Arc<RwLock<ProgressState>>,
 }
-
-unsafe impl Sync for ProgressBar {}
 
 impl ProgressBar {
     /// Creates a new progress bar with a given length.
@@ -741,7 +737,7 @@ impl MultiProgress {
             draw_state: None,
         });
         bar.set_draw_target(ProgressDrawTarget {
-            kind: ProgressDrawTargetKind::Remote(idx, self.tx.clone()),
+            kind: ProgressDrawTargetKind::Remote(idx, Mutex::new(self.tx.clone())),
         });
         bar
     }
@@ -867,5 +863,13 @@ mod tests {
         let pb = ProgressBar::new(v.len() as u64);
         let w: Vec<_> = pb.wrap_iter(v.iter()).map(|x| x * 2).collect();
         assert_eq!(w, vec![2, 4, 6]);
+    }
+
+    #[test]
+    fn progress_bar_sync_send() {
+        let _: Box<Sync> = Box::new(ProgressBar::new(1));
+        let _: Box<Send> = Box::new(ProgressBar::new(1));
+        let _: Box<Sync> = Box::new(MultiProgress::new());
+        let _: Box<Send> = Box::new(MultiProgress::new());
     }
 }
