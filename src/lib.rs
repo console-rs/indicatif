@@ -24,21 +24,20 @@
 //!
 //! # Progress Bars and Spinners
 //!
-//! indicatif comes with a `ProgressBar` type that support both bounded
+//! indicatif comes with a `ProgressBar` type that supports both bounded
 //! progress bar uses as well as unbounded "spinner" type progress reports.
 //! Progress bars are `Sync` and `Send` objects which means that they are
 //! internally locked and can be passed from thread to thread.
 //!
 //! Additionally a `MultiProgress` utility is provided that can manage
-//! rendering multiple progress bars at once (eg: for instance from
-//! multiple threads).
+//! rendering multiple progress bars at once (eg: from multiple threads).
 //!
-//! To wet your appetite, this is what this can look like:
+//! To whet your appetite, this is what this can look like:
 //!
 //! <img src="https://github.com/mitsuhiko/indicatif/raw/master/screenshots/yarn.gif?raw=true" width="60%">
 //!
 //! Progress bars are manually advanced and by default draw to stdout.
-//! When you are done the progress bar can be finished either visibly
+//! When you are done, the progress bar can be finished either visibly
 //! (eg: the progress bar stays on the screen) or cleared (the progress
 //! bar will be removed).
 //!
@@ -113,7 +112,7 @@
 //! * `bytes`: renders the current position of the bar as bytes.
 //! * `total_bytes`: renders the total length of the bar as bytes.
 //! * `elapsed_precise`: renders the elapsed time as `HH:MM:SS`.
-//! * `elapased`: renders the elapsed time as `42s`, `1m` etc.
+//! * `elapsed`: renders the elapsed time as `42s`, `1m` etc.
 //! * `eta_precise`: the remaining time (like `elapsed_precise`).
 //! * `eta`: the remaining time (like `elapsed`).
 //!
