@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use parking_lot::{Mutex,RwLock};
+use parking_lot::{Mutex, RwLock};
 
 use console::{Term, Style, measure_text_width};
 use utils::{expand_template, Estimate, duration_to_secs, secs_to_duration, pad_str};
