@@ -235,7 +235,7 @@ impl ProgressStyle {
 
     fn format_bar(&self, state: &ProgressState, width: usize,
                   alt_style: Option<&Style>) -> String {
-        let pct = state.percent();
+        let pct = state.fraction();
         let mut fill = (pct * width as f32) as usize;
         let mut head = 0;
         if fill > 0 && !state.is_finished() {
@@ -287,7 +287,7 @@ impl ProgressStyle {
                 } else if key == "len" {
                     len.to_string()
                 } else if key == "percent" {
-                    format!("{:.*}", 0, state.percent() * 100f32)
+                    format!("{:.*}", 0, state.fraction() * 100f32)
                 } else if key == "bytes" {
                     format!("{}", HumanBytes(state.pos))
                 } else if key == "total_bytes" {
@@ -376,14 +376,14 @@ impl ProgressState {
         }
     }
 
-    /// Returns the completion in percent
-    pub fn percent(&self) -> f32 {
+    /// Returns the completion as a floating-point number between 0 and 1
+    pub fn fraction(&self) -> f32 {
         let pct = match (self.pos, self.len) {
-            (_, 0) => 100.0,
+            (_, 0) => 1.0,
             (0, _) => 0.0,
             (pos, len) => pos as f32 / len as f32,
         };
-        pct.max(0.0).min(100.0)
+        pct.max(0.0).min(1.0)
     }
 
     /// Returns the position of the status bar as `(pos, len)` tuple.
@@ -680,13 +680,13 @@ fn draw_state(state: &Arc<RwLock<ProgressState>>) -> io::Result<()> {
 #[test]
 fn test_pbar_zero() {
     let pb = ProgressBar::new(0);
-    assert_eq!(pb.state.read().percent(), 100.0);
+    assert_eq!(pb.state.read().fraction(), 1.0);
 }
 
 #[test]
 fn test_pbar_maxu64() {
     let pb = ProgressBar::new(!0);
-    assert_eq!(pb.state.read().percent(), 0.0);
+    assert_eq!(pb.state.read().fraction(), 0.0);
 }
 
 #[test]
