@@ -9,10 +9,11 @@ use rand::{thread_rng, Rng};
 
 fn main() {
     let styles = [
-        ("Fine bar:", "█▉▊▋▌▍▎▏  ","red"),
-        ("Vertical:", "█▇▆▅▄▃▂▁  ", "blue"),
-        ("Fade in: ", "█▓▒░  ",      "yellow"),
-        ("Blocky:  ", "█▛▌▖  ",       "green"),
+        ("Rough bar:", "█  ", "red"),
+        ("Fine bar: ", "█▉▊▋▌▍▎▏  ","yellow"),
+        ("Vertical: ", "█▇▆▅▄▃▂▁  ", "green"),
+        ("Fade in:  ", "█▓▒░  ",      "blue"),
+        ("Blocky:   ", "█▛▌▖  ",       "magenta"),
     ];
 
     let m = MultiProgress::new();
