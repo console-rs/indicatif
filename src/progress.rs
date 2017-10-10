@@ -236,22 +236,20 @@ impl ProgressStyle {
     fn format_bar(&self, state: &ProgressState, width: usize,
                   alt_style: Option<&Style>) -> String {
         let pct = state.fraction();
-        let mut fill = (pct * width as f32) as usize;
-        let mut head = 0;
-        if fill > 0 && !state.is_finished() {
-            fill -= 1;
-            head = 1;
-        }
+        let fill = pct * width as f32;
+        let head = if pct > 0.0 && !state.is_finished() { 1 } else { 0 };
 
         let bar = repeat(state.style.progress_chars[0])
-            .take(fill).collect::<String>();
+            .take(fill as usize).collect::<String>();
         let cur = if head == 1 {
-            state.style.progress_chars[1].to_string()
+            let n = state.style.progress_chars.len() - 2;
+            let cur_char = n - ((fill * n as f32) as usize % n);
+            state.style.progress_chars[cur_char].to_string()
         } else {
             "".into()
         };
-        let bg = width.saturating_sub(fill).saturating_sub(head);
-        let rest = repeat(state.style.progress_chars[2])
+        let bg = width.saturating_sub(fill as usize).saturating_sub(head);
+        let rest = repeat(state.style.progress_chars.last().unwrap())
             .take(bg).collect::<String>();
         format!("{}{}{}", bar, cur, alt_style.unwrap_or(&Style::new()).apply_to(rest))
     }
