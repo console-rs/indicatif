@@ -237,7 +237,7 @@ impl ProgressStyle {
                   alt_style: Option<&Style>) -> String {
         let pct = state.fraction();
         let fill = pct * width as f32;
-        let head = if pct > 0.0 && !state.is_finished() { 1 } else { 0 };
+        let head = if pct > 0.0 && (fill as usize) < width { 1 } else { 0 };
 
         let bar = repeat(state.style.progress_chars[0])
             .take(fill as usize).collect::<String>();
