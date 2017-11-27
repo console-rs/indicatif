@@ -404,7 +404,11 @@ impl ProgressState {
         if let Some(width) = self.width {
             width as usize
         } else {
-            Term::stdout().size().1 as usize
+            let size = match self.draw_target.kind {
+                ProgressDrawTargetKind::Term(ref term, _, _) => term.size(),
+                _ => Term::stdout().size(),
+            };
+            size.1 as usize
         }
     }
 
