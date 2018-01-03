@@ -5,7 +5,7 @@ version = "0.8.0"
 keywords = ["cli", "progress", "pb", "colors", "progressbar"]
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
 license = "MIT"
-homepage = "https://github.com/mitsuhiko/indicatif"
+repository = "https://github.com/mitsuhiko/indicatif"
 documentation = "https://docs.rs/indicatif"
 readme = "README.md"
 
