@@ -237,7 +237,7 @@ impl ProgressStyle {
                   alt_style: Option<&Style>) -> String {
         let pct = state.fraction();
         let fill = pct * width as f32;
-        let head = if pct > 0.0 && !state.is_finished() { 1 } else { 0 };
+        let head = if pct > 0.0 && (fill as usize) < width { 1 } else { 0 };
 
         let bar = repeat(state.style.progress_chars[0])
             .take(fill as usize).collect::<String>();
@@ -522,7 +522,7 @@ impl ProgressBar {
     ///
     /// This automatically happens on any other change to a progress bar.
     pub fn tick(&self) {
-        self.update_and_draw(|mut state| {
+        self.update_and_draw(|state| {
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick += 1;
             }
@@ -531,7 +531,7 @@ impl ProgressBar {
 
     /// Advances the position of a progress bar by delta.
     pub fn inc(&self, delta: u64) {
-        self.update_and_draw(|mut state| {
+        self.update_and_draw(|state| {
             state.pos += delta;
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick += 1;
@@ -541,7 +541,7 @@ impl ProgressBar {
 
     /// Sets the position of the progress bar.
     pub fn set_position(&self, pos: u64) {
-        self.update_and_draw(|mut state| {
+        self.update_and_draw(|state| {
             state.pos = pos;
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick += 1;
@@ -551,7 +551,7 @@ impl ProgressBar {
 
     /// Sets the length of the progress bar.
     pub fn set_length(&self, len: u64) {
-        self.update_and_draw(|mut state| {
+        self.update_and_draw(|state| {
             state.len = len;
         })
     }
@@ -559,7 +559,7 @@ impl ProgressBar {
     /// Sets the current prefix of the progress bar.
     pub fn set_prefix(&self, prefix: &str) {
         let prefix = prefix.to_string();
-        self.update_and_draw(|mut state| {
+        self.update_and_draw(|state| {
             state.prefix = prefix;
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick += 1;
@@ -570,7 +570,7 @@ impl ProgressBar {
     /// Sets the current message of the progress bar.
     pub fn set_message(&self, msg: &str) {
         let msg = msg.to_string();
-        self.update_and_draw(|mut state| {
+        self.update_and_draw(|state| {
             state.message = msg;
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick += 1;
@@ -580,7 +580,7 @@ impl ProgressBar {
 
     /// Finishes the progress bar and leaves the current message.
     pub fn finish(&self) {
-        self.update_and_draw(|mut state| {
+        self.update_and_draw(|state| {
             state.pos = state.len;
             state.status = Status::DoneVisible;
         });
@@ -589,7 +589,7 @@ impl ProgressBar {
     /// Finishes the progress bar and sets a message.
     pub fn finish_with_message(&self, msg: &str) {
         let msg = msg.to_string();
-        self.update_and_draw(|mut state| {
+        self.update_and_draw(|state| {
             state.message = msg;
             state.pos = state.len;
             state.status = Status::DoneVisible;
@@ -598,7 +598,7 @@ impl ProgressBar {
 
     /// Finishes the progress bar and completely clears it.
     pub fn finish_and_clear(&self) {
-        self.update_and_draw(|mut state| {
+        self.update_and_draw(|state| {
             state.pos = state.len;
             state.status = Status::DoneHidden;
         });
@@ -852,7 +852,7 @@ impl Drop for ProgressBar {
         if self.state.read().is_finished() {
             return;
         }
-        self.update_and_draw(|mut state| {
+        self.update_and_draw(|state| {
             state.status = Status::DoneHidden;
         });
     }
