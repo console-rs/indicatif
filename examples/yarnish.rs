@@ -77,5 +77,5 @@ pub fn main() {
     }
     m.join_and_clear().unwrap();
 
-    println!("{} Done in {}", HumanDuration(started.elapsed()), SPARKLE);
+    println!("{} Done in {}", SPARKLE, HumanDuration(started.elapsed()));
 }
