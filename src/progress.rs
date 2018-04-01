@@ -27,6 +27,8 @@ pub struct ProgressStyle {
 struct ProgressDrawState {
     /// The lines to print (can contain ANSI codes)
     pub lines: Vec<String>,
+    /// The number of lines that shouldn't be reaped by the next tick.
+    pub orphan_lines: usize,
     /// True if the bar no longer needs drawing.
     pub finished: bool,
     /// True if drawing should be forced.
@@ -168,11 +170,11 @@ impl ProgressDrawTarget {
 
 impl ProgressDrawState {
     pub fn clear_term(&self, term: &Term) -> io::Result<()> {
-        term.clear_last_lines(self.lines.len())
+        term.clear_last_lines(self.lines.len() - self.orphan_lines)
     }
     
     pub fn move_cursor(&self, term: &Term) -> io::Result<()> {
-        term.move_cursor_up(self.lines.len())
+        term.move_cursor_up(self.lines.len() - self.orphan_lines)
     }
 
     pub fn draw_to_term(&self, term: &Term) -> io::Result<()> {
@@ -539,6 +541,25 @@ impl ProgressBar {
         })
     }
 
+    /// Print a log line above the progress bar.
+    pub fn println<I: Into<String>>(&self, msg: I) {
+        let mut state = self.state.write();
+
+        let mut lines = vec![msg.into()];
+        lines.extend(state.style.format_state(&*state));
+
+        let draw_state = ProgressDrawState {
+            lines: lines,
+            orphan_lines: 1,
+            finished: state.is_finished(),
+            force_draw: true,
+            move_cursor: false,
+            ts: Instant::now(),
+        };
+
+        state.draw_target.apply_draw_state(draw_state).ok();
+    }
+
     /// Sets the position of the progress bar.
     pub fn set_position(&self, pos: u64) {
         self.update_and_draw(|state| {
@@ -667,6 +688,7 @@ fn draw_state(state: &Arc<RwLock<ProgressState>>) -> io::Result<()> {
         } else {
             vec![]
         },
+        orphan_lines: 0,
         finished: state.is_finished(),
         force_draw: false,
         move_cursor: false,
@@ -823,6 +845,7 @@ impl MultiProgress {
             let finished = !state.objects.iter().any(|ref x| x.done);
             state.draw_target.apply_draw_state(ProgressDrawState {
                 lines,
+                orphan_lines: 0,
                 force_draw,
                 move_cursor,
                 finished,
@@ -834,6 +857,7 @@ impl MultiProgress {
             let mut state = self.state.write();
             state.draw_target.apply_draw_state(ProgressDrawState {
                 lines: vec![],
+                orphan_lines: 0,
                 finished: true,
                 force_draw: true,
                 move_cursor,
