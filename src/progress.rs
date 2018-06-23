@@ -434,8 +434,8 @@ pub struct ProgressBar {
 impl ProgressBar {
     /// Creates a new progress bar with a given length.
     ///
-    /// This progress bar by default draws directly to stderr, with a maximum
-    /// refresh rate of 15 hz.
+    /// This progress bar by default draws directly to stderr, and refreshes
+    /// a maximum of 15 times a second
     pub fn new(len: u64) -> ProgressBar {
         ProgressBar::with_draw_target(len, ProgressDrawTarget::stderr())
     }
