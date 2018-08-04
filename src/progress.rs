@@ -340,6 +340,8 @@ struct ProgressState {
     pos: u64,
     len: u64,
     tick: u64,
+    draw_delta: u64,
+    draw_next: u64,
     status: Status,
     started: Instant,
     est: Estimate,
@@ -446,6 +448,8 @@ impl ProgressBar {
                 pos: 0,
                 len: len,
                 tick: 0,
+                draw_delta: 1,
+                draw_next: 1,
                 status: Status::InProgress,
                 started: Instant::now(),
                 est: Estimate::new(),
@@ -518,6 +522,18 @@ impl ProgressBar {
     /// Undoes `enable_steady_tick`.
     pub fn disable_steady_tick(&self) {
         self.enable_steady_tick(0);
+    }
+
+    /// Limit redrawing of progress bar to every `n` steps.
+    ///
+    /// By default, the progress bar will redraw whenever its state advances.
+    /// This setting is helpful in situations where the overhead of redrawing
+    /// the progress bar dominates the computation whose progress is being
+    /// reported.
+    pub fn set_draw_delta(&self, n: u64) {
+        let mut state = self.state.write();
+        state.draw_delta = n;
+        state.draw_next = state.pos + state.draw_delta;
     }
 
     /// Manually ticks the spinner or progress bar.
@@ -603,6 +619,7 @@ impl ProgressBar {
     pub fn finish(&self) {
         self.update_and_draw(|state| {
             state.pos = state.len;
+            state.draw_next = state.pos;
             state.status = Status::DoneVisible;
         });
     }
@@ -613,6 +630,7 @@ impl ProgressBar {
         self.update_and_draw(|state| {
             state.message = msg;
             state.pos = state.len;
+            state.draw_next = state.pos;
             state.status = Status::DoneVisible;
         });
     }
@@ -621,6 +639,7 @@ impl ProgressBar {
     pub fn finish_and_clear(&self) {
         self.update_and_draw(|state| {
             state.pos = state.len;
+            state.draw_next = state.pos;
             state.status = Status::DoneHidden;
         });
     }
@@ -657,6 +676,7 @@ impl ProgressBar {
     }
 
     fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, f: F) {
+        let mut draw = false;
         {
             let mut state = self.state.write();
             let old_pos = state.pos;
@@ -665,8 +685,14 @@ impl ProgressBar {
             if new_pos != old_pos {
                 state.est.record_step(new_pos);
             }
+            if new_pos >= state.draw_next {
+                state.draw_next = new_pos + state.draw_delta;
+                draw = true;
+            }
         }
-        self.draw().ok();
+        if draw {
+            self.draw().ok();
+        }
     }
 
     fn draw(&self) -> io::Result<()> {
