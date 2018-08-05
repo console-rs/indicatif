@@ -530,6 +530,13 @@ impl ProgressBar {
     /// This setting is helpful in situations where the overhead of redrawing
     /// the progress bar dominates the computation whose progress is being
     /// reported.
+    ///
+    /// ```rust,no_run
+    /// # use indicatif::ProgressBar;
+    /// let n = 1_000_000;
+    /// let pb = ProgressBar::new(n);
+    /// pb.set_draw_delta(n / 100); // redraw every 1% of additional progress
+    /// ```
     pub fn set_draw_delta(&self, n: u64) {
         let mut state = self.state.write();
         state.draw_delta = n;
