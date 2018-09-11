@@ -244,8 +244,8 @@ impl ProgressStyle {
         let bar = repeat(state.style.progress_chars[0])
             .take(fill as usize).collect::<String>();
         let cur = if head == 1 {
-            let n = state.style.progress_chars.len() - 2;
-            let cur_char = n - ((fill * n as f32) as usize % n);
+            let n = state.style.progress_chars.len().saturating_sub(2);
+            let cur_char = n.saturating_sub((fill * n as f32) as usize % n);
             state.style.progress_chars[cur_char].to_string()
         } else {
             "".into()
@@ -316,10 +316,10 @@ impl ProgressStyle {
             rv.push(if let Some(ref var) = *wide_element.borrow() {
                 let total_width = state.width();
                 if var.key == "bar" {
-                    let bar_width = total_width - measure_text_width(&s);
+                    let bar_width = total_width.saturating_sub(measure_text_width(&s));
                     s.replace("\x00", &self.format_bar(state, bar_width, var.alt_style.as_ref()))
                 } else if var.key == "msg" {
-                    let msg_width = total_width - measure_text_width(&s);
+                    let msg_width = total_width.saturating_sub(measure_text_width(&s));
                     let msg = pad_str(state.message(), msg_width, var.align, true);
                     s.replace("\x00", if var.last_element {
                         msg.trim_right()
