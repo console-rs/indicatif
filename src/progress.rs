@@ -444,12 +444,26 @@ pub struct ProgressBar {
 impl ProgressBar {
     /// Creates a new progress bar with a given length.
     ///
-    /// This progress bar by default draws directly to stderr.
+    /// This progress bar by default draws directly to stderr, and refreshes
+    /// a maximum of 15 times a second
     pub fn new(len: u64) -> ProgressBar {
+        ProgressBar::with_draw_target(len, ProgressDrawTarget::stderr())
+    }
+
+    /// Creates a completely hidden progress bar.
+    ///
+    /// This progress bar still responds to API changes but it does not
+    /// have a length or render in any way.
+    pub fn hidden() -> ProgressBar {
+        ProgressBar::with_draw_target(!0, ProgressDrawTarget::hidden())
+    }
+
+    /// Creates a new progress bar with a given length and draw target.
+    pub fn with_draw_target(len: u64, target: ProgressDrawTarget) -> ProgressBar {
         ProgressBar {
             state: Arc::new(RwLock::new(ProgressState {
                 style: ProgressStyle::default_bar(),
-                draw_target: ProgressDrawTarget::stderr(),
+                draw_target: target,
                 width: None,
                 message: "".into(),
                 prefix: "".into(),
@@ -465,16 +479,6 @@ impl ProgressBar {
                 steady_tick: 0,
             })),
         }
-    }
-
-    /// Creates a completely hidden progress bar.
-    ///
-    /// This progress bar still responds to API changes but it does not
-    /// have a length or render in any way.
-    pub fn hidden() -> ProgressBar {
-        let rv = ProgressBar::new(!0);
-        rv.set_draw_target(ProgressDrawTarget::hidden());
-        rv
     }
 
     /// Creates a new spinner.
