@@ -1,6 +1,7 @@
 use std::fmt;
 use std::time::Duration;
 
+use number_prefix::{binary_prefix, decimal_prefix, PrefixNames, Prefixed, Standalone};
 
 /// Wraps an std duration for human basic formatting.
 pub struct FormattedDuration(pub Duration);
@@ -10,6 +11,12 @@ pub struct HumanDuration(pub Duration);
 
 /// Formats bytes for human readability
 pub struct HumanBytes(pub u64);
+
+/// Formats bytes for human readability using SI prefixes
+pub struct DecimalBytes(pub u64);
+
+/// Formats bytes for human readability using ISO/IEC prefixes
+pub struct BinaryBytes(pub u64);
 
 impl fmt::Display for FormattedDuration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -64,14 +71,27 @@ impl fmt::Display for HumanDuration {
 
 impl fmt::Display for HumanBytes {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let n = self.0 as f64;
-        let kb = 1024f64;
-        match n {
-            n if n >= kb.powf(4_f64) => write!(f, "{:.*}TB", 2, n / kb.powf(4_f64)),
-            n if n >= kb.powf(3_f64) => write!(f, "{:.*}GB", 2, n / kb.powf(3_f64)),
-            n if n >= kb.powf(2_f64) => write!(f, "{:.*}MB", 2, n / kb.powf(2_f64)),
-            n if n >= kb => write!(f, "{:.*}KB", 2, n / kb),
-            _ => write!(f, "{:.*}B", 0, n)
+        match binary_prefix(self.0 as f64) {
+            Standalone(number) => write!(f, "{:.0}B", number),
+            Prefixed(prefix, number) => write!(f, "{:.2}{}B", number, prefix.upper().chars().next().unwrap()),
+        }
+    }
+}
+
+impl fmt::Display for DecimalBytes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match decimal_prefix(self.0 as f64) {
+            Standalone(number) => write!(f, "{:.0}B", number),
+            Prefixed(prefix, number) => write!(f, "{:.2}{}B", number, prefix),
+        }
+    }
+}
+
+impl fmt::Display for BinaryBytes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match binary_prefix(self.0 as f64) {
+            Standalone(number) => write!(f, "{:.0}B", number),
+            Prefixed(prefix, number) => write!(f, "{:.2}{}B", number, prefix),
         }
     }
 }

@@ -20,6 +20,8 @@
 //!   * [`MultiProgress`](struct.MultiProgress.html) for multiple bars
 //! * **Data Formatting**
 //!   * [`HumanBytes`](struct.HumanBytes.html) for formatting bytes
+//!   * [`DecimalBytes`](struct.DecimalBytes.html) for formatting bytes using SI prefixes
+//!   * [`BinaryBytes`](struct.BinaryBytes.html) for formatting bytes using ISO/IEC prefixes
 //!   * [`HumanDuration`](struct.HumanDuration.html) for formatting durations
 //!
 //! # Progress Bars and Spinners
@@ -137,6 +139,7 @@
 extern crate parking_lot;
 extern crate regex;
 #[macro_use] extern crate lazy_static;
+extern crate number_prefix;
 extern crate console;
 
 mod progress;
@@ -145,4 +148,4 @@ mod format;
 
 pub use progress::{ProgressBar, MultiProgress, ProgressBarIter,
                    ProgressDrawTarget, ProgressStyle};
-pub use format::{HumanDuration, FormattedDuration, HumanBytes};
+pub use format::{HumanDuration, FormattedDuration, HumanBytes, DecimalBytes, BinaryBytes};

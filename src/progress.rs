@@ -12,7 +12,7 @@ use parking_lot::{Mutex, RwLock};
 
 use console::{Term, Style, measure_text_width};
 use utils::{expand_template, Estimate, duration_to_secs, secs_to_duration, pad_str};
-use format::{FormattedDuration, HumanDuration, HumanBytes};
+use format::{FormattedDuration, HumanDuration, HumanBytes, DecimalBytes, BinaryBytes};
 
 /// Controls the rendering style of progress bars.
 #[derive(Clone)]
@@ -292,6 +292,14 @@ impl ProgressStyle {
                     format!("{}", HumanBytes(state.pos))
                 } else if key == "total_bytes" {
                     format!("{}", HumanBytes(state.len))
+                } else if key == "decimal_bytes" {
+                    format!("{}", DecimalBytes(state.pos))
+                } else if key == "decimal_total_bytes" {
+                    format!("{}", DecimalBytes(state.len))
+                } else if key == "binary_bytes" {
+                    format!("{}", BinaryBytes(state.pos))
+                } else if key == "binary_total_bytes" {
+                    format!("{}", BinaryBytes(state.len))
                 } else if key == "elapsed_precise" {
                     format!("{}", FormattedDuration(state.started.elapsed()))
                 } else if key == "elapsed" {

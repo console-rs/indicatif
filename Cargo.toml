@@ -13,6 +13,7 @@ readme = "README.md"
 parking_lot = "0"
 regex = "0.2"
 lazy_static = "0.2"
+number_prefix = "0.2"
 console = ">=0.6.1, <1.0.0"
 
 [dev-dependencies]
