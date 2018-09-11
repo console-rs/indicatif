@@ -8,6 +8,7 @@ license = "MIT"
 repository = "https://github.com/mitsuhiko/indicatif"
 documentation = "https://docs.rs/indicatif"
 readme = "README.md"
+exclude = ["screenshots/*"]
 
 [dependencies]
 parking_lot = "0"
