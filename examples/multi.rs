@@ -3,7 +3,7 @@ extern crate indicatif;
 use std::thread;
 use std::time::Duration;
 
-use indicatif::{ProgressBar, MultiProgress, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 fn main() {
     let m = MultiProgress::new();

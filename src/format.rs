@@ -56,7 +56,7 @@ impl fmt::Display for HumanDuration {
                         return write!(f, "{} {}", cnt, $pl);
                     }
                 }
-            }
+            };
         }
 
         try_unit!(365 * 24 * 60 * 60, "year", "years", "y");
@@ -73,7 +73,12 @@ impl fmt::Display for HumanBytes {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match binary_prefix(self.0 as f64) {
             Standalone(number) => write!(f, "{:.0}B", number),
-            Prefixed(prefix, number) => write!(f, "{:.2}{}B", number, prefix.upper().chars().next().unwrap()),
+            Prefixed(prefix, number) => write!(
+                f,
+                "{:.2}{}B",
+                number,
+                prefix.upper().chars().next().unwrap()
+            ),
         }
     }
 }

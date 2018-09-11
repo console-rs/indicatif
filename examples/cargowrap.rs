@@ -1,12 +1,12 @@
-extern crate indicatif;
 extern crate console;
+extern crate indicatif;
 extern crate rand;
 
 use std::io::{BufRead, BufReader};
-use std::time::Instant;
 use std::process;
+use std::time::Instant;
 
-use indicatif::{ProgressBar, ProgressStyle, HumanDuration};
+use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 
 pub fn main() {
     let started = Instant::now();
@@ -15,15 +15,18 @@ pub fn main() {
 
     let pb = ProgressBar::new_spinner();
     pb.enable_steady_tick(200);
-    pb.set_style(ProgressStyle::default_spinner()
-        .tick_chars("/|\\- ")
-        .template("{spinner:.dim.bold} cargo: {wide_msg}"));
+    pb.set_style(
+        ProgressStyle::default_spinner()
+            .tick_chars("/|\\- ")
+            .template("{spinner:.dim.bold} cargo: {wide_msg}"),
+    );
 
     let mut p = process::Command::new("cargo")
         .arg("build")
         .arg("--release")
         .stderr(process::Stdio::piped())
-        .spawn().unwrap();
+        .spawn()
+        .unwrap();
 
     for line in BufReader::new(p.stderr.take().unwrap()).lines() {
         let line = line.unwrap();

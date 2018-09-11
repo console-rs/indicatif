@@ -1,18 +1,18 @@
-use std::io;
-use std::thread;
-use std::iter::repeat;
 use std::borrow::Cow;
 use std::cell::RefCell;
-use std::time::{Duration, Instant};
-use std::sync::Arc;
-use std::sync::mpsc::{channel, Sender, Receiver};
+use std::io;
+use std::iter::repeat;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::Arc;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use parking_lot::{Mutex, RwLock};
 
-use console::{Term, Style, measure_text_width};
-use utils::{expand_template, Estimate, duration_to_secs, secs_to_duration, pad_str};
-use format::{FormattedDuration, HumanDuration, HumanBytes, DecimalBytes, BinaryBytes};
+use console::{measure_text_width, Style, Term};
+use format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
+use utils::{duration_to_secs, expand_template, pad_str, secs_to_duration, Estimate};
 
 /// Controls the rendering style of progress bars.
 #[derive(Clone)]
@@ -142,11 +142,12 @@ impl ProgressDrawTarget {
         match self.kind {
             ProgressDrawTargetKind::Term(ref term, ref mut last_state, rate) => {
                 let last_draw = last_state.as_ref().map(|x| x.ts);
-                if draw_state.finished ||
-                   draw_state.force_draw ||
-                   rate.is_none() ||
-                   last_draw.is_none() ||
-                   last_draw.unwrap().elapsed() > rate.unwrap() {
+                if draw_state.finished
+                    || draw_state.force_draw
+                    || rate.is_none()
+                    || last_draw.is_none()
+                    || last_draw.unwrap().elapsed() > rate.unwrap()
+                {
                     if let Some(ref last_state) = *last_state {
                         if !draw_state.lines.is_empty() && draw_state.move_cursor {
                             last_state.move_cursor(term)?;
@@ -172,7 +173,7 @@ impl ProgressDrawState {
     pub fn clear_term(&self, term: &Term) -> io::Result<()> {
         term.clear_last_lines(self.lines.len() - self.orphan_lines)
     }
-    
+
     pub fn move_cursor(&self, term: &Term) -> io::Result<()> {
         term.move_cursor_up(self.lines.len() - self.orphan_lines)
     }
@@ -224,7 +225,6 @@ impl ProgressStyle {
 }
 
 impl ProgressStyle {
-
     /// Returns the tick char for a given number.
     pub fn get_tick_char(&self, idx: u64) -> char {
         self.tick_chars[(idx as usize) % (self.tick_chars.len() - 1)]
@@ -235,14 +235,18 @@ impl ProgressStyle {
         self.tick_chars[self.tick_chars.len() - 1]
     }
 
-    fn format_bar(&self, state: &ProgressState, width: usize,
-                  alt_style: Option<&Style>) -> String {
+    fn format_bar(&self, state: &ProgressState, width: usize, alt_style: Option<&Style>) -> String {
         let pct = state.fraction();
         let fill = pct * width as f32;
-        let head = if pct > 0.0 && (fill as usize) < width { 1 } else { 0 };
+        let head = if pct > 0.0 && (fill as usize) < width {
+            1
+        } else {
+            0
+        };
 
         let bar = repeat(state.style.progress_chars[0])
-            .take(fill as usize).collect::<String>();
+            .take(fill as usize)
+            .collect::<String>();
         let cur = if head == 1 {
             let n = state.style.progress_chars.len().saturating_sub(2);
             let cur_char = n.saturating_sub((fill * n as f32) as usize % n);
@@ -252,8 +256,14 @@ impl ProgressStyle {
         };
         let bg = width.saturating_sub(fill as usize).saturating_sub(head);
         let rest = repeat(state.style.progress_chars.last().unwrap())
-            .take(bg).collect::<String>();
-        format!("{}{}{}", bar, cur, alt_style.unwrap_or(&Style::new()).apply_to(rest))
+            .take(bg)
+            .collect::<String>();
+        format!(
+            "{}{}{}",
+            bar,
+            cur,
+            alt_style.unwrap_or(&Style::new()).apply_to(rest)
+        )
     }
 
     fn format_state(&self, state: &ProgressState) -> Vec<String> {
@@ -266,17 +276,14 @@ impl ProgressStyle {
             let s = expand_template(line, |var| {
                 let key = var.key;
                 if key == "wide_bar" {
-                    *wide_element.borrow_mut() = Some(
-                        var.duplicate_for_key("bar"));
+                    *wide_element.borrow_mut() = Some(var.duplicate_for_key("bar"));
                     "\x00".into()
                 } else if key == "bar" {
-                    self.format_bar(state, var.width.unwrap_or(20),
-                                    var.alt_style.as_ref())
+                    self.format_bar(state, var.width.unwrap_or(20), var.alt_style.as_ref())
                 } else if key == "spinner" {
                     state.current_tick_char().to_string()
                 } else if key == "wide_msg" {
-                    *wide_element.borrow_mut() = Some(
-                        var.duplicate_for_key("msg"));
+                    *wide_element.borrow_mut() = Some(var.duplicate_for_key("msg"));
                     "\x00".into()
                 } else if key == "msg" {
                     state.message().to_string()
@@ -317,15 +324,21 @@ impl ProgressStyle {
                 let total_width = state.width();
                 if var.key == "bar" {
                     let bar_width = total_width.saturating_sub(measure_text_width(&s));
-                    s.replace("\x00", &self.format_bar(state, bar_width, var.alt_style.as_ref()))
+                    s.replace(
+                        "\x00",
+                        &self.format_bar(state, bar_width, var.alt_style.as_ref()),
+                    )
                 } else if var.key == "msg" {
                     let msg_width = total_width.saturating_sub(measure_text_width(&s));
                     let msg = pad_str(state.message(), msg_width, var.align, true);
-                    s.replace("\x00", if var.last_element {
-                        msg.trim_right()
-                    } else {
-                        &msg
-                    })
+                    s.replace(
+                        "\x00",
+                        if var.last_element {
+                            msg.trim_right()
+                        } else {
+                            &msg
+                        },
+                    )
                 } else {
                     unreachable!()
                 }
@@ -512,22 +525,20 @@ impl ProgressBar {
         }
 
         let state_arc = self.state.clone();
-        state.tick_thread = Some(thread::spawn(move || {
-            loop {
-                thread::sleep(Duration::from_millis(ms));
-                {
-                    let mut state = state_arc.write();
-                    if state.is_finished() || state.steady_tick == 0 {
-                        state.steady_tick = 0;
-                        break;
-                    }
-                    if state.tick != 0 {
-                        state.tick += 1;
-                    }
+        state.tick_thread = Some(thread::spawn(move || loop {
+            thread::sleep(Duration::from_millis(ms));
+            {
+                let mut state = state_arc.write();
+                if state.is_finished() || state.steady_tick == 0 {
+                    state.steady_tick = 0;
+                    break;
                 }
-
-                draw_state(&state_arc).ok();
+                if state.tick != 0 {
+                    state.tick += 1;
+                }
             }
+
+            draw_state(&state_arc).ok();
         }));
     }
 
@@ -688,10 +699,7 @@ impl ProgressBar {
     /// }
     /// ```
     pub fn wrap_iter<It: Iterator>(&self, it: It) -> ProgressBarIter<It> {
-        ProgressBarIter {
-            bar: self,
-            it: it,
-        }
+        ProgressBarIter { bar: self, it: it }
     }
 
     fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, f: F) {
@@ -805,7 +813,7 @@ impl MultiProgress {
     }
 
     /// Set whether we should try to move the cursor when possible instead of clearing lines.
-    /// 
+    ///
     /// This can reduce flickering, but do not enable it if you intend to change the number of
     /// progress bars.
     pub fn set_move_cursor(&self, move_cursor: bool) {

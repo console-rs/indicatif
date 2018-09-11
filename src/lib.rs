@@ -138,14 +138,16 @@
 //! ```
 extern crate parking_lot;
 extern crate regex;
-#[macro_use] extern crate lazy_static;
-extern crate number_prefix;
+#[macro_use]
+extern crate lazy_static;
 extern crate console;
+extern crate number_prefix;
 
+mod format;
 mod progress;
 mod utils;
-mod format;
 
-pub use progress::{ProgressBar, MultiProgress, ProgressBarIter,
-                   ProgressDrawTarget, ProgressStyle};
-pub use format::{HumanDuration, FormattedDuration, HumanBytes, DecimalBytes, BinaryBytes};
+pub use format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
+pub use progress::{
+    MultiProgress, ProgressBar, ProgressBarIter, ProgressDrawTarget, ProgressStyle,
+};

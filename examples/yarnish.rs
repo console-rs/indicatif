@@ -1,14 +1,13 @@
-extern crate indicatif;
 extern crate console;
+extern crate indicatif;
 extern crate rand;
 
-use std::thread;
-use std::time::{Instant, Duration};
 use rand::Rng;
+use std::thread;
+use std::time::{Duration, Instant};
 
-use indicatif::{ProgressBar, ProgressStyle, MultiProgress, HumanDuration};
-use console::{Emoji, style};
-
+use console::{style, Emoji};
+use indicatif::{HumanDuration, MultiProgress, ProgressBar, ProgressStyle};
 
 static PACKAGES: &'static [&'static str] = &[
     "fs-events",
@@ -36,7 +35,6 @@ static CLIP: Emoji = Emoji("🔗  ", "");
 static PAPER: Emoji = Emoji("📃  ", "");
 static SPARKLE: Emoji = Emoji("✨ ", ":-)");
 
-
 pub fn main() {
     let mut rng = rand::thread_rng();
     let started = Instant::now();
@@ -44,10 +42,22 @@ pub fn main() {
         .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
         .template("{prefix:.bold.dim} {spinner} {wide_msg}");
 
-    println!("{} {}Resolving packages...", style("[1/4]").bold().dim(), LOOKING_GLASS);
-    println!("{} {}Fetching packages...", style("[2/4]").bold().dim(), TRUCK);
+    println!(
+        "{} {}Resolving packages...",
+        style("[1/4]").bold().dim(),
+        LOOKING_GLASS
+    );
+    println!(
+        "{} {}Fetching packages...",
+        style("[2/4]").bold().dim(),
+        TRUCK
+    );
 
-    println!("{} {}Linking dependencies...", style("[3/4]").bold().dim(), CLIP);
+    println!(
+        "{} {}Linking dependencies...",
+        style("[3/4]").bold().dim(),
+        CLIP
+    );
     let deps = 1232;
     let pb = ProgressBar::new(deps);
     for _ in 0..deps {
@@ -56,7 +66,11 @@ pub fn main() {
     }
     pb.finish_and_clear();
 
-    println!("{} {}Building fresh packages...", style("[4/4]").bold().dim(), PAPER);
+    println!(
+        "{} {}Building fresh packages...",
+        style("[4/4]").bold().dim(),
+        PAPER
+    );
     let m = MultiProgress::new();
     for i in 0..4 {
         let count = rng.gen_range(30, 80);

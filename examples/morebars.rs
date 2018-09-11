@@ -1,15 +1,14 @@
 extern crate indicatif;
 
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-use std::sync::Arc;
 
-use indicatif::{ProgressBar, MultiProgress, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 fn main() {
     let m = Arc::new(MultiProgress::new());
-    let sty = ProgressStyle::default_bar()
-        .template("{bar:40.green/yellow} {pos:>7}/{len:7}");
+    let sty = ProgressStyle::default_bar().template("{bar:40.green/yellow} {pos:>7}/{len:7}");
 
     let pb = m.add(ProgressBar::new(5));
     pb.set_style(sty.clone());

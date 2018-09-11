@@ -1,10 +1,9 @@
 use std::borrow::Cow;
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
-use regex::{Regex, Captures};
+use regex::{Captures, Regex};
 
-use console::{Style, measure_text_width};
-
+use console::{measure_text_width, Style};
 
 pub fn duration_to_secs(d: Duration) -> f64 {
     d.as_secs() as f64 + d.subsec_nanos() as f64 / 1_000_000_000f64
@@ -15,7 +14,6 @@ pub fn secs_to_duration(s: f64) -> Duration {
     let nanos = (s.fract() * 1_000_000_000f64) as u32;
     Duration::new(secs, nanos)
 }
-
 
 pub struct Estimate {
     buf: Vec<f64>,
@@ -92,8 +90,7 @@ impl<'a> TemplateVar<'a> {
 
 pub fn expand_template<'a, F: Fn(&TemplateVar) -> String>(s: &'a str, f: F) -> Cow<'a, str> {
     lazy_static! {
-        static ref VAR_RE: Regex = Regex::new(
-            r"(\}\})|\{(\{|[^}]+\})").unwrap();
+        static ref VAR_RE: Regex = Regex::new(r"(\}\})|\{(\{|[^}]+\})").unwrap();
         static ref KEY_RE: Regex = Regex::new(
             r"(?x)
                 ([^:]+)
@@ -105,7 +102,8 @@ pub fn expand_template<'a, F: Fn(&TemplateVar) -> String>(s: &'a str, f: F) -> C
                     (?:\.([a-z_]+(?:\.[a-z_]+)*))?
                     (?:/([a-z_]+(?:\.[a-z_]+)*))?
                 )?
-            ").unwrap();
+            "
+        ).unwrap();
     }
     VAR_RE.replace_all(s, |caps: &Captures| {
         if caps.get(1).is_some() {
@@ -158,15 +156,13 @@ pub fn expand_template<'a, F: Fn(&TemplateVar) -> String>(s: &'a str, f: F) -> C
     })
 }
 
-pub fn pad_str<'a>(s: &'a str, width: usize,
-                   align: Alignment, truncate: bool) -> Cow<'a, str> {
+pub fn pad_str<'a>(s: &'a str, width: usize, align: Alignment, truncate: bool) -> Cow<'a, str> {
     let cols = measure_text_width(s);
 
     if cols >= width {
         return if truncate {
             Cow::Borrowed(&s[..width])
-        }
-        else {
+        } else {
             Cow::Borrowed(s)
         };
     }
@@ -192,9 +188,7 @@ pub fn pad_str<'a>(s: &'a str, width: usize,
 
 #[test]
 fn test_expand_template() {
-    let rv = expand_template("{{ {foo} {bar} }}", |var| {
-        var.key.to_uppercase()
-    });
+    let rv = expand_template("{{ {foo} {bar} }}", |var| var.key.to_uppercase());
     assert_eq!(&rv, "{ FOO BAR }");
 }
 
