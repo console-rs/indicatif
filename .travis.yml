@@ -1,4 +1,4 @@
-sudo: false
+sudo: required
 language: rust
 rust:
   - stable
@@ -6,3 +6,8 @@ rust:
 
 script:
   - cargo test
+after_success:
+  - |
+    RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install --force --git https://github.com/xd009642/tarpaulin --tag 0.6.6 cargo-tarpaulin
+    cargo tarpaulin --out Xml --no-count
+    bash <(curl -s https://codecov.io/bash)
