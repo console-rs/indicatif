@@ -1,6 +1,7 @@
 # indicatif
 [![build status](https://travis-ci.org/mitsuhiko/indicatif.svg?branch=master)](https://travis-ci.org/mitsuhiko/indicatif)
 [![Crates.io](https://img.shields.io/crates/v/indicatif.svg)](https://crates.io/crates/indicatif)
+[![codecov](https://codecov.io/gh/mitsuhiko/indicatif/branch/master/graph/badge.svg)](https://codecov.io/gh/mitsuhiko/indicatif)
 
 [Documentation](https://docs.rs/indicatif)
 
