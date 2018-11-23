@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
-use std::io;
 use std::fmt;
+use std::io;
 use std::iter::repeat;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -591,12 +591,13 @@ impl ProgressBar {
     pub fn println<I: Into<String>>(&self, msg: I) {
         let mut state = self.state.write();
 
-        let mut lines = vec![msg.into()];
+        let mut lines: Vec<String> = msg.into().lines().map(Into::into).collect();
+        let orphan_lines = lines.len();
         lines.extend(state.style.format_state(&*state));
 
         let draw_state = ProgressDrawState {
-            lines: lines,
-            orphan_lines: 1,
+            lines,
+            orphan_lines,
             finished: state.is_finished(),
             force_draw: true,
             move_cursor: false,
