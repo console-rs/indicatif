@@ -281,48 +281,36 @@ impl ProgressStyle {
 
             let s = expand_template(line, |var| {
                 let key = var.key;
-                if key == "wide_bar" {
-                    *wide_element.borrow_mut() = Some(var.duplicate_for_key("bar"));
-                    "\x00".into()
-                } else if key == "bar" {
-                    self.format_bar(state, var.width.unwrap_or(20), var.alt_style.as_ref())
-                } else if key == "spinner" {
-                    state.current_tick_char().to_string()
-                } else if key == "wide_msg" {
-                    *wide_element.borrow_mut() = Some(var.duplicate_for_key("msg"));
-                    "\x00".into()
-                } else if key == "msg" {
-                    state.message().to_string()
-                } else if key == "prefix" {
-                    state.prefix().to_string()
-                } else if key == "pos" {
-                    pos.to_string()
-                } else if key == "len" {
-                    len.to_string()
-                } else if key == "percent" {
-                    format!("{:.*}", 0, state.fraction() * 100f32)
-                } else if key == "bytes" {
-                    format!("{}", HumanBytes(state.pos))
-                } else if key == "total_bytes" {
-                    format!("{}", HumanBytes(state.len))
-                } else if key == "decimal_bytes" {
-                    format!("{}", DecimalBytes(state.pos))
-                } else if key == "decimal_total_bytes" {
-                    format!("{}", DecimalBytes(state.len))
-                } else if key == "binary_bytes" {
-                    format!("{}", BinaryBytes(state.pos))
-                } else if key == "binary_total_bytes" {
-                    format!("{}", BinaryBytes(state.len))
-                } else if key == "elapsed_precise" {
-                    format!("{}", FormattedDuration(state.started.elapsed()))
-                } else if key == "elapsed" {
-                    format!("{:#}", HumanDuration(state.started.elapsed()))
-                } else if key == "eta_precise" {
-                    format!("{}", FormattedDuration(state.eta()))
-                } else if key == "eta" {
-                    format!("{:#}", HumanDuration(state.eta()))
-                } else {
-                    "".into()
+
+                match key {
+                    "wide_bar" => {
+                        *wide_element.borrow_mut() = Some(var.duplicate_for_key("bar"));
+                        "\x00".into()
+                    }
+                    "bar" => {
+                        self.format_bar(state, var.width.unwrap_or(20), var.alt_style.as_ref())
+                    }
+                    "spinner" => state.current_tick_char().to_string(),
+                    "wide_msg" => {
+                        *wide_element.borrow_mut() = Some(var.duplicate_for_key("msg"));
+                        "\x00".into()
+                    }
+                    "msg" => state.message().to_string(),
+                    "prefix" => state.prefix().to_string(),
+                    "pos" => pos.to_string(),
+                    "len" => len.to_string(),
+                    "percent" => format!("{:.*}", 0, state.fraction() * 100f32),
+                    "bytes" => format!("{}", HumanBytes(state.pos)),
+                    "total_bytes" => format!("{}", HumanBytes(state.len)),
+                    "decimal_bytes" => format!("{}", DecimalBytes(state.pos)),
+                    "decimal_total_bytes" => format!("{}", DecimalBytes(state.len)),
+                    "binary_bytes" => format!("{}", BinaryBytes(state.pos)),
+                    "binary_total_bytes" => format!("{}", BinaryBytes(state.len)),
+                    "elapsed_precise" => format!("{}", FormattedDuration(state.started.elapsed())),
+                    "elapsed" => format!("{:#}", HumanDuration(state.started.elapsed())),
+                    "eta_precise" => format!("{}", FormattedDuration(state.eta())),
+                    "eta" => format!("{:#}", HumanDuration(state.eta())),
+                    _ => "".into(),
                 }
             });
 
