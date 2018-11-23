@@ -1,4 +1,6 @@
 # indicatif
+[![build status](https://travis-ci.org/mitsuhiko/indicatif.svg?branch=master)](https://travis-ci.org/mitsuhiko/indicatif)
+[![Crates.io](https://img.shields.io/crates/v/indicatif.svg)](https://crates.io/crates/indicatif)
 
 A rust library for indicating progress in command line applications to users.
 
