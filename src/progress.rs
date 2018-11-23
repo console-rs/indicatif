@@ -191,7 +191,7 @@ impl ProgressStyle {
     pub fn default_bar() -> ProgressStyle {
         ProgressStyle {
             tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
-            progress_chars: "██░".chars().collect(),
+            progress_chars: "█░".chars().collect(),
             template: Cow::Borrowed("{wide_bar} {pos}/{len}"),
         }
     }
@@ -200,7 +200,7 @@ impl ProgressStyle {
     pub fn default_spinner() -> ProgressStyle {
         ProgressStyle {
             tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
-            progress_chars: "██░".chars().collect(),
+            progress_chars: "█░".chars().collect(),
             template: Cow::Borrowed("{spinner} {msg}"),
         }
     }
@@ -249,7 +249,11 @@ impl ProgressStyle {
             .collect::<String>();
         let cur = if head == 1 {
             let n = state.style.progress_chars.len().saturating_sub(2);
-            let cur_char = n.saturating_sub((fill * n as f32) as usize % n);
+            let cur_char = if n == 0 {
+                1
+            } else {
+                n.saturating_sub((fill * n as f32) as usize % n)
+            };
             state.style.progress_chars[cur_char].to_string()
         } else {
             "".into()
