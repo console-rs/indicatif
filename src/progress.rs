@@ -534,7 +534,7 @@ impl ProgressBar {
                     break;
                 }
                 if state.tick != 0 {
-                    state.tick += 1;
+                    state.tick = state.tick.saturating_add(1);
                 }
             }
 
@@ -563,7 +563,7 @@ impl ProgressBar {
     pub fn set_draw_delta(&self, n: u64) {
         let mut state = self.state.write();
         state.draw_delta = n;
-        state.draw_next = state.pos + state.draw_delta;
+        state.draw_next = state.pos.saturating_add(state.draw_delta);
     }
 
     /// Manually ticks the spinner or progress bar.
@@ -572,7 +572,7 @@ impl ProgressBar {
     pub fn tick(&self) {
         self.update_and_draw(|state| {
             if state.steady_tick == 0 || state.tick == 0 {
-                state.tick += 1;
+                state.tick = state.tick.saturating_add(1);
             }
         });
     }
@@ -580,9 +580,9 @@ impl ProgressBar {
     /// Advances the position of a progress bar by delta.
     pub fn inc(&self, delta: u64) {
         self.update_and_draw(|state| {
-            state.pos += delta;
+            state.pos = state.pos.saturating_add(delta);
             if state.steady_tick == 0 || state.tick == 0 {
-                state.tick += 1;
+                state.tick = state.tick.saturating_add(1);
             }
         })
     }
@@ -611,7 +611,7 @@ impl ProgressBar {
         self.update_and_draw(|state| {
             state.pos = pos;
             if state.steady_tick == 0 || state.tick == 0 {
-                state.tick += 1;
+                state.tick = state.tick.saturating_add(1);
             }
         })
     }
@@ -629,7 +629,7 @@ impl ProgressBar {
         self.update_and_draw(|state| {
             state.prefix = prefix;
             if state.steady_tick == 0 || state.tick == 0 {
-                state.tick += 1;
+                state.tick = state.tick.saturating_add(1);
             }
         })
     }
@@ -640,7 +640,7 @@ impl ProgressBar {
         self.update_and_draw(|state| {
             state.message = msg;
             if state.steady_tick == 0 || state.tick == 0 {
-                state.tick += 1;
+                state.tick = state.tick.saturating_add(1);
             }
         })
     }
@@ -713,7 +713,7 @@ impl ProgressBar {
                 state.est.record_step(new_pos);
             }
             if new_pos >= state.draw_next {
-                state.draw_next = new_pos + state.draw_delta;
+                state.draw_next = new_pos.saturating_add(state.draw_delta);
                 draw = true;
             }
         }
