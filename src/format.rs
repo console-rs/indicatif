@@ -4,18 +4,23 @@ use std::time::Duration;
 use number_prefix::{binary_prefix, decimal_prefix, PrefixNames, Prefixed, Standalone};
 
 /// Wraps an std duration for human basic formatting.
+#[derive(Debug)]
 pub struct FormattedDuration(pub Duration);
 
 /// Wraps an std duration for human readable formatting.
+#[derive(Debug)]
 pub struct HumanDuration(pub Duration);
 
 /// Formats bytes for human readability
+#[derive(Debug)]
 pub struct HumanBytes(pub u64);
 
 /// Formats bytes for human readability using SI prefixes
+#[derive(Debug)]
 pub struct DecimalBytes(pub u64);
 
 /// Formats bytes for human readability using ISO/IEC prefixes
+#[derive(Debug)]
 pub struct BinaryBytes(pub u64);
 
 impl fmt::Display for FormattedDuration {

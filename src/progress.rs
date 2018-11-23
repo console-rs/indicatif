@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::io;
+use std::fmt;
 use std::iter::repeat;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -15,7 +16,7 @@ use format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDura
 use utils::{duration_to_secs, expand_template, pad_str, secs_to_duration, Estimate};
 
 /// Controls the rendering style of progress bars.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ProgressStyle {
     tick_chars: Vec<char>,
     progress_chars: Vec<char>,
@@ -23,7 +24,7 @@ pub struct ProgressStyle {
 }
 
 /// The drawn state of an element.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct ProgressDrawState {
     /// The lines to print (can contain ANSI codes)
     pub lines: Vec<String>,
@@ -39,6 +40,7 @@ struct ProgressDrawState {
     pub ts: Instant,
 }
 
+#[derive(Debug)]
 enum Status {
     InProgress,
     DoneVisible,
@@ -458,6 +460,12 @@ pub struct ProgressBar {
     state: Arc<RwLock<ProgressState>>,
 }
 
+impl fmt::Debug for ProgressBar {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ProgressBar").finish()
+    }
+}
+
 impl ProgressBar {
     /// Creates a new progress bar with a given length.
     ///
@@ -793,6 +801,12 @@ pub struct MultiProgress {
     rx: Receiver<(usize, ProgressDrawState)>,
 }
 
+impl fmt::Debug for MultiProgress {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MultiProgress").finish()
+    }
+}
+
 unsafe impl Sync for MultiProgress {}
 
 impl MultiProgress {
@@ -939,6 +953,8 @@ impl Drop for ProgressBar {
     }
 }
 
+/// Iterator for `wrap_iter`.
+#[derive(Debug)]
 pub struct ProgressBarIter<'a, I> {
     bar: &'a ProgressBar,
     it: I,
