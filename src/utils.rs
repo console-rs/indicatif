@@ -161,18 +161,18 @@ pub fn pad_str<'a>(s: &'a str, width: usize, align: Alignment, truncate: bool) -
 
     if cols >= width {
         return if truncate {
-            Cow::Borrowed(&s[..width])
+            Cow::Borrowed(s.get(..width).unwrap_or(s))
         } else {
             Cow::Borrowed(s)
         };
     }
 
-    let diff = width - cols;
+    let diff = width.saturating_sub(cols);
 
     let (left_pad, right_pad) = match align {
         Alignment::Left => (0, diff),
         Alignment::Right => (diff, 0),
-        Alignment::Center => (diff / 2, diff - diff / 2),
+        Alignment::Center => (diff / 2, diff.saturating_sub(diff / 2)),
     };
 
     let mut rv = String::new();
