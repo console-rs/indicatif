@@ -700,20 +700,6 @@ impl ProgressBar {
         self.state.write().draw_target = target;
     }
 
-    /// Wraps an iterator with the progress bar.
-    ///
-    /// ```rust,norun
-    /// # use indicatif::ProgressBar;
-    /// let v = vec![1, 2, 3];
-    /// let pb = ProgressBar::new(3);
-    /// for item in pb.wrap_iter(v.iter()) {
-    ///     // ...
-    /// }
-    /// ```
-    pub fn wrap_iter<It: Iterator>(&self, it: It) -> ProgressBarIter<It> {
-        ProgressBarIter { bar: self, it: it }
-    }
-
     /// Wraps a Reader with the progress bar.
     ///
     /// ```rust,norun
@@ -971,27 +957,6 @@ impl Drop for ProgressBar {
     }
 }
 
-/// Iterator for `wrap_iter`.
-#[derive(Debug)]
-pub struct ProgressBarIter<'a, I> {
-    bar: &'a ProgressBar,
-    it: I,
-}
-
-impl<'a, I: Iterator> Iterator for ProgressBarIter<'a, I> {
-    type Item = I::Item;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let item = self.it.next();
-
-        if item.is_some() {
-            self.bar.inc(1);
-        }
-
-        item
-    }
-}
-
 /// Reader for `wrap_read`.
 #[derive(Debug)]
 pub struct ProgressBarRead<'a, R> {
@@ -1012,14 +977,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_can_wrap_an_iterator() {
-        let v = vec![1, 2, 3];
-        let pb = ProgressBar::new(v.len() as u64);
-        let w: Vec<_> = pb.wrap_iter(v.iter()).map(|x| x * 2).collect();
-        assert_eq!(w, vec![2, 4, 6]);
-    }
-
-    #[test]
     fn it_can_wrap_a_reader() {
         let bytes = &b"I am an implementation of io::Read"[..];
         let pb = ProgressBar::new(bytes.len() as u64);
@@ -1029,7 +986,6 @@ mod tests {
         assert_eq!(writer, bytes);
     }
 
-    #[test]
     fn progress_bar_sync_send() {
         let _: Box<Sync> = Box::new(ProgressBar::new(1));
         let _: Box<Send> = Box::new(ProgressBar::new(1));
