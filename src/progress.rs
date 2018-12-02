@@ -704,6 +704,24 @@ impl ProgressBar {
         ProgressBarIter { bar: self, it: it }
     }
 
+    /// Wraps a Reader with the progress bar.
+    ///
+    /// ```rust,norun
+    /// # use std::fs::File;
+    /// # use std::io;
+    /// # use indicatif::ProgressBar;
+    /// # fn test () -> io::Result<()> {
+    /// let source = File::open("work.txt")?;
+    /// let mut target = File::create("done.txt")?;
+    /// let pb = ProgressBar::new(source.metadata()?.len());
+    /// io::copy(&mut pb.wrap_read(source), &mut target);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn wrap_read<R: io::Read>(&self, read: R) -> ProgressBarRead<R> {
+        ProgressBarRead { bar: self, read }
+    }
+
     fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, f: F) {
         let mut draw = false;
         {
@@ -964,6 +982,19 @@ impl<'a, I: Iterator> Iterator for ProgressBarIter<'a, I> {
     }
 }
 
+pub struct ProgressBarRead<'a, R> {
+    bar: &'a ProgressBar,
+    read: R,
+}
+
+impl<'a, R: io::Read> io::Read for ProgressBarRead<'a, R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let inc = self.read.read(buf)?;
+        self.bar.inc(inc as u64);
+        Ok(inc)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -974,6 +1005,16 @@ mod tests {
         let pb = ProgressBar::new(v.len() as u64);
         let w: Vec<_> = pb.wrap_iter(v.iter()).map(|x| x * 2).collect();
         assert_eq!(w, vec![2, 4, 6]);
+    }
+
+    #[test]
+    fn it_can_wrap_a_reader() {
+        let bytes = &b"I am an implementation of io::Read"[..];
+        let pb = ProgressBar::new(bytes.len() as u64);
+        let mut reader = pb.wrap_read(bytes);
+        let mut writer = Vec::new();
+        io::copy(&mut reader, &mut writer).unwrap();
+        assert_eq!(writer, bytes);
     }
 
     #[test]
