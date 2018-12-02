@@ -1,25 +1,23 @@
 use progress::ProgressBar;
 
-macro_rules! progress_iterator_trait {
-    ($trait:ident , $struct:ident) => {
-        pub trait $trait
-        where
-            Self: Sized,
-        {
-            fn progress_with(self, progress: ProgressBar) -> $struct<Self>;
+pub trait ProgressIterator
+where
+    Self: Sized + Iterator,
+{
+    fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self>;
 
-            fn progress_count(self, len: u64) -> $struct<Self> {
-                self.progress_with(ProgressBar::new(len))
-            }
+    fn progress_count(self, len: u64) -> ProgressBarIter<Self> {
+        self.progress_with(ProgressBar::new(len))
+    }
 
-            fn progress(self) -> $struct<Self> {
-                self.progress_count(0)
-            }
-        }
-    };
+    fn progress(self) -> ProgressBarIter<Self> {
+        let n = match self.size_hint() {
+            (_, Some(n)) => n as u64,
+            _ => 0,
+        };
+        self.progress_count(n)
+    }
 }
-
-progress_iterator_trait! { ProgressIterator, ProgressBarIter }
 
 pub struct ProgressBarIter<T> {
     it: T,
@@ -60,7 +58,20 @@ pub mod rayon {
         progress: Arc<Mutex<ProgressBar>>,
     }
 
-    progress_iterator_trait! { ParallelProgressIterator, ParProgressBarIter }
+    pub trait ParallelProgressIterator
+    where
+        Self: Sized,
+    {
+        fn progress_with(self, progress: ProgressBar) -> ParProgressBarIter<Self>;
+
+        fn progress_count(self, len: u64) -> ParProgressBarIter<Self> {
+            self.progress_with(ProgressBar::new(len))
+        }
+
+        fn progress(self) -> ParProgressBarIter<Self> {
+            self.progress_count(0)
+        }
+    }
 
     impl<S: Send, T: ParallelIterator<Item = S>> ParallelProgressIterator for T {
         fn progress_with(self, progress: ProgressBar) -> ParProgressBarIter<Self> {
