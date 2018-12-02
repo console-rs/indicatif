@@ -5,12 +5,8 @@ pub trait ProgressIterator
 where
     Self: Sized + Iterator,
 {
-    fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self>;
-
-    fn progress_count(self, len: u64) -> ProgressBarIter<Self> {
-        self.progress_with(ProgressBar::new(len))
-    }
-
+    /// Wrap an iterator with default styling. Attempt to guess iterator
+    /// length using `Iterator::size_hint`.
     fn progress(self) -> ProgressBarIter<Self> {
         let n = match self.size_hint() {
             (_, Some(n)) => n as u64,
@@ -18,6 +14,14 @@ where
         };
         self.progress_count(n)
     }
+
+    /// Wrap an iterator with an explicit element count.
+    fn progress_count(self, len: u64) -> ProgressBarIter<Self> {
+        self.progress_with(ProgressBar::new(len))
+    }
+
+    /// Wrap an iterator with a custom progress bar.
+    fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self>;
 }
 
 /// Wraps an iterator to display its progress.
