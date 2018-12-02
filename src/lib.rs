@@ -90,7 +90,8 @@
 //!
 //! And then use it like this:
 //!
-//! ```rust
+//! ```rust,ignore
+//! # extern crate rayon;
 //! use indicatif::ParallelProgressIterator;
 //! use rayon::iter::{ParallelIterator, IntoParallelRefIterator};
 //!
@@ -182,16 +183,15 @@ extern crate number_prefix;
 extern crate rayon;
 
 mod format;
+mod iter;
 mod progress;
 mod utils;
-mod iter;
 
 pub use format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
+pub use iter::{ProgressBarIter, ProgressIterator};
 pub use progress::{
     MultiProgress, ProgressBar, ProgressBarRead, ProgressDrawTarget, ProgressStyle,
-    MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle,
 };
-pub use iter::{ProgressIterator, ProgressBarIter};
 
 #[cfg(feature = "with_rayon")]
 pub use iter::rayon::{ParProgressBarIter, ParallelProgressIterator};
