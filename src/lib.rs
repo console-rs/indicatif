@@ -143,7 +143,7 @@ extern crate lazy_static;
 extern crate console;
 extern crate number_prefix;
 
-#[cfg(feature = "indicatif-rayon")]
+#[cfg(feature = "with_rayon")]
 extern crate rayon;
 
 mod format;
@@ -158,5 +158,5 @@ pub use progress::{
 };
 pub use iter::{ProgressIterator, ProgressBarIter};
 
-#[cfg(feature = "indicatif-rayon")]
-pub use iter::rayon::ParProgressBarIter;
+#[cfg(feature = "with_rayon")]
+pub use iter::rayon::{ParProgressBarIter, ParallelProgressIterator};

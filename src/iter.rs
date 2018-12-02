@@ -48,7 +48,7 @@ impl<S, T: Iterator<Item = S>> ProgressIterator for T {
     }
 }
 
-#[cfg(feature = "indicatif-rayon")]
+#[cfg(feature = "with_rayon")]
 pub mod rayon {
     use super::*;
     use rayon::iter::{
@@ -162,8 +162,16 @@ pub mod rayon {
         fn it_can_wrap_a_parallel_iterator() {
             let v = vec![1, 2, 3];
             let pb = ProgressBar::new(v.len() as u64);
-            let w: Vec<_> = v.par_iter().progress_with(pb).map(|x| x * 2).collect();
-            assert_eq!(w, vec![2, 4, 6]);
+            let wrap = |it: ProgressBarIter<_>| {
+                assert_eq!(it.map(|x| x * 2).collect::<Vec<_>>(), vec![2, 4, 6]);
+            };
+
+            wrap(v.par_iter().progress());
+            wrap(v.par_iter().progress_count(3));
+            wrap({
+                let pb = ProgressBar::new(v.len() as u64);
+                v.par_iter().progress_with(pb)
+            });
         }
 
     }
@@ -171,14 +179,21 @@ pub mod rayon {
 
 #[cfg(test)]
 mod test {
-    use iter::ProgressIterator;
+    use iter::{ProgressBarIter, ProgressIterator};
     use progress::ProgressBar;
 
     #[test]
     fn it_can_wrap_an_iterator() {
         let v = vec![1, 2, 3];
-        let pb = ProgressBar::new(v.len() as u64);
-        let w: Vec<_> = v.iter().progress_with(pb).map(|x| x * 2).collect();
-        assert_eq!(w, vec![2, 4, 6]);
+        let wrap = |it: ProgressBarIter<_>| {
+            assert_eq!(it.map(|x| x * 2).collect::<Vec<_>>(), vec![2, 4, 6]);
+        };
+
+        wrap(v.iter().progress());
+        wrap(v.iter().progress_count(3));
+        wrap({
+            let pb = ProgressBar::new(v.len() as u64);
+            v.iter().progress_with(pb)
+        });
     }
 }

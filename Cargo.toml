@@ -16,7 +16,7 @@ regex = "1"
 lazy_static = "1"
 number_prefix = "0.2"
 console = ">=0.7.1, <1.0.0"
-rayon = {version = "1.0.3", optional = true}
+rayon = {version = "1.0", optional = true}
 
 [dev-dependencies]
 rand = "0"
@@ -25,4 +25,4 @@ tokio-core = "0.1"
 
 [features]
 default = []
-indicatif-rayon = ["rayon"]
+with_rayon = ["rayon"]
