@@ -32,6 +32,12 @@ impl Estimate {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.buf.clear();
+        self.last_idx = 0;
+        self.started = None;
+    }
+
     pub fn record_step(&mut self, value: u64) {
         // record initial position
         let (started_time, started_value) = match self.started {

@@ -647,6 +647,16 @@ impl ProgressBar {
         })
     }
 
+    /// Resets the ETA calculation.
+    ///
+    /// This can be useful if progress bars make a huge jump or were
+    /// paused for a prolonged time.
+    pub fn reset_eta(&self) {
+        self.update_and_draw(|state| {
+            state.est.reset();
+        });
+    }
+
     /// Finishes the progress bar and leaves the current message.
     pub fn finish(&self) {
         self.update_and_draw(|state| {
