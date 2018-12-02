@@ -64,6 +64,10 @@ pub mod rayon {
         progress: Arc<Mutex<ProgressBar>>,
     }
 
+    /// Wraps a Rayon parallel iterator.
+    ///
+    /// See [`ProgressIterator`](trait.ProgressIterator.html) for method
+    /// documentation.
     pub trait ParallelProgressIterator
     where
         Self: Sized,
