@@ -19,7 +19,7 @@ pub struct Estimate {
     buf: Vec<f64>,
     buf_cap: usize,
     last_idx: usize,
-    started: Instant,
+    started: Option<(Instant, u64)>,
 }
 
 impl Estimate {
@@ -28,15 +28,25 @@ impl Estimate {
             buf: vec![],
             buf_cap: 10,
             last_idx: 0,
-            started: Instant::now(),
+            started: None,
         }
     }
 
     pub fn record_step(&mut self, value: u64) {
+        // record initial position
+        let (started_time, started_value) = match self.started {
+            None => {
+                let rv = (Instant::now(), value);
+                self.started = Some(rv);
+                rv
+            }
+            Some(value) => value
+        };
+
         let item = if value == 0 {
             0.0
         } else {
-            duration_to_secs(self.started.elapsed()) / value as f64
+            duration_to_secs(started_time.elapsed()) / (value.saturating_sub(started_value)) as f64
         };
         if self.buf.len() >= self.buf_cap {
             let idx = self.last_idx % self.buf.len();
