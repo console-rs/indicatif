@@ -505,6 +505,8 @@ impl ProgressBar {
     }
 
     /// Overrides the stored style.
+    ///
+    /// This does not redraw the bar.  Call `tick` to force it.
     pub fn set_style(&self, style: ProgressStyle) {
         self.state.write().style = style;
     }
@@ -541,6 +543,9 @@ impl ProgressBar {
 
             draw_state(&state_arc).ok();
         }));
+
+        // use the sideeffect of tick to force the bar to tick.
+        self.tick();
     }
 
     /// Undoes `enable_steady_tick`.

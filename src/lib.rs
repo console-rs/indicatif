@@ -59,6 +59,9 @@
 //! * if a non terminal is detected the progress bar will be completely
 //!   hidden.  This makes piping programs to logfiles make sense out of
 //!   the box.
+//! * a progress bar only starts drawing when `set_message`, `inc`, `set_position`
+//!   or `tick` are called.  In some situations you might have to call `tick`
+//!   once to draw it.
 //! * progress bars should be explicitly finished to reset the rendering
 //!   for others.  Either by also clearing them or by replacing them with
 //!   a new message / retaining the current message.
