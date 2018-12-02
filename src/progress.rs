@@ -423,7 +423,7 @@ impl ProgressState {
         if let Some(width) = self.width {
             width as usize
         } else {
-            Term::stdout().size().1 as usize
+            Term::stderr().size().1 as usize
         }
     }
 
@@ -496,7 +496,7 @@ impl ProgressBar {
 
     /// Creates a new spinner.
     ///
-    /// This spinner by default draws directly to stdout.  This adds the
+    /// This spinner by default draws directly to stderr  This adds the
     /// default spinner style to it.
     pub fn new_spinner() -> ProgressBar {
         let rv = ProgressBar::new(!0);

@@ -38,7 +38,7 @@
 //!
 //! <img src="https://github.com/mitsuhiko/indicatif/raw/master/screenshots/yarn.gif?raw=true" width="60%">
 //!
-//! Progress bars are manually advanced and by default draw to stdout.
+//! Progress bars are manually advanced and by default draw to stderr.
 //! When you are done, the progress bar can be finished either visibly
 //! (eg: the progress bar stays on the screen) or cleared (the progress
 //! bar will be removed).
