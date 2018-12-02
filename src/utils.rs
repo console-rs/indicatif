@@ -40,7 +40,7 @@ impl Estimate {
                 self.started = Some(rv);
                 rv
             }
-            Some(value) => value
+            Some(value) => value,
         };
 
         let item = if value == 0 {

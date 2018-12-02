@@ -149,5 +149,5 @@ mod utils;
 
 pub use format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
 pub use progress::{
-    MultiProgress, ProgressBar, ProgressBarIter, ProgressDrawTarget, ProgressStyle,
+    MultiProgress, ProgressBar, ProgressBarIter, ProgressBarRead, ProgressDrawTarget, ProgressStyle,
 };

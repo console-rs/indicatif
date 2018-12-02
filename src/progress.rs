@@ -982,6 +982,8 @@ impl<'a, I: Iterator> Iterator for ProgressBarIter<'a, I> {
     }
 }
 
+/// Reader for `wrap_read`.
+#[derive(Debug)]
 pub struct ProgressBarRead<'a, R> {
     bar: &'a ProgressBar,
     read: R,
