@@ -64,6 +64,41 @@
 //!   a new message / retaining the current message.
 //! * the default template renders neither message nor prefix.
 //!
+//! # Iterators
+//!
+//! Similar to [tqdm](https://github.com/tqdm/tqdm), progress bars can be
+//! associated with an iterator. For example:
+//!
+//! ```rust
+//! use indicatif::ProgressIterator;
+//!
+//! for _ in (0..1000).progress() {
+//!     // ...
+//! }
+//! ```
+//!
+//! See the [`ProgressIterator`](trait.ProgressIterator.html) trait for more
+//! methods to configure the number of elements in the iterator or change
+//! the progress bar style. Indicatif also has optional support for parallel
+//! iterators with [Rayon](https://github.com/rayon-rs/rayon). In your
+//! `cargo.toml`, use the "with_rayon" feature:
+//!
+//! ```toml
+//! [dependencies]
+//! indicatif = {version = "*", features = ["with_rayon"]}
+//! ```
+//!
+//! And then use it like this:
+//!
+//! ```rust
+//! use indicatif::ParallelProgressIterator;
+//! use rayon::iter::{ParallelIterator, IntoParallelRefIterator};
+//!
+//! let v: Vec<_> = (0..100000).collect();
+//! let v2: Vec<_> = v.par_iter().progress().map(|i| i + 1).collect();
+//! assert_eq!(v2[0], 1);
+//! ```
+//!
 //! # Templates
 //!
 //! Progress bars can be styled with simple format strings similar to the

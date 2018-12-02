@@ -1,5 +1,6 @@
 use progress::ProgressBar;
 
+/// Wraps an iterator to display its progress.
 pub trait ProgressIterator
 where
     Self: Sized + Iterator,
@@ -19,6 +20,7 @@ where
     }
 }
 
+/// Wraps an iterator to display its progress.
 pub struct ProgressBarIter<T> {
     it: T,
     progress: ProgressBar,
