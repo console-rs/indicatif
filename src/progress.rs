@@ -483,8 +483,8 @@ impl ProgressBar {
                 pos: 0,
                 len: len,
                 tick: 0,
-                draw_delta: 1,
-                draw_next: 1,
+                draw_delta: 0,
+                draw_next: 0,
                 status: Status::InProgress,
                 started: Instant::now(),
                 est: Estimate::new(),
@@ -554,12 +554,17 @@ impl ProgressBar {
         self.enable_steady_tick(0);
     }
 
-    /// Limit redrawing of progress bar to every `n` steps.
+    /// Limit redrawing of progress bar to every `n` steps. Defaults to 0.
     ///
     /// By default, the progress bar will redraw whenever its state advances.
     /// This setting is helpful in situations where the overhead of redrawing
     /// the progress bar dominates the computation whose progress is being
     /// reported.
+    ///
+    /// If `n` is greater than 0, operations that change the progress bar such
+    /// as `.tick()`, `.set_message()` and `.set_length()` will no longer cause
+    /// the progress bar to be redrawn, and will only be shown once the
+    /// position advances by `n` steps.
     ///
     /// ```rust,no_run
     /// # use indicatif::ProgressBar;
