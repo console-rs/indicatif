@@ -600,6 +600,9 @@ impl ProgressBar {
     }
 
     /// Print a log line above the progress bar.
+    ///
+    /// If the progress bar was added to a `MultiProgress`, the log line will be
+    /// printed above all other progress bars.
     pub fn println<I: Into<String>>(&self, msg: I) {
         let mut state = self.state.write();
 
@@ -928,6 +931,21 @@ impl MultiProgress {
             if draw_state.finished {
                 state.objects[idx].done = true;
             }
+
+            // Split orphan lines out of the draw state, if any
+            let (orphan_lines, lines) = if draw_state.orphan_lines == 0 {
+                (vec![], draw_state.lines)
+            } else {
+                let split = draw_state.lines.split_at(draw_state.orphan_lines);
+                (split.0.to_vec(), split.1.to_vec())
+            };
+
+            let draw_state = ProgressDrawState {
+                lines,
+                orphan_lines: 0,
+                ..draw_state
+            };
+
             state.objects[idx].draw_state = Some(draw_state);
 
             // the rest from here is only drawing, we can skip it.
@@ -936,6 +954,12 @@ impl MultiProgress {
             }
 
             let mut lines = vec![];
+
+            // Make orphaned lines appear at the top, so they can be properly
+            // forgotten.
+            let orphan_lines_count = orphan_lines.len();
+            lines.extend(orphan_lines);
+
             for obj in state.objects.iter() {
                 if let Some(ref draw_state) = obj.draw_state {
                     lines.extend_from_slice(&draw_state.lines[..]);
@@ -945,7 +969,7 @@ impl MultiProgress {
             let finished = !state.objects.iter().any(|ref x| x.done);
             state.draw_target.apply_draw_state(ProgressDrawState {
                 lines,
-                orphan_lines: 0,
+                orphan_lines: orphan_lines_count,
                 force_draw,
                 move_cursor,
                 finished,
