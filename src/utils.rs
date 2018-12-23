@@ -124,7 +124,8 @@ pub fn expand_template<'a, F: Fn(&TemplateVar) -> String>(s: &'a str, f: F) -> C
                     (?:/([a-z_]+(?:\.[a-z_]+)*))?
                 )?
             "
-        ).unwrap();
+        )
+        .unwrap();
     }
     VAR_RE.replace_all(s, |caps: &Captures| {
         if caps.get(1).is_some() {
