@@ -313,7 +313,7 @@ impl ProgressBar {
                 message: "".into(),
                 prefix: "".into(),
                 pos: 0,
-                len: len,
+                len,
                 tick: 0,
                 draw_delta: 0,
                 draw_next: 0,
@@ -557,7 +557,7 @@ impl ProgressBar {
     /// }
     /// ```
     pub fn wrap_iter<It: Iterator>(&self, it: It) -> ProgressBarIter<It> {
-        ProgressBarIter { bar: self, it: it }
+        ProgressBarIter { bar: self, it }
     }
 
     /// Wraps a Reader with the progress bar.
@@ -673,9 +673,8 @@ impl fmt::Debug for MultiProgress {
 
 unsafe impl Sync for MultiProgress {}
 
-impl MultiProgress {
-    /// Creates a new multi progress object that draws to stderr.
-    pub fn new() -> MultiProgress {
+impl Default for MultiProgress {
+    fn default() -> MultiProgress {
         let (tx, rx) = channel();
         MultiProgress {
             state: RwLock::new(MultiProgressState {
@@ -684,9 +683,16 @@ impl MultiProgress {
                 move_cursor: false,
             }),
             joining: AtomicBool::new(false),
-            tx: tx,
-            rx: rx,
+            tx,
+            rx,
         }
+    }
+}
+
+impl MultiProgress {
+    /// Creates a new multi progress object that draws to stderr.
+    pub fn new() -> MultiProgress {
+        MultiProgress::default()
     }
 
     /// Sets a different draw target for the multiprogress bar.

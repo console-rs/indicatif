@@ -6,7 +6,7 @@ use regex::{Captures, Regex};
 use console::{measure_text_width, Style};
 
 pub fn duration_to_secs(d: Duration) -> f64 {
-    d.as_secs() as f64 + d.subsec_nanos() as f64 / 1_000_000_000f64
+    d.as_secs() as f64 + f64::from(d.subsec_nanos()) / 1_000_000_000f64
 }
 
 pub fn secs_to_duration(s: f64) -> Duration {
@@ -98,7 +98,7 @@ pub struct TemplateVar<'a> {
 impl<'a> TemplateVar<'a> {
     pub fn duplicate_for_key<'b>(&self, key: &'b str) -> TemplateVar<'b> {
         TemplateVar {
-            key: key,
+            key,
             align: self.align,
             truncate: self.truncate,
             width: self.width,
@@ -109,7 +109,7 @@ impl<'a> TemplateVar<'a> {
     }
 }
 
-pub fn expand_template<'a, F: Fn(&TemplateVar) -> String>(s: &'a str, f: F) -> Cow<'a, str> {
+pub fn expand_template<F: Fn(&TemplateVar) -> String>(s: &str, f: F) -> Cow<'_, str> {
     lazy_static! {
         static ref VAR_RE: Regex = Regex::new(r"(\}\})|\{(\{|[^}]+\})").unwrap();
         static ref KEY_RE: Regex = Regex::new(
@@ -136,7 +136,7 @@ pub fn expand_template<'a, F: Fn(&TemplateVar) -> String>(s: &'a str, f: F) -> C
             return "{".into();
         }
         let mut var = TemplateVar {
-            key: key,
+            key,
             align: Alignment::Left,
             truncate: false,
             width: None,
@@ -178,7 +178,7 @@ pub fn expand_template<'a, F: Fn(&TemplateVar) -> String>(s: &'a str, f: F) -> C
     })
 }
 
-pub fn pad_str<'a>(s: &'a str, width: usize, align: Alignment, truncate: bool) -> Cow<'a, str> {
+pub fn pad_str(s: &str, width: usize, align: Alignment, truncate: bool) -> Cow<'_, str> {
     let cols = measure_text_width(s);
 
     if cols >= width {
