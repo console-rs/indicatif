@@ -52,7 +52,12 @@ impl Estimate {
         let item = if value == 0 {
             0.0
         } else {
-            duration_to_secs(started_time.elapsed()) / (value.saturating_sub(started_value)) as f64
+            let divisor = value.saturating_sub(started_value) as f64;
+            if divisor == 0.0 {
+                0.0
+            } else {
+                duration_to_secs(started_time.elapsed()) / divisor
+            }
         };
         if self.buf.len() >= self.buf_cap {
             let idx = self.last_idx % self.buf.len();
