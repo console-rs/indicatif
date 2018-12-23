@@ -76,7 +76,7 @@ impl ProgressStyle {
             0
         };
 
-        let bar = repeat(state.style.progress_chars[0])
+        let pb = repeat(state.style.progress_chars[0])
             .take(fill as usize)
             .collect::<String>();
         let cur = if head == 1 {
@@ -96,7 +96,7 @@ impl ProgressStyle {
             .collect::<String>();
         format!(
             "{}{}{}",
-            bar,
+            pb,
             cur,
             alt_style.unwrap_or(&Style::new()).apply_to(rest)
         )

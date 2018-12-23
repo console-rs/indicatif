@@ -713,17 +713,17 @@ impl MultiProgress {
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
     /// object.
-    pub fn add(&self, bar: ProgressBar) -> ProgressBar {
+    pub fn add(&self, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write();
         let idx = state.objects.len();
         state.objects.push(MultiObject {
             done: false,
             draw_state: None,
         });
-        bar.set_draw_target(ProgressDrawTarget {
+        pb.set_draw_target(ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Remote(idx, Mutex::new(self.tx.clone())),
         });
-        bar
+        pb
     }
 
     /// Waits for all progress bars to report that they are finished.
