@@ -545,7 +545,7 @@ impl ProgressBar {
         }));
 
         // use the sideeffect of tick to force the bar to tick.
-        std::mem::drop(state);
+        ::std::mem::drop(state);
         self.tick();
     }
 
