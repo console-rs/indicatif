@@ -148,9 +148,11 @@ extern crate number_prefix;
 
 mod format;
 mod progress;
+mod style;
 mod utils;
 
 pub use format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
 pub use progress::{
-    MultiProgress, ProgressBar, ProgressBarIter, ProgressBarRead, ProgressDrawTarget, ProgressStyle,
+    MultiProgress, ProgressBar, ProgressBarIter, ProgressBarRead, ProgressDrawTarget,
 };
+pub use style::ProgressStyle;
