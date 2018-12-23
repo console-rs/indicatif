@@ -224,9 +224,7 @@ impl ProgressStyle {
         self.template = Cow::Owned(s.into());
         self
     }
-}
 
-impl ProgressStyle {
     /// Returns the tick char for a given number.
     pub fn get_tick_char(&self, idx: u64) -> char {
         self.tick_chars[(idx as usize) % (self.tick_chars.len() - 1)]
