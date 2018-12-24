@@ -431,10 +431,19 @@ impl ProgressBar {
         })
     }
 
+    /// A quick convenience check if the progress bar is hidden.
+    pub fn is_hidden(&self) -> bool {
+        self.state.read().draw_target.is_hidden()
+    }
+
     /// Print a log line above the progress bar.
     ///
     /// If the progress bar was added to a `MultiProgress`, the log line will be
     /// printed above all other progress bars.
+    ///
+    /// Note that if the progress bar is hidden (which by default happens if
+    /// the progress bar is redirected into a file) println will not do
+    /// anything either.
     pub fn println<I: Into<String>>(&self, msg: I) {
         let mut state = self.state.write();
 
