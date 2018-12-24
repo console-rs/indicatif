@@ -440,7 +440,9 @@ impl ProgressBar {
 
         let mut lines: Vec<String> = msg.into().lines().map(Into::into).collect();
         let orphan_lines = lines.len();
-        lines.extend(state.style.format_state(&*state));
+        if state.should_render() {
+            lines.extend(state.style.format_state(&*state));
+        }
 
         let draw_state = ProgressDrawState {
             lines,
