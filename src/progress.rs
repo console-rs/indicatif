@@ -276,6 +276,11 @@ impl ProgressState {
 }
 
 /// A progress bar or spinner.
+///
+/// The progress bar is an `Arc` around an internal state.  When the progress
+/// bar is cloned it just increments the refcount which means the bar is
+/// shared with the original one.
+#[derive(Clone)]
 pub struct ProgressBar {
     state: Arc<RwLock<ProgressState>>,
 }
@@ -568,7 +573,10 @@ impl ProgressBar {
     /// }
     /// ```
     pub fn wrap_iter<It: Iterator>(&self, it: It) -> ProgressBarIter<It> {
-        ProgressBarIter { bar: self, it }
+        ProgressBarIter {
+            bar: self.clone(),
+            it,
+        }
     }
 
     /// Wraps a Reader with the progress bar.
@@ -586,7 +594,10 @@ impl ProgressBar {
     /// # }
     /// ```
     pub fn wrap_read<R: io::Read>(&self, read: R) -> ProgressBarRead<R> {
-        ProgressBarRead { bar: self, read }
+        ProgressBarRead {
+            bar: self.clone(),
+            read,
+        }
     }
 
     fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, f: F) {
@@ -857,12 +868,12 @@ impl Drop for ProgressBar {
 
 /// Iterator for `wrap_iter`.
 #[derive(Debug)]
-pub struct ProgressBarIter<'a, I> {
-    bar: &'a ProgressBar,
+pub struct ProgressBarIter<I> {
+    bar: ProgressBar,
     it: I,
 }
 
-impl<'a, I: Iterator> Iterator for ProgressBarIter<'a, I> {
+impl<I: Iterator> Iterator for ProgressBarIter<I> {
     type Item = I::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -878,12 +889,12 @@ impl<'a, I: Iterator> Iterator for ProgressBarIter<'a, I> {
 
 /// Reader for `wrap_read`.
 #[derive(Debug)]
-pub struct ProgressBarRead<'a, R> {
-    bar: &'a ProgressBar,
+pub struct ProgressBarRead<R> {
+    bar: ProgressBar,
     read: R,
 }
 
-impl<'a, R: io::Read> io::Read for ProgressBarRead<'a, R> {
+impl<R: io::Read> io::Read for ProgressBarRead<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let inc = self.read.read(buf)?;
         self.bar.inc(inc as u64);
