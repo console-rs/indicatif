@@ -81,8 +81,9 @@
 //! /STYLE          an optional dot separated alternative style string
 //! ```
 //!
-//! For the style component see `Styled::from_dotted_str` for more
-//! information.
+//! For the style component see [`Style::from_dotted_str`](https://docs.rs/console/0.7.5/console/struct.Style.html#method.from_dotted_str)
+//! for more information.  Indicatif uses the `console` base crate for all
+//! colorization and formatting options.
 //!
 //! Some examples for templates:
 //!
