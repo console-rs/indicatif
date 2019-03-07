@@ -519,6 +519,13 @@ impl ProgressBar {
         });
     }
 
+    /// Resets elapsed time
+    pub fn reset_elapsed(&self) {
+        self.update_and_draw(|state| {
+            state.started = Instant::now();
+        });
+    }
+
     /// Finishes the progress bar and leaves the current message.
     pub fn finish(&self) {
         self.update_and_draw(|state| {
