@@ -826,7 +826,7 @@ impl MultiProgress {
                 }
             }
 
-            let finished = !state.objects.iter().any(|ref x| x.done);
+            let finished = !state.objects.iter().any(|ref x| !x.done);
             state.draw_target.apply_draw_state(ProgressDrawState {
                 lines,
                 orphan_lines: orphan_lines_count,
