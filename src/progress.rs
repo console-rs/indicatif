@@ -1,5 +1,6 @@
 use std::fmt;
 use std::io;
+use std::num::NonZeroU64;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
@@ -57,7 +58,7 @@ impl ProgressDrawTarget {
     ///
     /// For more information see `ProgressDrawTarget::to_term`.
     pub fn stdout() -> ProgressDrawTarget {
-        ProgressDrawTarget::to_term(Term::buffered_stdout(), Some(15))
+        ProgressDrawTarget::to_term(Term::buffered_stdout(), NonZeroU64::new(15))
     }
 
     /// Draw to a buffered stderr terminal at a max of 15 times a second.
@@ -65,7 +66,7 @@ impl ProgressDrawTarget {
     /// This is the default draw target for progress bars.  For more
     /// information see `ProgressDrawTarget::to_term`.
     pub fn stderr() -> ProgressDrawTarget {
-        ProgressDrawTarget::to_term(Term::buffered_stderr(), Some(15))
+        ProgressDrawTarget::to_term(Term::buffered_stderr(), NonZeroU64::new(15))
     }
 
     /// Draw to a buffered stdout terminal without max framerate.
@@ -96,8 +97,13 @@ impl ProgressDrawTarget {
     /// terminal is not user attended the entire progress bar will be
     /// hidden.  This is done so that piping to a file will not produce
     /// useless escape codes in that file.
-    pub fn to_term(term: Term, refresh_rate: Option<u64>) -> ProgressDrawTarget {
-        let rate = refresh_rate.map(|x| Duration::from_millis(1000 / x));
+    pub fn to_term<RR: Into<Option<NonZeroU64>>>(
+        term: Term,
+        refresh_rate: RR,
+    ) -> ProgressDrawTarget {
+        let rate = refresh_rate
+            .into()
+            .map(|x| Duration::from_millis(1000 / x.get()));
         ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Term(term, None, rate),
         }
