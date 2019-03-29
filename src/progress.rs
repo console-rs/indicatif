@@ -69,6 +69,20 @@ impl ProgressDrawTarget {
         ProgressDrawTarget::to_term(Term::buffered_stderr(), NonZeroU64::new(15))
     }
 
+    /// Draw to a buffered stdout terminal at a max of `refresh_rate` times a second.
+    ///
+    /// For more information see `ProgressDrawTarget::to_term`.
+    pub fn stdout_with_hz(refresh_rate: NonZeroU64) -> ProgressDrawTarget {
+        ProgressDrawTarget::to_term(Term::buffered_stdout(), refresh_rate)
+    }
+
+    /// Draw to a buffered stderr terminal at a max of `refresh_rate` times a second.
+    ///
+    /// For more information see `ProgressDrawTarget::to_term`.
+    pub fn stderr_with_hz(refresh_rate: NonZeroU64) -> ProgressDrawTarget {
+        ProgressDrawTarget::to_term(Term::buffered_stderr(), refresh_rate)
+    }
+
     /// Draw to a buffered stdout terminal without max framerate.
     ///
     /// This is useful when data is known to come in very slowly and
