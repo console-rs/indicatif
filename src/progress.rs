@@ -717,6 +717,21 @@ impl MultiProgress {
         MultiProgress::default()
     }
 
+    /// Creates a new multi progress object with the given draw target.
+    pub fn with_draw_target(draw_target: ProgressDrawTarget) -> MultiProgress {
+        let (tx, rx) = channel();
+        MultiProgress {
+            state: RwLock::new(MultiProgressState {
+                objects: vec![],
+                draw_target,
+                move_cursor: false,
+            }),
+            joining: AtomicBool::new(false),
+            tx,
+            rx,
+        }
+    }
+
     /// Sets a different draw target for the multiprogress bar.
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
         self.state.write().draw_target = target;
