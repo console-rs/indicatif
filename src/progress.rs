@@ -698,17 +698,7 @@ unsafe impl Sync for MultiProgress {}
 
 impl Default for MultiProgress {
     fn default() -> MultiProgress {
-        let (tx, rx) = channel();
-        MultiProgress {
-            state: RwLock::new(MultiProgressState {
-                objects: vec![],
-                draw_target: ProgressDrawTarget::stderr(),
-                move_cursor: false,
-            }),
-            joining: AtomicBool::new(false),
-            tx,
-            rx,
-        }
+        MultiProgress::with_draw_target(ProgressDrawTarget::stderr())
     }
 }
 
