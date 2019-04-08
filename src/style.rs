@@ -60,8 +60,8 @@ impl ProgressStyle {
     }
 
     /// Sets the template string for the progress bar.
-    pub fn template(mut self, s: &str) -> ProgressStyle {
-        self.template = Cow::Owned(s.into());
+    pub fn template<I: Into<Cow<'static, str>>>(mut self, s: I) -> ProgressStyle {
+        self.template = s.into();
         self
     }
 
