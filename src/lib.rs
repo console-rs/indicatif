@@ -192,4 +192,4 @@ pub use crate::progress::{MultiProgress, ProgressBar, ProgressBarRead, ProgressD
 pub use crate::style::ProgressStyle;
 
 #[cfg(feature = "with_rayon")]
-pub use iter::rayon::{ParProgressBarIter, ParallelProgressIterator};
+pub use iter::rayon_support::{ParProgressBarIter, ParallelProgressIterator};

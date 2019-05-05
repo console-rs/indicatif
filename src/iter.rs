@@ -53,7 +53,7 @@ impl<S, T: Iterator<Item = S>> ProgressIterator for T {
 }
 
 #[cfg(feature = "with_rayon")]
-pub mod rayon {
+pub mod rayon_support {
     use super::*;
     use rayon::iter::{
         plumbing::Consumer, plumbing::Folder, plumbing::UnindexedConsumer, ParallelIterator,
