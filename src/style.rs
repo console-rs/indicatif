@@ -3,9 +3,9 @@ use std::cell::RefCell;
 use std::iter::repeat;
 
 use console::{measure_text_width, Style};
-use format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
-use progress::ProgressState;
-use utils::{expand_template, pad_str};
+use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
+use crate::progress::ProgressState;
+use crate::utils::{expand_template, pad_str};
 
 /// Controls the rendering style of progress bars.
 #[derive(Clone, Debug)]
@@ -162,7 +162,7 @@ impl ProgressStyle {
                     s.replace(
                         "\x00",
                         if var.last_element {
-                            msg.trim_right()
+                            msg.trim_end()
                         } else {
                             &msg
                         },

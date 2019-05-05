@@ -1,4 +1,4 @@
-use progress::ProgressBar;
+use crate::progress::ProgressBar;
 
 /// Wraps an iterator to display its progress.
 pub trait ProgressIterator
@@ -200,8 +200,8 @@ pub mod rayon {
 
 #[cfg(test)]
 mod test {
-    use iter::{ProgressBarIter, ProgressIterator};
-    use progress::ProgressBar;
+    use crate::iter::{ProgressBarIter, ProgressIterator};
+    use crate::progress::ProgressBar;
 
     #[test]
     fn it_can_wrap_an_iterator() {

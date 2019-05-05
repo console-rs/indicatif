@@ -8,6 +8,7 @@ license = "MIT"
 repository = "https://github.com/mitsuhiko/indicatif"
 documentation = "https://docs.rs/indicatif"
 readme = "README.md"
+edition = "2018"
 exclude = ["screenshots/*"]
 
 [dependencies]

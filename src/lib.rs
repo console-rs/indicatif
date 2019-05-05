@@ -192,10 +192,10 @@ mod progress;
 mod style;
 mod utils;
 
-pub use format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
-pub use iter::{ProgressBarIter, ProgressIterator};
-pub use progress::{MultiProgress, ProgressBar, ProgressBarRead, ProgressDrawTarget};
-pub use style::ProgressStyle;
+pub use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
+pub use crate::iter::{ProgressBarIter, ProgressIterator};
+pub use crate::progress::{MultiProgress, ProgressBar, ProgressBarRead, ProgressDrawTarget};
+pub use crate::style::ProgressStyle;
 
 #[cfg(feature = "with_rayon")]
 pub use iter::rayon::{ParProgressBarIter, ParallelProgressIterator};
