@@ -1,4 +1,4 @@
-extern crate indicatif;
+
 
 use std::time::Instant;
 

@@ -24,7 +24,7 @@ pub struct DecimalBytes(pub u64);
 pub struct BinaryBytes(pub u64);
 
 impl fmt::Display for FormattedDuration {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut t = self.0.as_secs();
         let seconds = t % 60;
         t /= 60;
@@ -42,7 +42,7 @@ impl fmt::Display for FormattedDuration {
 }
 
 impl fmt::Display for HumanDuration {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let t = self.0.as_secs();
         let alt = f.alternate();
         macro_rules! try_unit {
@@ -75,7 +75,7 @@ impl fmt::Display for HumanDuration {
 }
 
 impl fmt::Display for HumanBytes {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match NumberPrefix::binary(self.0 as f64) {
             Standalone(number) => write!(f, "{:.0}B", number),
             Prefixed(prefix, number) => write!(
@@ -89,7 +89,7 @@ impl fmt::Display for HumanBytes {
 }
 
 impl fmt::Display for DecimalBytes {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match NumberPrefix::decimal(self.0 as f64) {
             Standalone(number) => write!(f, "{:.0}B", number),
             Prefixed(prefix, number) => write!(f, "{:.2}{}B", number, prefix),
@@ -98,7 +98,7 @@ impl fmt::Display for DecimalBytes {
 }
 
 impl fmt::Display for BinaryBytes {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match NumberPrefix::binary(self.0 as f64) {
             Standalone(number) => write!(f, "{:.0}B", number),
             Prefixed(prefix, number) => write!(f, "{:.2}{}B", number, prefix),

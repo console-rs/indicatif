@@ -1,6 +1,6 @@
-extern crate console;
-extern crate indicatif;
-extern crate rand;
+
+
+
 
 use std::io::{BufRead, BufReader};
 use std::process;

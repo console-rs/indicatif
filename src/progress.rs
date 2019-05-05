@@ -315,7 +315,7 @@ pub struct ProgressBar {
 }
 
 impl fmt::Debug for ProgressBar {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ProgressBar").finish()
     }
 }
@@ -733,7 +733,7 @@ pub struct MultiProgress {
 }
 
 impl fmt::Debug for MultiProgress {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MultiProgress").finish()
     }
 }
@@ -975,9 +975,9 @@ mod tests {
 
     #[test]
     fn progress_bar_sync_send() {
-        let _: Box<Sync> = Box::new(ProgressBar::new(1));
-        let _: Box<Send> = Box::new(ProgressBar::new(1));
-        let _: Box<Sync> = Box::new(MultiProgress::new());
-        let _: Box<Send> = Box::new(MultiProgress::new());
+        let _: Box<dyn Sync> = Box::new(ProgressBar::new(1));
+        let _: Box<dyn Send> = Box::new(ProgressBar::new(1));
+        let _: Box<dyn Sync> = Box::new(MultiProgress::new());
+        let _: Box<dyn Send> = Box::new(MultiProgress::new());
     }
 }

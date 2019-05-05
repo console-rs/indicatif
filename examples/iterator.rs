@@ -1,4 +1,4 @@
-extern crate indicatif;
+
 
 use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
 

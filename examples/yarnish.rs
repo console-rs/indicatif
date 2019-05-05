@@ -1,6 +1,6 @@
-extern crate console;
-extern crate indicatif;
-extern crate rand;
+
+
+use rand;
 
 use rand::Rng;
 use std::thread;
@@ -29,11 +29,11 @@ static COMMANDS: &'static [&'static str] = &[
     "make test",
 ];
 
-static LOOKING_GLASS: Emoji = Emoji("🔍  ", "");
-static TRUCK: Emoji = Emoji("🚚  ", "");
-static CLIP: Emoji = Emoji("🔗  ", "");
-static PAPER: Emoji = Emoji("📃  ", "");
-static SPARKLE: Emoji = Emoji("✨ ", ":-)");
+static LOOKING_GLASS: Emoji<'_, '_> = Emoji("🔍  ", "");
+static TRUCK: Emoji<'_, '_> = Emoji("🚚  ", "");
+static CLIP: Emoji<'_, '_> = Emoji("🔗  ", "");
+static PAPER: Emoji<'_, '_> = Emoji("📃  ", "");
+static SPARKLE: Emoji<'_, '_> = Emoji("✨ ", ":-)");
 
 pub fn main() {
     let mut rng = rand::thread_rng();

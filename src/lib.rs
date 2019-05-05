@@ -176,12 +176,7 @@
 //! println!("The file is {} large", HumanBytes(file.size));
 //! println!("The script took {}", HumanDuration(started.elapsed()));
 //! ```
-extern crate parking_lot;
-extern crate regex;
-#[macro_use]
-extern crate lazy_static;
-extern crate console;
-extern crate number_prefix;
+
 
 #[cfg(feature = "with_rayon")]
 extern crate rayon;

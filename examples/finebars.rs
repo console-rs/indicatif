@@ -1,5 +1,5 @@
-extern crate indicatif;
-extern crate rand;
+
+
 
 use std::thread;
 use std::time::Duration;
