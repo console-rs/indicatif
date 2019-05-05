@@ -14,7 +14,7 @@ exclude = ["screenshots/*"]
 parking_lot = "0"
 regex = "1"
 lazy_static = "1"
-number_prefix = "0.2"
+number_prefix = "0.3"
 console = ">=0.7.5, <1.0.0"
 
 [dev-dependencies]
