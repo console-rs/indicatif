@@ -361,6 +361,12 @@ impl ProgressBar {
         }
     }
 
+    /// A convenience builder-like function for a progress bar with a given style.
+    pub fn with_style(self, style: ProgressStyle) -> ProgressBar {
+        self.state.write().style = style;
+        self
+    }
+
     /// Creates a new spinner.
     ///
     /// This spinner by default draws directly to stderr.  This adds the
