@@ -295,7 +295,8 @@ impl ProgressBar {
     /// Creates a new progress bar with a given length.
     ///
     /// This progress bar by default draws directly to stderr, and refreshes
-    /// a maximum of 15 times a second
+    /// a maximum of 15 times a second. To change the refresh rate set the
+    /// draw target to one with a different refresh rate.
     pub fn new(len: u64) -> ProgressBar {
         ProgressBar::with_draw_target(len, ProgressDrawTarget::stderr())
     }
@@ -333,7 +334,7 @@ impl ProgressBar {
 
     /// Creates a new spinner.
     ///
-    /// This spinner by default draws directly to stderr  This adds the
+    /// This spinner by default draws directly to stderr.  This adds the
     /// default spinner style to it.
     pub fn new_spinner() -> ProgressBar {
         let rv = ProgressBar::new(!0);
@@ -704,24 +705,33 @@ unsafe impl Sync for MultiProgress {}
 
 impl Default for MultiProgress {
     fn default() -> MultiProgress {
+        MultiProgress::with_draw_target(ProgressDrawTarget::stderr())
+    }
+}
+
+impl MultiProgress {
+    /// Creates a new multi progress object.
+    ///
+    /// Progress bars added to this object by default draw directly to stderr, and refresh
+    /// a maximum of 15 times a second. To change the refresh rate set the draw target to
+    /// one with a different refresh rate.
+    pub fn new() -> MultiProgress {
+        MultiProgress::default()
+    }
+
+    /// Creates a new multi progress object with the given draw target.
+    pub fn with_draw_target(draw_target: ProgressDrawTarget) -> MultiProgress {
         let (tx, rx) = channel();
         MultiProgress {
             state: RwLock::new(MultiProgressState {
                 objects: vec![],
-                draw_target: ProgressDrawTarget::stderr(),
+                draw_target,
                 move_cursor: false,
             }),
             joining: AtomicBool::new(false),
             tx,
             rx,
         }
-    }
-}
-
-impl MultiProgress {
-    /// Creates a new multi progress object that draws to stderr.
-    pub fn new() -> MultiProgress {
-        MultiProgress::default()
     }
 
     /// Sets a different draw target for the multiprogress bar.
@@ -741,7 +751,7 @@ impl MultiProgress {
     ///
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
-    /// object.
+    /// object overriding custom `ProgressDrawTarget` settings.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write();
         let idx = state.objects.len();
