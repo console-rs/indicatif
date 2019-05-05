@@ -158,6 +158,29 @@ impl ProgressDrawTarget {
         }
         Ok(())
     }
+
+    /// Properly disconnects from the draw target
+    fn disconnect(&self) {
+        match self.kind {
+            ProgressDrawTargetKind::Term(_, _, _) => {}
+            ProgressDrawTargetKind::Remote(idx, ref chan) => {
+                chan.lock()
+                    .send((
+                        idx,
+                        ProgressDrawState {
+                            lines: vec![],
+                            orphan_lines: 0,
+                            finished: true,
+                            force_draw: false,
+                            move_cursor: false,
+                            ts: Instant::now(),
+                        },
+                    ))
+                    .ok();
+            }
+            ProgressDrawTargetKind::Hidden => {}
+        };
+    }
 }
 
 impl ProgressDrawState {
@@ -174,6 +197,12 @@ impl ProgressDrawState {
             term.write_line(line)?;
         }
         Ok(())
+    }
+}
+
+impl Drop for ProgressDrawTarget {
+    fn drop(&mut self) {
+        self.disconnect();
     }
 }
 
@@ -567,7 +596,9 @@ impl ProgressBar {
     /// pb.set_draw_target(ProgressDrawTarget::stderr());
     /// ```
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
-        self.state.write().draw_target = target;
+        let mut state = self.state.write();
+        state.draw_target.disconnect();
+        state.draw_target = target;
     }
 
     /// Wraps an iterator with the progress bar.
@@ -736,7 +767,9 @@ impl MultiProgress {
 
     /// Sets a different draw target for the multiprogress bar.
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
-        self.state.write().draw_target = target;
+        let mut state = self.state.write();
+        state.draw_target.disconnect();
+        state.draw_target = target;
     }
 
     /// Set whether we should try to move the cursor when possible instead of clearing lines.
