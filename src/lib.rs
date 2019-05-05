@@ -59,6 +59,9 @@
 //! * if a non terminal is detected the progress bar will be completely
 //!   hidden.  This makes piping programs to logfiles make sense out of
 //!   the box.
+//! * a progress bar only starts drawing when `set_message`, `inc`, `set_position`
+//!   or `tick` are called.  In some situations you might have to call `tick`
+//!   once to draw it.
 //! * progress bars should be explicitly finished to reset the rendering
 //!   for others.  Either by also clearing them or by replacing them with
 //!   a new message / retaining the current message.
@@ -114,8 +117,9 @@
 //! /STYLE          an optional dot separated alternative style string
 //! ```
 //!
-//! For the style component see `Styled::from_dotted_str` for more
-//! information.
+//! For the style component see [`Style::from_dotted_str`](https://docs.rs/console/0.7.5/console/struct.Style.html#method.from_dotted_str)
+//! for more information.  Indicatif uses the `console` base crate for all
+//! colorization and formatting options.
 //!
 //! Some examples for templates:
 //!
@@ -185,13 +189,15 @@ extern crate rayon;
 mod format;
 mod iter;
 mod progress;
+mod style;
 mod utils;
 
 pub use format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
 pub use iter::{ProgressBarIter, ProgressIterator};
 pub use progress::{
-    MultiProgress, ProgressBar, ProgressBarRead, ProgressDrawTarget, ProgressStyle,
+    MultiProgress, ProgressBar, ProgressBarRead, ProgressDrawTarget,
 };
+pub use style::ProgressStyle;
 
 #[cfg(feature = "with_rayon")]
 pub use iter::rayon::{ParProgressBarIter, ParallelProgressIterator};

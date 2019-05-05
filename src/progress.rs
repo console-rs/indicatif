@@ -1,8 +1,5 @@
-use std::borrow::Cow;
-use std::cell::RefCell;
 use std::fmt;
 use std::io;
-use std::iter::repeat;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
@@ -11,17 +8,9 @@ use std::time::{Duration, Instant};
 
 use parking_lot::{Mutex, RwLock};
 
-use console::{measure_text_width, Style, Term};
-use format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
-use utils::{duration_to_secs, expand_template, pad_str, secs_to_duration, Estimate};
-
-/// Controls the rendering style of progress bars.
-#[derive(Clone, Debug)]
-pub struct ProgressStyle {
-    tick_chars: Vec<char>,
-    progress_chars: Vec<char>,
-    template: Cow<'static, str>,
-}
+use console::Term;
+use style::ProgressStyle;
+use utils::{duration_to_secs, secs_to_duration, Estimate};
 
 /// The drawn state of an element.
 #[derive(Clone, Debug)]
@@ -169,6 +158,29 @@ impl ProgressDrawTarget {
         }
         Ok(())
     }
+
+    /// Properly disconnects from the draw target
+    fn disconnect(&self) {
+        match self.kind {
+            ProgressDrawTargetKind::Term(_, _, _) => {}
+            ProgressDrawTargetKind::Remote(idx, ref chan) => {
+                chan.lock()
+                    .send((
+                        idx,
+                        ProgressDrawState {
+                            lines: vec![],
+                            orphan_lines: 0,
+                            finished: true,
+                            force_draw: false,
+                            move_cursor: false,
+                            ts: Instant::now(),
+                        },
+                    ))
+                    .ok();
+            }
+            ProgressDrawTargetKind::Hidden => {}
+        };
+    }
 }
 
 impl ProgressDrawState {
@@ -188,177 +200,26 @@ impl ProgressDrawState {
     }
 }
 
-impl ProgressStyle {
-    /// Returns the default progress bar style for bars.
-    pub fn default_bar() -> ProgressStyle {
-        ProgressStyle {
-            tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
-            progress_chars: "█░".chars().collect(),
-            template: Cow::Borrowed("{wide_bar} {pos}/{len}"),
-        }
-    }
-
-    /// Returns the default progress bar style for spinners.
-    pub fn default_spinner() -> ProgressStyle {
-        ProgressStyle {
-            tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
-            progress_chars: "█░".chars().collect(),
-            template: Cow::Borrowed("{spinner} {msg}"),
-        }
-    }
-
-    /// Sets the tick character sequence for spinners.
-    pub fn tick_chars(mut self, s: &str) -> ProgressStyle {
-        self.tick_chars = s.chars().collect();
-        self
-    }
-
-    /// Sets the three progress characters `(filled, current, to do)`.
-    pub fn progress_chars(mut self, s: &str) -> ProgressStyle {
-        self.progress_chars = s.chars().collect();
-        self
-    }
-
-    /// Sets the template string for the progress bar.
-    pub fn template(mut self, s: &str) -> ProgressStyle {
-        self.template = Cow::Owned(s.into());
-        self
-    }
-}
-
-impl ProgressStyle {
-    /// Returns the tick char for a given number.
-    pub fn get_tick_char(&self, idx: u64) -> char {
-        self.tick_chars[(idx as usize) % (self.tick_chars.len() - 1)]
-    }
-
-    /// Returns the tick char for the finished state.
-    pub fn get_final_tick_char(&self) -> char {
-        self.tick_chars[self.tick_chars.len() - 1]
-    }
-
-    fn format_bar(&self, state: &ProgressState, width: usize, alt_style: Option<&Style>) -> String {
-        let pct = state.fraction();
-        let fill = pct * width as f32;
-        let head = if pct > 0.0 && (fill as usize) < width {
-            1
-        } else {
-            0
-        };
-
-        let bar = repeat(state.style.progress_chars[0])
-            .take(fill as usize)
-            .collect::<String>();
-        let cur = if head == 1 {
-            let n = state.style.progress_chars.len().saturating_sub(2);
-            let cur_char = if n == 0 {
-                1
-            } else {
-                n.saturating_sub((fill * n as f32) as usize % n)
-            };
-            state.style.progress_chars[cur_char].to_string()
-        } else {
-            "".into()
-        };
-        let bg = width.saturating_sub(fill as usize).saturating_sub(head);
-        let rest = repeat(state.style.progress_chars.last().unwrap())
-            .take(bg)
-            .collect::<String>();
-        format!(
-            "{}{}{}",
-            bar,
-            cur,
-            alt_style.unwrap_or(&Style::new()).apply_to(rest)
-        )
-    }
-
-    fn format_state(&self, state: &ProgressState) -> Vec<String> {
-        let (pos, len) = state.position();
-        let mut rv = vec![];
-
-        for line in self.template.lines() {
-            let wide_element = RefCell::new(None);
-
-            let s = expand_template(line, |var| {
-                let key = var.key;
-
-                match key {
-                    "wide_bar" => {
-                        *wide_element.borrow_mut() = Some(var.duplicate_for_key("bar"));
-                        "\x00".into()
-                    }
-                    "bar" => {
-                        self.format_bar(state, var.width.unwrap_or(20), var.alt_style.as_ref())
-                    }
-                    "spinner" => state.current_tick_char().to_string(),
-                    "wide_msg" => {
-                        *wide_element.borrow_mut() = Some(var.duplicate_for_key("msg"));
-                        "\x00".into()
-                    }
-                    "msg" => state.message().to_string(),
-                    "prefix" => state.prefix().to_string(),
-                    "pos" => pos.to_string(),
-                    "len" => len.to_string(),
-                    "percent" => format!("{:.*}", 0, state.fraction() * 100f32),
-                    "bytes" => format!("{}", HumanBytes(state.pos)),
-                    "total_bytes" => format!("{}", HumanBytes(state.len)),
-                    "decimal_bytes" => format!("{}", DecimalBytes(state.pos)),
-                    "decimal_total_bytes" => format!("{}", DecimalBytes(state.len)),
-                    "binary_bytes" => format!("{}", BinaryBytes(state.pos)),
-                    "binary_total_bytes" => format!("{}", BinaryBytes(state.len)),
-                    "elapsed_precise" => format!("{}", FormattedDuration(state.started.elapsed())),
-                    "elapsed" => format!("{:#}", HumanDuration(state.started.elapsed())),
-                    "eta_precise" => format!("{}", FormattedDuration(state.eta())),
-                    "eta" => format!("{:#}", HumanDuration(state.eta())),
-                    _ => "".into(),
-                }
-            });
-
-            rv.push(if let Some(ref var) = *wide_element.borrow() {
-                let total_width = state.width();
-                if var.key == "bar" {
-                    let bar_width = total_width.saturating_sub(measure_text_width(&s));
-                    s.replace(
-                        "\x00",
-                        &self.format_bar(state, bar_width, var.alt_style.as_ref()),
-                    )
-                } else if var.key == "msg" {
-                    let msg_width = total_width.saturating_sub(measure_text_width(&s));
-                    let msg = pad_str(state.message(), msg_width, var.align, true);
-                    s.replace(
-                        "\x00",
-                        if var.last_element {
-                            msg.trim_right()
-                        } else {
-                            &msg
-                        },
-                    )
-                } else {
-                    unreachable!()
-                }
-            } else {
-                s.to_string()
-            });
-        }
-
-        rv
+impl Drop for ProgressDrawTarget {
+    fn drop(&mut self) {
+        self.disconnect();
     }
 }
 
 /// The state of a progress bar at a moment in time.
-struct ProgressState {
-    style: ProgressStyle,
+pub(crate) struct ProgressState {
+    pub(crate) style: ProgressStyle,
+    pub(crate) pos: u64,
+    pub(crate) len: u64,
+    pub(crate) tick: u64,
+    pub(crate) started: Instant,
     draw_target: ProgressDrawTarget,
     width: Option<u16>,
     message: String,
     prefix: String,
-    pos: u64,
-    len: u64,
-    tick: u64,
     draw_delta: u64,
     draw_next: u64,
     status: Status,
-    started: Instant,
     est: Estimate,
     tick_thread: Option<thread::JoinHandle<()>>,
     steady_tick: u64,
@@ -444,6 +305,11 @@ impl ProgressState {
 }
 
 /// A progress bar or spinner.
+///
+/// The progress bar is an `Arc` around an internal state.  When the progress
+/// bar is cloned it just increments the refcount which means the bar is
+/// shared with the original one.
+#[derive(Clone)]
 pub struct ProgressBar {
     state: Arc<RwLock<ProgressState>>,
 }
@@ -458,7 +324,8 @@ impl ProgressBar {
     /// Creates a new progress bar with a given length.
     ///
     /// This progress bar by default draws directly to stderr, and refreshes
-    /// a maximum of 15 times a second
+    /// a maximum of 15 times a second. To change the refresh rate set the
+    /// draw target to one with a different refresh rate.
     pub fn new(len: u64) -> ProgressBar {
         ProgressBar::with_draw_target(len, ProgressDrawTarget::stderr())
     }
@@ -481,10 +348,10 @@ impl ProgressBar {
                 message: "".into(),
                 prefix: "".into(),
                 pos: 0,
-                len: len,
+                len,
                 tick: 0,
-                draw_delta: 1,
-                draw_next: 1,
+                draw_delta: 0,
+                draw_next: 0,
                 status: Status::InProgress,
                 started: Instant::now(),
                 est: Estimate::new(),
@@ -494,9 +361,15 @@ impl ProgressBar {
         }
     }
 
+    /// A convenience builder-like function for a progress bar with a given style.
+    pub fn with_style(self, style: ProgressStyle) -> ProgressBar {
+        self.state.write().style = style;
+        self
+    }
+
     /// Creates a new spinner.
     ///
-    /// This spinner by default draws directly to stderr  This adds the
+    /// This spinner by default draws directly to stderr.  This adds the
     /// default spinner style to it.
     pub fn new_spinner() -> ProgressBar {
         let rv = ProgressBar::new(!0);
@@ -505,6 +378,8 @@ impl ProgressBar {
     }
 
     /// Overrides the stored style.
+    ///
+    /// This does not redraw the bar.  Call `tick` to force it.
     pub fn set_style(&self, style: ProgressStyle) {
         self.state.write().style = style;
     }
@@ -541,6 +416,10 @@ impl ProgressBar {
 
             draw_state(&state_arc).ok();
         }));
+
+        // use the sideeffect of tick to force the bar to tick.
+        ::std::mem::drop(state);
+        self.tick();
     }
 
     /// Undoes `enable_steady_tick`.
@@ -548,12 +427,17 @@ impl ProgressBar {
         self.enable_steady_tick(0);
     }
 
-    /// Limit redrawing of progress bar to every `n` steps.
+    /// Limit redrawing of progress bar to every `n` steps. Defaults to 0.
     ///
     /// By default, the progress bar will redraw whenever its state advances.
     /// This setting is helpful in situations where the overhead of redrawing
     /// the progress bar dominates the computation whose progress is being
     /// reported.
+    ///
+    /// If `n` is greater than 0, operations that change the progress bar such
+    /// as `.tick()`, `.set_message()` and `.set_length()` will no longer cause
+    /// the progress bar to be redrawn, and will only be shown once the
+    /// position advances by `n` steps.
     ///
     /// ```rust,no_run
     /// # use indicatif::ProgressBar;
@@ -588,13 +472,27 @@ impl ProgressBar {
         })
     }
 
+    /// A quick convenience check if the progress bar is hidden.
+    pub fn is_hidden(&self) -> bool {
+        self.state.read().draw_target.is_hidden()
+    }
+
     /// Print a log line above the progress bar.
+    ///
+    /// If the progress bar was added to a `MultiProgress`, the log line will be
+    /// printed above all other progress bars.
+    ///
+    /// Note that if the progress bar is hidden (which by default happens if
+    /// the progress bar is redirected into a file) println will not do
+    /// anything either.
     pub fn println<I: Into<String>>(&self, msg: I) {
         let mut state = self.state.write();
 
         let mut lines: Vec<String> = msg.into().lines().map(Into::into).collect();
         let orphan_lines = lines.len();
-        lines.extend(state.style.format_state(&*state));
+        if state.should_render() {
+            lines.extend(state.style.format_state(&*state));
+        }
 
         let draw_state = ProgressDrawState {
             lines,
@@ -657,6 +555,13 @@ impl ProgressBar {
         });
     }
 
+    /// Resets elapsed time
+    pub fn reset_elapsed(&self) {
+        self.update_and_draw(|state| {
+            state.started = Instant::now();
+        });
+    }
+
     /// Finishes the progress bar and leaves the current message.
     pub fn finish(&self) {
         self.update_and_draw(|state| {
@@ -697,7 +602,26 @@ impl ProgressBar {
     /// pb.set_draw_target(ProgressDrawTarget::stderr());
     /// ```
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
-        self.state.write().draw_target = target;
+        let mut state = self.state.write();
+        state.draw_target.disconnect();
+        state.draw_target = target;
+    }
+
+    /// Wraps an iterator with the progress bar.
+    ///
+    /// ```rust,norun
+    /// # use indicatif::ProgressBar;
+    /// let v = vec![1, 2, 3];
+    /// let pb = ProgressBar::new(3);
+    /// for item in pb.wrap_iter(v.iter()) {
+    ///     // ...
+    /// }
+    /// ```
+    pub fn wrap_iter<It: Iterator>(&self, it: It) -> ProgressBarIter<It> {
+        ProgressBarIter {
+            bar: self.clone(),
+            it,
+        }
     }
 
     /// Wraps a Reader with the progress bar.
@@ -715,7 +639,10 @@ impl ProgressBar {
     /// # }
     /// ```
     pub fn wrap_read<R: io::Read>(&self, read: R) -> ProgressBarRead<R> {
-        ProgressBarRead { bar: self, read }
+        ProgressBarRead {
+            bar: self.clone(),
+            read,
+        }
     }
 
     fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, f: F) {
@@ -813,25 +740,42 @@ impl fmt::Debug for MultiProgress {
 
 unsafe impl Sync for MultiProgress {}
 
+impl Default for MultiProgress {
+    fn default() -> MultiProgress {
+        MultiProgress::with_draw_target(ProgressDrawTarget::stderr())
+    }
+}
+
 impl MultiProgress {
-    /// Creates a new multi progress object that draws to stderr.
+    /// Creates a new multi progress object.
+    ///
+    /// Progress bars added to this object by default draw directly to stderr, and refresh
+    /// a maximum of 15 times a second. To change the refresh rate set the draw target to
+    /// one with a different refresh rate.
     pub fn new() -> MultiProgress {
+        MultiProgress::default()
+    }
+
+    /// Creates a new multi progress object with the given draw target.
+    pub fn with_draw_target(draw_target: ProgressDrawTarget) -> MultiProgress {
         let (tx, rx) = channel();
         MultiProgress {
             state: RwLock::new(MultiProgressState {
                 objects: vec![],
-                draw_target: ProgressDrawTarget::stderr(),
+                draw_target,
                 move_cursor: false,
             }),
             joining: AtomicBool::new(false),
-            tx: tx,
-            rx: rx,
+            tx,
+            rx,
         }
     }
 
     /// Sets a different draw target for the multiprogress bar.
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
-        self.state.write().draw_target = target;
+        let mut state = self.state.write();
+        state.draw_target.disconnect();
+        state.draw_target = target;
     }
 
     /// Set whether we should try to move the cursor when possible instead of clearing lines.
@@ -846,18 +790,18 @@ impl MultiProgress {
     ///
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
-    /// object.
-    pub fn add(&self, bar: ProgressBar) -> ProgressBar {
+    /// object overriding custom `ProgressDrawTarget` settings.
+    pub fn add(&self, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write();
         let idx = state.objects.len();
         state.objects.push(MultiObject {
             done: false,
             draw_state: None,
         });
-        bar.set_draw_target(ProgressDrawTarget {
+        pb.set_draw_target(ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Remote(idx, Mutex::new(self.tx.clone())),
         });
-        bar
+        pb
     }
 
     /// Waits for all progress bars to report that they are finished.
@@ -903,6 +847,21 @@ impl MultiProgress {
             if draw_state.finished {
                 state.objects[idx].done = true;
             }
+
+            // Split orphan lines out of the draw state, if any
+            let (orphan_lines, lines) = if draw_state.orphan_lines == 0 {
+                (vec![], draw_state.lines)
+            } else {
+                let split = draw_state.lines.split_at(draw_state.orphan_lines);
+                (split.0.to_vec(), split.1.to_vec())
+            };
+
+            let draw_state = ProgressDrawState {
+                lines,
+                orphan_lines: 0,
+                ..draw_state
+            };
+
             state.objects[idx].draw_state = Some(draw_state);
 
             // the rest from here is only drawing, we can skip it.
@@ -911,16 +870,23 @@ impl MultiProgress {
             }
 
             let mut lines = vec![];
+
+            // Make orphaned lines appear at the top, so they can be properly
+            // forgotten.
+            let orphan_lines_count = orphan_lines.len();
+            lines.extend(orphan_lines);
+
             for obj in state.objects.iter() {
                 if let Some(ref draw_state) = obj.draw_state {
                     lines.extend_from_slice(&draw_state.lines[..]);
                 }
             }
 
-            let finished = !state.objects.iter().any(|ref x| x.done);
+            // !any(!done) is also true when iter() is empty, contrary to all(done)
+            let finished = !state.objects.iter().any(|ref x| !x.done);
             state.draw_target.apply_draw_state(ProgressDrawState {
                 lines,
-                orphan_lines: 0,
+                orphan_lines: orphan_lines_count,
                 force_draw,
                 move_cursor,
                 finished,
@@ -957,14 +923,35 @@ impl Drop for ProgressBar {
     }
 }
 
+/// Iterator for `wrap_iter`.
+#[derive(Debug)]
+pub struct ProgressBarIter<I> {
+    bar: ProgressBar,
+    it: I,
+}
+
+impl<I: Iterator> Iterator for ProgressBarIter<I> {
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let item = self.it.next();
+
+        if item.is_some() {
+            self.bar.inc(1);
+        }
+
+        item
+    }
+}
+
 /// Reader for `wrap_read`.
 #[derive(Debug)]
-pub struct ProgressBarRead<'a, R> {
-    bar: &'a ProgressBar,
+pub struct ProgressBarRead<R> {
+    bar: ProgressBar,
     read: R,
 }
 
-impl<'a, R: io::Read> io::Read for ProgressBarRead<'a, R> {
+impl<R: io::Read> io::Read for ProgressBarRead<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let inc = self.read.read(buf)?;
         self.bar.inc(inc as u64);
@@ -986,6 +973,7 @@ mod tests {
         assert_eq!(writer, bytes);
     }
 
+    #[test]
     fn progress_bar_sync_send() {
         let _: Box<Sync> = Box::new(ProgressBar::new(1));
         let _: Box<Send> = Box::new(ProgressBar::new(1));
