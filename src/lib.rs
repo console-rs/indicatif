@@ -194,9 +194,7 @@ mod utils;
 
 pub use format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
 pub use iter::{ProgressBarIter, ProgressIterator};
-pub use progress::{
-    MultiProgress, ProgressBar, ProgressBarRead, ProgressDrawTarget,
-};
+pub use progress::{MultiProgress, ProgressBar, ProgressBarRead, ProgressDrawTarget};
 pub use style::ProgressStyle;
 
 #[cfg(feature = "with_rayon")]

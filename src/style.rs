@@ -19,7 +19,9 @@ impl ProgressStyle {
     /// Returns the default progress bar style for bars.
     pub fn default_bar() -> ProgressStyle {
         ProgressStyle {
-            tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
+            tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
+                .chars()
+                .collect(),
             progress_chars: "█░".chars().collect(),
             template: Cow::Borrowed("{wide_bar} {pos}/{len}"),
         }
@@ -28,7 +30,9 @@ impl ProgressStyle {
     /// Returns the default progress bar style for spinners.
     pub fn default_spinner() -> ProgressStyle {
         ProgressStyle {
-            tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ ".chars().collect(),
+            tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
+                .chars()
+                .collect(),
             progress_chars: "█░".chars().collect(),
             template: Cow::Borrowed("{spinner} {msg}"),
         }
