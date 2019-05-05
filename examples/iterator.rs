@@ -1,5 +1,3 @@
-
-
 use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
 
 fn main() {

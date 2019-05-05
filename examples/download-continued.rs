@@ -1,5 +1,3 @@
-
-
 use std::cmp::min;
 use std::thread;
 use std::time::Duration;

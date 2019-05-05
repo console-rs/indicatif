@@ -1,7 +1,3 @@
-
-
-
-
 use std::io::{BufRead, BufReader};
 use std::process;
 use std::time::Instant;

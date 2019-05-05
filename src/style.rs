@@ -2,10 +2,10 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::iter::repeat;
 
-use console::{measure_text_width, Style};
 use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
 use crate::progress::ProgressState;
 use crate::utils::{expand_template, pad_str};
+use console::{measure_text_width, Style};
 
 /// Controls the rendering style of progress bars.
 #[derive(Clone, Debug)]

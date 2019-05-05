@@ -1,5 +1,3 @@
-
-
 use std::time::Instant;
 
 use indicatif::{HumanDuration, ProgressBar};

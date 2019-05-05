@@ -8,9 +8,9 @@ use std::time::{Duration, Instant};
 
 use parking_lot::{Mutex, RwLock};
 
-use console::Term;
 use crate::style::ProgressStyle;
 use crate::utils::{duration_to_secs, secs_to_duration, Estimate};
+use console::Term;
 
 /// The drawn state of an element.
 #[derive(Clone, Debug)]

@@ -1,7 +1,3 @@
-
-
-
-
 use futures::Stream;
 use indicatif::ProgressBar;
 use std::time::Duration;
