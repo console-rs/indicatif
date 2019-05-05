@@ -1,6 +1,7 @@
 use rand;
 
 use rand::Rng;
+use rand::seq::SliceRandom;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -77,9 +78,9 @@ pub fn main() {
         pb.set_prefix(&format!("[{}/?]", i + 1));
         let _ = thread::spawn(move || {
             let mut rng = rand::thread_rng();
-            let pkg = rng.choose(PACKAGES).unwrap();
+            let pkg = PACKAGES.choose(&mut rng).unwrap();
             for _ in 0..count {
-                let cmd = rng.choose(COMMANDS).unwrap();
+                let cmd = COMMANDS.choose(&mut rng).unwrap();
                 pb.set_message(&format!("{}: {}", pkg, cmd));
                 pb.inc(1);
                 thread::sleep(Duration::from_millis(rng.gen_range(25, 200)));

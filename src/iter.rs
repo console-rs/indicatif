@@ -59,6 +59,7 @@ pub mod rayon_support {
         plumbing::Consumer, plumbing::Folder, plumbing::UnindexedConsumer, ParallelIterator,
     };
     use std::sync::{Arc, Mutex};
+
     pub struct ParProgressBarIter<T> {
         it: T,
         progress: Arc<Mutex<ProgressBar>>,
@@ -175,15 +176,15 @@ pub mod rayon_support {
 
     #[cfg(test)]
     mod test {
-        use iter::{rayon::ParallelProgressIterator, ProgressIterator};
-        use progress::ProgressBar;
+        use super::ParProgressBarIter;
+        use crate::iter::rayon_support::{ParallelProgressIterator};
+        use crate::progress::ProgressBar;
         use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
         #[test]
         fn it_can_wrap_a_parallel_iterator() {
             let v = vec![1, 2, 3];
-            let pb = ProgressBar::new(v.len() as u64);
-            let wrap = |it: ProgressBarIter<_>| {
+            let wrap = |it: ParProgressBarIter<_>| {
                 assert_eq!(it.map(|x| x * 2).collect::<Vec<_>>(), vec![2, 4, 6]);
             };
 
