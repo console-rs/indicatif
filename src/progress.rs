@@ -668,6 +668,10 @@ impl ProgressBar {
     fn draw(&self) -> io::Result<()> {
         draw_state(&self.state)
     }
+
+    pub fn position(&self) -> u64 {
+        self.state.read().pos
+    }
 }
 
 fn draw_state(state: &Arc<RwLock<ProgressState>>) -> io::Result<()> {
@@ -711,6 +715,15 @@ fn test_pbar_overflow() {
     pb.set_draw_target(ProgressDrawTarget::hidden());
     pb.inc(2);
     pb.finish();
+}
+
+#[test]
+fn test_get_position() {
+    let pb = ProgressBar::new(1);
+    pb.set_draw_target(ProgressDrawTarget::hidden());
+    pb.inc(2);
+    let pos = pb.position();
+    assert_eq!(pos, 2);
 }
 
 struct MultiObject {
