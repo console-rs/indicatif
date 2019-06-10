@@ -562,6 +562,16 @@ impl ProgressBar {
         });
     }
 
+    pub fn reset(&self) {
+        self.reset_eta();
+        self.reset_elapsed();
+        self.update_and_draw(|state| {
+            state.pos = 0;
+            state.status = Status::InProgress;
+        });
+
+    }
+
     /// Finishes the progress bar and leaves the current message.
     pub fn finish(&self) {
         self.update_and_draw(|state| {
