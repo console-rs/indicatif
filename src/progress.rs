@@ -302,6 +302,16 @@ impl ProgressState {
         // add 0.75 to leave 0.25 sec of 0s for the user
         secs_to_duration(t * self.len.saturating_sub(self.pos) as f64 + 0.75)
     }
+
+    /// The number of steps per second
+    pub fn per_sec(&self) -> u64 {
+        let avg_time = self.avg_time_per_step().as_nanos();
+        if avg_time == 0 {
+            0
+        } else {
+            (1_000_000_000 / avg_time) as u64
+        }
+    }
 }
 
 /// A progress bar or spinner.
