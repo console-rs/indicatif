@@ -27,6 +27,8 @@ struct ProgressDrawState {
     pub move_cursor: bool,
     /// Time when the draw state was created.
     pub ts: Instant,
+    /// True if manually ticking.
+    pub manual_tick: bool,
 }
 
 #[derive(Debug)]
@@ -40,6 +42,7 @@ enum ProgressDrawTargetKind {
     Term(Term, Option<ProgressDrawState>, Option<Duration>),
     Remote(usize, Mutex<Sender<(usize, ProgressDrawState)>>),
     Hidden,
+    Text(bool),
 }
 
 /// Target for draw operations
@@ -124,6 +127,24 @@ impl ProgressDrawTarget {
         }
     }
 
+    /// Draw as text to stdout only when tick() is called.
+    ///
+    /// This is useful when you want to show progress as a stream of text lines.
+    pub fn text_stdout() -> ProgressDrawTarget {
+        ProgressDrawTarget {
+            kind: ProgressDrawTargetKind::Text(false),
+        }
+    }
+
+    /// Draw as text to stderr only when tick() is called.
+    ///
+    /// This is useful when you want to show progress as a stream of text lines.
+    pub fn text_stderr() -> ProgressDrawTarget {
+        ProgressDrawTarget {
+            kind: ProgressDrawTargetKind::Text(true),
+        }
+    }
+
     /// Apply the given draw state (draws it).
     fn apply_draw_state(&mut self, draw_state: ProgressDrawState) -> io::Result<()> {
         // no need to apply anything to hidden draw targets.
@@ -155,6 +176,11 @@ impl ProgressDrawTarget {
                 chan.lock().send((idx, draw_state)).unwrap();
             }
             ProgressDrawTargetKind::Hidden => {}
+            ProgressDrawTargetKind::Text(use_stderr) => {
+                if draw_state.manual_tick {
+                    draw_state.draw_to_text(use_stderr)?;
+                }
+            }
         }
         Ok(())
     }
@@ -174,11 +200,13 @@ impl ProgressDrawTarget {
                             force_draw: false,
                             move_cursor: false,
                             ts: Instant::now(),
+                            manual_tick: false,
                         },
                     ))
                     .ok();
             }
             ProgressDrawTargetKind::Hidden => {}
+            ProgressDrawTargetKind::Text(_) => {}
         };
     }
 }
@@ -195,6 +223,15 @@ impl ProgressDrawState {
     pub fn draw_to_term(&self, term: &Term) -> io::Result<()> {
         for line in &self.lines {
             term.write_line(line)?;
+        }
+        Ok(())
+    }
+
+    pub fn draw_to_text(&self, use_stderr: bool) -> io::Result<()> {
+        let mut out: Box<io::Write> = if use_stderr { Box::new(io::stderr()) } else { Box::new(io::stdout()) };
+        for line in &self.lines {
+            out.write_all(line.as_bytes())?;
+            out.write_all(b"\n")?;
         }
         Ok(())
     }
@@ -223,6 +260,7 @@ pub(crate) struct ProgressState {
     est: Estimate,
     tick_thread: Option<thread::JoinHandle<()>>,
     steady_tick: u64,
+    manual_tick: bool,
 }
 
 impl ProgressState {
@@ -357,6 +395,7 @@ impl ProgressBar {
                 est: Estimate::new(),
                 tick_thread: None,
                 steady_tick: 0,
+                manual_tick: false,
             })),
         }
     }
@@ -456,6 +495,7 @@ impl ProgressBar {
     /// This automatically happens on any other change to a progress bar.
     pub fn tick(&self) {
         self.update_and_draw(|state| {
+            state.manual_tick = true;
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
             }
@@ -501,6 +541,7 @@ impl ProgressBar {
             force_draw: true,
             move_cursor: false,
             ts: Instant::now(),
+            manual_tick: false,
         };
 
         state.draw_target.apply_draw_state(draw_state).ok();
@@ -689,7 +730,9 @@ fn draw_state(state: &Arc<RwLock<ProgressState>>) -> io::Result<()> {
         force_draw: false,
         move_cursor: false,
         ts: Instant::now(),
+        manual_tick: state.manual_tick,
     };
+    state.manual_tick = false;
     state.draw_target.apply_draw_state(draw_state)
 }
 
@@ -891,6 +934,7 @@ impl MultiProgress {
                 move_cursor,
                 finished,
                 ts,
+                manual_tick: false,
             })?;
         }
 
@@ -903,6 +947,7 @@ impl MultiProgress {
                 force_draw: true,
                 move_cursor,
                 ts: Instant::now(),
+                manual_tick: false,
             })?;
         }
 
