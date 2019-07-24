@@ -509,6 +509,7 @@ impl ProgressBar {
     /// Sets the position of the progress bar.
     pub fn set_position(&self, pos: u64) {
         self.update_and_draw(|state| {
+            state.draw_next = pos;
             state.pos = pos;
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
@@ -566,6 +567,7 @@ impl ProgressBar {
         self.reset_eta();
         self.reset_elapsed();
         self.update_and_draw(|state| {
+            state.draw_next = 0;
             state.pos = 0;
             state.status = Status::InProgress;
         });
