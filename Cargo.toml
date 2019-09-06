@@ -12,7 +12,7 @@ edition = "2018"
 exclude = ["screenshots/*"]
 
 [dependencies]
-parking_lot = "0.8.0"
+parking_lot = "0.9.0"
 regex = "1"
 lazy_static = "1"
 number_prefix = "0.3"
