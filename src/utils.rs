@@ -118,7 +118,7 @@ pub fn expand_template<F: Fn(&TemplateVar<'_>) -> String>(s: &str, f: F) -> Cow<
                 (?:
                     :
                     ([<^>])?
-                    (\d+)?
+                    ([0-9]+)?
                     (!)?
                     (?:\.([a-z_]+(?:\.[a-z_]+)*))?
                     (?:/([a-z_]+(?:\.[a-z_]+)*))?
