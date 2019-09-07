@@ -509,6 +509,7 @@ impl ProgressBar {
     /// Sets the position of the progress bar.
     pub fn set_position(&self, pos: u64) {
         self.update_and_draw(|state| {
+            state.draw_next = pos;
             state.pos = pos;
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
@@ -560,6 +561,17 @@ impl ProgressBar {
         self.update_and_draw(|state| {
             state.started = Instant::now();
         });
+    }
+
+    pub fn reset(&self) {
+        self.reset_eta();
+        self.reset_elapsed();
+        self.update_and_draw(|state| {
+            state.draw_next = 0;
+            state.pos = 0;
+            state.status = Status::InProgress;
+        });
+
     }
 
     /// Finishes the progress bar and leaves the current message.
@@ -676,6 +688,10 @@ impl ProgressBar {
     fn draw(&self) -> io::Result<()> {
         draw_state(&self.state)
     }
+
+    pub fn position(&self) -> u64 {
+        self.state.read().pos
+    }
 }
 
 fn draw_state(state: &Arc<RwLock<ProgressState>>) -> io::Result<()> {
@@ -719,6 +735,15 @@ fn test_pbar_overflow() {
     pb.set_draw_target(ProgressDrawTarget::hidden());
     pb.inc(2);
     pb.finish();
+}
+
+#[test]
+fn test_get_position() {
+    let pb = ProgressBar::new(1);
+    pb.set_draw_target(ProgressDrawTarget::hidden());
+    pb.inc(2);
+    let pos = pb.position();
+    assert_eq!(pos, 2);
 }
 
 struct MultiObject {
