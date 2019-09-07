@@ -179,9 +179,6 @@
 //! println!("The script took {}", HumanDuration(started.elapsed()));
 //! ```
 
-#[cfg(feature = "with_rayon")]
-extern crate rayon;
-
 mod format;
 mod iter;
 mod progress;

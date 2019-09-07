@@ -730,7 +730,7 @@ impl ProgressBar {
     }
 
     pub fn position(&self) -> u64 {
-        self.state.read().pos
+        self.state.read().unwrap().pos
     }
 }
 
