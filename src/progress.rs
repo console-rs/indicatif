@@ -218,12 +218,6 @@ impl ProgressDrawState {
     }
 }
 
-impl Drop for ProgressDrawTarget {
-    fn drop(&mut self) {
-        self.disconnect();
-    }
-}
-
 /// The state of a progress bar at a moment in time.
 pub(crate) struct ProgressState {
     pub(crate) style: ProgressStyle,
