@@ -981,12 +981,14 @@ impl MultiProgress {
 
 impl Drop for ProgressBar {
     fn drop(&mut self) {
-        if self.state.read().unwrap().is_finished() {
-            return;
+        if Arc::get_mut(&mut self.state).is_some() {
+            if self.state.read().unwrap().is_finished() {
+                return;
+            }
+            self.update_and_draw(|state| {
+                state.status = Status::DoneHidden;
+            });
         }
-        self.update_and_draw(|state| {
-            state.status = Status::DoneHidden;
-        });
     }
 }
 
