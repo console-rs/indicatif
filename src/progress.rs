@@ -455,6 +455,8 @@ impl ProgressBar {
     /// let pb = ProgressBar::new(n);
     /// pb.set_draw_delta(n / 100); // redraw every 1% of additional progress
     /// ```
+    ///
+    /// Note that `ProgressDrawTarget` may impose additional buffering of redraws.
     pub fn set_draw_delta(&self, n: u64) {
         let mut state = self.state.write().unwrap();
         state.draw_delta = n;
@@ -546,6 +548,9 @@ impl ProgressBar {
     }
 
     /// Sets the current message of the progress bar.
+    ///
+    /// For the message to be visible, `{msg}` placeholder
+    /// must be present in the template (see `ProgressStyle`).
     pub fn set_message(&self, msg: &str) {
         let msg = msg.to_string();
         self.update_and_draw(|state| {
