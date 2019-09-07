@@ -554,6 +554,13 @@ impl ProgressBar {
         })
     }
 
+    /// Increase the length of the progress bar.
+    pub fn inc_length(&self, delta: u64) {
+        self.update_and_draw(|state| {
+            state.len = state.len.saturating_add(delta);
+        })
+    }
+
     /// Sets the current prefix of the progress bar.
     pub fn set_prefix(&self, prefix: &str) {
         let prefix = prefix.to_string();
