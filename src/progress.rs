@@ -3,10 +3,9 @@ use std::io;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
+use std::sync::{Mutex, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
-
-use parking_lot::{Mutex, RwLock};
 
 use crate::style::ProgressStyle;
 use crate::utils::{duration_to_secs, secs_to_duration, Estimate};
@@ -152,7 +151,7 @@ impl ProgressDrawTarget {
                 }
             }
             ProgressDrawTargetKind::Remote(idx, ref chan) => {
-                chan.lock().send((idx, draw_state)).unwrap();
+                chan.lock().unwrap().send((idx, draw_state)).unwrap();
             }
             ProgressDrawTargetKind::Hidden => {}
         }
@@ -165,6 +164,7 @@ impl ProgressDrawTarget {
             ProgressDrawTargetKind::Term(_, _, _) => {}
             ProgressDrawTargetKind::Remote(idx, ref chan) => {
                 chan.lock()
+                    .unwrap()
                     .send((
                         idx,
                         ProgressDrawState {
@@ -363,7 +363,7 @@ impl ProgressBar {
 
     /// A convenience builder-like function for a progress bar with a given style.
     pub fn with_style(self, style: ProgressStyle) -> ProgressBar {
-        self.state.write().style = style;
+        self.state.write().unwrap().style = style;
         self
     }
 
@@ -381,7 +381,7 @@ impl ProgressBar {
     ///
     /// This does not redraw the bar.  Call `tick` to force it.
     pub fn set_style(&self, style: ProgressStyle) {
-        self.state.write().style = style;
+        self.state.write().unwrap().style = style;
     }
 
     /// Spawns a background thread to tick the progress bar.
@@ -393,7 +393,7 @@ impl ProgressBar {
     /// When steady ticks are enabled calling `.tick()` on a progress
     /// bar does not do anything.
     pub fn enable_steady_tick(&self, ms: u64) {
-        let mut state = self.state.write();
+        let mut state = self.state.write().unwrap();
         state.steady_tick = ms;
         if state.tick_thread.is_some() {
             return;
@@ -403,7 +403,7 @@ impl ProgressBar {
         state.tick_thread = Some(thread::spawn(move || loop {
             thread::sleep(Duration::from_millis(ms));
             {
-                let mut state = state_arc.write();
+                let mut state = state_arc.write().unwrap();
                 if state.is_finished() || state.steady_tick == 0 {
                     state.steady_tick = 0;
                     state.tick_thread = None;
@@ -446,7 +446,7 @@ impl ProgressBar {
     /// pb.set_draw_delta(n / 100); // redraw every 1% of additional progress
     /// ```
     pub fn set_draw_delta(&self, n: u64) {
-        let mut state = self.state.write();
+        let mut state = self.state.write().unwrap();
         state.draw_delta = n;
         state.draw_next = state.pos.saturating_add(state.draw_delta);
     }
@@ -474,7 +474,7 @@ impl ProgressBar {
 
     /// A quick convenience check if the progress bar is hidden.
     pub fn is_hidden(&self) -> bool {
-        self.state.read().draw_target.is_hidden()
+        self.state.read().unwrap().draw_target.is_hidden()
     }
 
     /// Print a log line above the progress bar.
@@ -486,7 +486,7 @@ impl ProgressBar {
     /// the progress bar is redirected into a file) println will not do
     /// anything either.
     pub fn println<I: Into<String>>(&self, msg: I) {
-        let mut state = self.state.write();
+        let mut state = self.state.write().unwrap();
 
         let mut lines: Vec<String> = msg.into().lines().map(Into::into).collect();
         let orphan_lines = lines.len();
@@ -602,7 +602,7 @@ impl ProgressBar {
     /// pb.set_draw_target(ProgressDrawTarget::stderr());
     /// ```
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
-        let mut state = self.state.write();
+        let mut state = self.state.write().unwrap();
         state.draw_target.disconnect();
         state.draw_target = target;
     }
@@ -648,7 +648,7 @@ impl ProgressBar {
     fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, f: F) {
         let mut draw = false;
         {
-            let mut state = self.state.write();
+            let mut state = self.state.write().unwrap();
             let old_pos = state.pos;
             f(&mut state);
             let new_pos = state.pos;
@@ -671,7 +671,7 @@ impl ProgressBar {
 }
 
 fn draw_state(state: &Arc<RwLock<ProgressState>>) -> io::Result<()> {
-    let mut state = state.write();
+    let mut state = state.write().unwrap();
 
     // we can bail early if the draw target is hidden.
     if state.draw_target.is_hidden() {
@@ -696,13 +696,13 @@ fn draw_state(state: &Arc<RwLock<ProgressState>>) -> io::Result<()> {
 #[test]
 fn test_pbar_zero() {
     let pb = ProgressBar::new(0);
-    assert_eq!(pb.state.read().fraction(), 1.0);
+    assert_eq!(pb.state.read().unwrap().fraction(), 1.0);
 }
 
 #[test]
 fn test_pbar_maxu64() {
     let pb = ProgressBar::new(!0);
-    assert_eq!(pb.state.read().fraction(), 0.0);
+    assert_eq!(pb.state.read().unwrap().fraction(), 0.0);
 }
 
 #[test]
@@ -773,7 +773,7 @@ impl MultiProgress {
 
     /// Sets a different draw target for the multiprogress bar.
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
-        let mut state = self.state.write();
+        let mut state = self.state.write().unwrap();
         state.draw_target.disconnect();
         state.draw_target = target;
     }
@@ -783,7 +783,7 @@ impl MultiProgress {
     /// This can reduce flickering, but do not enable it if you intend to change the number of
     /// progress bars.
     pub fn set_move_cursor(&self, move_cursor: bool) {
-        self.state.write().move_cursor = move_cursor;
+        self.state.write().unwrap().move_cursor = move_cursor;
     }
 
     /// Adds a progress bar.
@@ -792,7 +792,7 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
-        let mut state = self.state.write();
+        let mut state = self.state.write().unwrap();
         let idx = state.objects.len();
         state.objects.push(MultiObject {
             done: false,
@@ -819,7 +819,7 @@ impl MultiProgress {
     }
 
     fn is_done(&self) -> bool {
-        let state = self.state.read();
+        let state = self.state.read().unwrap();
         if state.objects.is_empty() {
             return true;
         }
@@ -837,13 +837,13 @@ impl MultiProgress {
         }
         self.joining.store(true, Ordering::Release);
 
-        let move_cursor = self.state.read().move_cursor;
+        let move_cursor = self.state.read().unwrap().move_cursor;
         while !self.is_done() {
             let (idx, draw_state) = self.rx.recv().unwrap();
             let ts = draw_state.ts;
             let force_draw = draw_state.finished || draw_state.force_draw;
 
-            let mut state = self.state.write();
+            let mut state = self.state.write().unwrap();
             if draw_state.finished {
                 state.objects[idx].done = true;
             }
@@ -895,7 +895,7 @@ impl MultiProgress {
         }
 
         if clear {
-            let mut state = self.state.write();
+            let mut state = self.state.write().unwrap();
             state.draw_target.apply_draw_state(ProgressDrawState {
                 lines: vec![],
                 orphan_lines: 0,
@@ -914,7 +914,7 @@ impl MultiProgress {
 
 impl Drop for ProgressBar {
     fn drop(&mut self) {
-        if self.state.read().is_finished() {
+        if self.state.read().unwrap().is_finished() {
             return;
         }
         self.update_and_draw(|state| {

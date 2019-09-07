@@ -177,7 +177,7 @@ pub mod rayon_support {
     #[cfg(test)]
     mod test {
         use super::ParProgressBarIter;
-        use crate::iter::rayon_support::{ParallelProgressIterator};
+        use crate::iter::rayon_support::ParallelProgressIterator;
         use crate::progress::ProgressBar;
         use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
