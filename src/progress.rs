@@ -56,7 +56,7 @@ impl ProgressDrawTarget {
     ///
     /// For more information see `ProgressDrawTarget::to_term`.
     pub fn stdout() -> ProgressDrawTarget {
-        ProgressDrawTarget::to_term(Term::buffered_stdout(), Some(15))
+        ProgressDrawTarget::to_term(Term::buffered_stdout(), 15)
     }
 
     /// Draw to a buffered stderr terminal at a max of 15 times a second.
@@ -64,7 +64,21 @@ impl ProgressDrawTarget {
     /// This is the default draw target for progress bars.  For more
     /// information see `ProgressDrawTarget::to_term`.
     pub fn stderr() -> ProgressDrawTarget {
-        ProgressDrawTarget::to_term(Term::buffered_stderr(), Some(15))
+        ProgressDrawTarget::to_term(Term::buffered_stderr(), 15)
+    }
+
+    /// Draw to a buffered stdout terminal at a max of `refresh_rate` times a second.
+    ///
+    /// For more information see `ProgressDrawTarget::to_term`.
+    pub fn stdout_with_hz(refresh_rate: u64) -> ProgressDrawTarget {
+        ProgressDrawTarget::to_term(Term::buffered_stdout(), refresh_rate)
+    }
+
+    /// Draw to a buffered stderr terminal at a max of `refresh_rate` times a second.
+    ///
+    /// For more information see `ProgressDrawTarget::to_term`.
+    pub fn stderr_with_hz(refresh_rate: u64) -> ProgressDrawTarget {
+        ProgressDrawTarget::to_term(Term::buffered_stderr(), refresh_rate)
     }
 
     /// Draw to a buffered stdout terminal without max framerate.
@@ -95,8 +109,12 @@ impl ProgressDrawTarget {
     /// terminal is not user attended the entire progress bar will be
     /// hidden.  This is done so that piping to a file will not produce
     /// useless escape codes in that file.
-    pub fn to_term(term: Term, refresh_rate: Option<u64>) -> ProgressDrawTarget {
-        let rate = refresh_rate.map(|x| Duration::from_millis(1000 / x));
+    pub fn to_term(
+        term: Term,
+        refresh_rate: impl Into<Option<u64>>,
+    ) -> ProgressDrawTarget {
+        let rate = refresh_rate.into()
+            .map(|x| Duration::from_millis(1000 / x));
         ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Term(term, None, rate),
         }
