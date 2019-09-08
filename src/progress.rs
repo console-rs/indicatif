@@ -729,8 +729,6 @@ impl ProgressBar {
 }
 
 fn draw_state(state: &mut ProgressState) -> io::Result<()> {
-    // let mut state = state.write().unwrap();
-
     // we can bail early if the draw target is hidden.
     if state.draw_target.is_hidden() {
         return Ok(());
