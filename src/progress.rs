@@ -228,7 +228,11 @@ impl ProgressDrawState {
     }
 
     pub fn draw_to_text(&self, use_stderr: bool) -> io::Result<()> {
-        let mut out: Box<dyn io::Write> = if use_stderr { Box::new(io::stderr()) } else { Box::new(io::stdout()) };
+        let mut out: Box<dyn io::Write> = if use_stderr {
+            Box::new(io::stderr())
+        } else {
+            Box::new(io::stdout())
+        };
         for line in &self.lines {
             out.write_all(line.as_bytes())?;
             out.write_all(b"\n")?;
