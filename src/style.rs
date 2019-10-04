@@ -2,15 +2,16 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::iter::repeat;
 
+use console::{measure_text_width, Style};
+
 use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
 use crate::progress::ProgressState;
 use crate::utils::{expand_template, pad_str};
-use console::{measure_text_width, Style};
 
 /// Controls the rendering style of progress bars.
 #[derive(Clone, Debug)]
 pub struct ProgressStyle {
-    tick_chars: Vec<char>,
+    tick_strings: Vec<String>,
     progress_chars: Vec<char>,
     template: Cow<'static, str>,
 }
@@ -19,8 +20,9 @@ impl ProgressStyle {
     /// Returns the default progress bar style for bars.
     pub fn default_bar() -> ProgressStyle {
         ProgressStyle {
-            tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
+            tick_strings: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
                 .chars()
+                .map(|c| c.to_string())
                 .collect(),
             progress_chars: "█░".chars().collect(),
             template: Cow::Borrowed("{wide_bar} {pos}/{len}"),
@@ -30,8 +32,9 @@ impl ProgressStyle {
     /// Returns the default progress bar style for spinners.
     pub fn default_spinner() -> ProgressStyle {
         ProgressStyle {
-            tick_chars: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
+            tick_strings: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
                 .chars()
+                .map(|c| c.to_string())
                 .collect(),
             progress_chars: "█░".chars().collect(),
             template: Cow::Borrowed("{spinner} {msg}"),
@@ -40,7 +43,13 @@ impl ProgressStyle {
 
     /// Sets the tick character sequence for spinners.
     pub fn tick_chars(mut self, s: &str) -> ProgressStyle {
-        self.tick_chars = s.chars().collect();
+        self.tick_strings = s.chars().map(|c| c.to_string()).collect();
+        self
+    }
+
+    /// Sets the tick string sequence for spinners.
+    pub fn tick_strings(mut self, s: &[&str]) -> ProgressStyle {
+        self.tick_strings = s.iter().map(|s| s.to_string()).collect();
         self
     }
 
@@ -57,13 +66,25 @@ impl ProgressStyle {
     }
 
     /// Returns the tick char for a given number.
+    #[deprecated(since = "0.13.0", note = "Deprecated in favor of get_tick_str")]
     pub fn get_tick_char(&self, idx: u64) -> char {
-        self.tick_chars[(idx as usize) % (self.tick_chars.len() - 1)]
+        self.get_tick_str(idx).chars().next().unwrap_or(' ')
+    }
+
+    /// Returns the tick string for a given number.
+    pub fn get_tick_str(&self, idx: u64) -> &str {
+        &self.tick_strings[(idx as usize) % (self.tick_strings.len() - 1)]
     }
 
     /// Returns the tick char for the finished state.
+    #[deprecated(since = "0.13.0", note = "Deprecated in favor of get_final_tick_str")]
     pub fn get_final_tick_char(&self) -> char {
-        self.tick_chars[self.tick_chars.len() - 1]
+        self.get_final_tick_str().chars().next().unwrap_or(' ')
+    }
+
+    /// Returns the tick string for the finished state.
+    pub fn get_final_tick_str(&self) -> &str {
+        &self.tick_strings[self.tick_strings.len() - 1]
     }
 
     pub(crate) fn format_bar(
@@ -124,7 +145,7 @@ impl ProgressStyle {
                     "bar" => {
                         self.format_bar(state, var.width.unwrap_or(20), var.alt_style.as_ref())
                     }
-                    "spinner" => state.current_tick_char().to_string(),
+                    "spinner" => state.current_tick_str().to_string(),
                     "wide_msg" => {
                         *wide_element.borrow_mut() = Some(var.duplicate_for_key("msg"));
                         "\x00".into()
