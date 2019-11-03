@@ -501,6 +501,11 @@ impl ProgressBar {
         self.state.read().unwrap().draw_target.is_hidden()
     }
 
+    // Indicates that the progress bar finished.
+    pub fn is_finished(&self) -> bool {
+        self.state.read().unwrap().is_finished()
+    }
+
     /// Print a log line above the progress bar.
     ///
     /// If the progress bar was added to a `MultiProgress`, the log line will be
