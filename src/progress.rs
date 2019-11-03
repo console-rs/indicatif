@@ -109,12 +109,8 @@ impl ProgressDrawTarget {
     /// terminal is not user attended the entire progress bar will be
     /// hidden.  This is done so that piping to a file will not produce
     /// useless escape codes in that file.
-    pub fn to_term(
-        term: Term,
-        refresh_rate: impl Into<Option<u64>>,
-    ) -> ProgressDrawTarget {
-        let rate = refresh_rate.into()
-            .map(|x| Duration::from_millis(1000 / x));
+    pub fn to_term(term: Term, refresh_rate: impl Into<Option<u64>>) -> ProgressDrawTarget {
+        let rate = refresh_rate.into().map(|x| Duration::from_millis(1000 / x));
         ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Term(term, None, rate),
         }
@@ -238,13 +234,13 @@ pub(crate) struct ProgressState {
 }
 
 impl ProgressState {
-    /// Returns the character that should be drawn for the
-    /// current spinner character.
-    pub fn current_tick_char(&self) -> char {
+    /// Returns the string that should be drawn for the
+    /// current spinner string.
+    pub fn current_tick_str(&self) -> &str {
         if self.is_finished() {
-            self.style.get_final_tick_char()
+            self.style.get_final_tick_str()
         } else {
-            self.style.get_tick_char(self.tick)
+            self.style.get_tick_str(self.tick)
         }
     }
 
@@ -610,7 +606,6 @@ impl ProgressBar {
             state.pos = 0;
             state.status = Status::InProgress;
         });
-
     }
 
     /// Finishes the progress bar and leaves the current message.
