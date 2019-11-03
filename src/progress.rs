@@ -436,10 +436,10 @@ impl ProgressBar {
                 }
             }
 
-            draw_state(&state_arc).ok();
+            draw_state(&mut state_arc.write().unwrap()).ok();
         }));
 
-        // use the sideeffect of tick to force the bar to tick.
+        // use the side effect of tick to force the bar to tick.
         ::std::mem::drop(state);
         self.tick();
     }
@@ -725,7 +725,7 @@ impl ProgressBar {
     }
 
     fn draw(&self) -> io::Result<()> {
-        draw_state(&self.state)
+        draw_state(&mut self.state.write().unwrap())
     }
 
     pub fn position(&self) -> u64 {
@@ -733,9 +733,7 @@ impl ProgressBar {
     }
 }
 
-fn draw_state(state: &Arc<RwLock<ProgressState>>) -> io::Result<()> {
-    let mut state = state.write().unwrap();
-
+fn draw_state(state: &mut ProgressState) -> io::Result<()> {
     // we can bail early if the draw target is hidden.
     if state.draw_target.is_hidden() {
         return Ok(());
@@ -754,6 +752,20 @@ fn draw_state(state: &Arc<RwLock<ProgressState>>) -> io::Result<()> {
         ts: Instant::now(),
     };
     state.draw_target.apply_draw_state(draw_state)
+}
+
+impl Drop for ProgressState {
+    fn drop(&mut self) {
+        if self.is_finished() {
+            return;
+        }
+
+        self.status = Status::DoneHidden;
+        if self.pos >= self.draw_next {
+            self.draw_next = self.pos.saturating_add(self.draw_delta);
+            draw_state(self).ok();
+        }
+    }
 }
 
 #[test]
@@ -981,19 +993,6 @@ impl MultiProgress {
         self.joining.store(false, Ordering::Release);
 
         Ok(())
-    }
-}
-
-impl Drop for ProgressBar {
-    fn drop(&mut self) {
-        if Arc::get_mut(&mut self.state).is_some() {
-            if self.state.read().unwrap().is_finished() {
-                return;
-            }
-            self.update_and_draw(|state| {
-                state.status = Status::DoneHidden;
-            });
-        }
     }
 }
 
