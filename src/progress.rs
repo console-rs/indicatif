@@ -645,6 +645,22 @@ impl ProgressBar {
         });
     }
 
+    /// Finishes the progress bar and leaves the current message and progress.
+    pub fn abandon(&self) {
+        self.update_and_draw(|state| {
+            state.status = Status::DoneVisible;
+        });
+    }
+
+    /// Finishes the progress bar and sets a message, and leaves the current progress.
+    pub fn abandon_with_message(&self, msg: &str) {
+        let msg = msg.to_string();
+        self.update_and_draw(|state| {
+            state.message = msg;
+            state.status = Status::DoneVisible;
+        });
+    }
+
     /// Sets a different draw target for the progress bar.
     ///
     /// This can be used to draw the progress bar to stderr
