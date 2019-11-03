@@ -28,7 +28,7 @@ impl Estimate {
             buf: vec![],
             buf_cap: 10,
             last_idx: 0,
-            started: None,
+            started: Some((<Instant>::now(), 0)),
         }
     }
 
