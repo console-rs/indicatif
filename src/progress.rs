@@ -1045,38 +1045,10 @@ impl<R: io::Read> io::Read for ProgressBarRead<R> {
 
 impl<S: io::Seek> io::Seek for ProgressBarRead<S> {
     fn seek(&mut self, f: io::SeekFrom) -> io::Result<u64> {
-        use io::SeekFrom;
-        match f {
-            SeekFrom::Start(offset) => self.bar.set_position(offset),
-            SeekFrom::End(offset) => self.bar.update_and_draw(|state| {
-                let pos = if offset >= 0 {
-                    state.len // don't seek past end
-                } else {
-                    state.len - (offset.abs() as u64)
-                };
-
-                state.draw_next = pos;
-                state.pos = pos;
-                if state.steady_tick == 0 || state.tick == 0 {
-                    state.tick = state.tick.saturating_add(1);
-                }
-            }),
-
-            SeekFrom::Current(offset) => self.bar.update_and_draw(|state| {
-                let pos = if offset >= 0 {
-                    state.pos + (offset as u64)
-                } else {
-                    state.pos - (offset.abs() as u64)
-                };
-
-                state.draw_next = pos.max(state.len);
-                state.pos = pos;
-                if state.steady_tick == 0 || state.tick == 0 {
-                    state.tick = state.tick.saturating_add(1);
-                }
-            }),
-        }
-        self.read.seek(f)
+        self.read.seek(f).map(|pos| {
+            self.bar.set_position(pos);
+            pos
+        })
     }
 }
 
