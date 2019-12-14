@@ -626,6 +626,9 @@ impl ProgressBar {
     }
 
     /// Finishes the progress bar and sets a message.
+    ///
+    /// For the message to be visible, `{msg}` placeholder
+    /// must be present in the template (see `ProgressStyle`).
     pub fn finish_with_message(&self, msg: &str) {
         let msg = msg.to_string();
         self.update_and_draw(|state| {
@@ -653,6 +656,9 @@ impl ProgressBar {
     }
 
     /// Finishes the progress bar and sets a message, and leaves the current progress.
+    ///
+    /// For the message to be visible, `{msg}` placeholder
+    /// must be present in the template (see `ProgressStyle`).
     pub fn abandon_with_message(&self, msg: &str) {
         let msg = msg.to_string();
         self.update_and_draw(|state| {
