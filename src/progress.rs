@@ -557,6 +557,9 @@ impl ProgressBar {
     }
 
     /// Sets the current prefix of the progress bar.
+    ///
+    /// For the prefix to be visible, `{prefix}` placeholder
+    /// must be present in the template (see `ProgressStyle`).
     pub fn set_prefix(&self, prefix: &str) {
         let prefix = prefix.to_string();
         self.update_and_draw(|state| {
