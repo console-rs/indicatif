@@ -1043,6 +1043,15 @@ impl<R: io::Read> io::Read for ProgressBarRead<R> {
     }
 }
 
+impl<S: io::Seek> io::Seek for ProgressBarRead<S> {
+    fn seek(&mut self, f: io::SeekFrom) -> io::Result<u64> {
+        self.read.seek(f).map(|pos| {
+            self.bar.set_position(pos);
+            pos
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
