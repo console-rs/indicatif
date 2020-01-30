@@ -165,7 +165,11 @@ impl ProgressDrawTarget {
                 }
             }
             ProgressDrawTargetKind::Remote(idx, ref chan) => {
-                chan.lock().unwrap().send((idx, draw_state)).unwrap();
+                return chan
+                    .lock()
+                    .unwrap()
+                    .send((idx, draw_state))
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e));
             }
             ProgressDrawTargetKind::Hidden => {}
         }
@@ -1105,6 +1109,13 @@ impl<W: io::Write> io::Write for ProgressBarWrap<W> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn late_pb_drop() {
+        let pb = ProgressBar::new(10);
+        let mpb = MultiProgress::new();
+        mpb.add(pb.clone());
+    }
 
     #[test]
     fn it_can_wrap_a_reader() {

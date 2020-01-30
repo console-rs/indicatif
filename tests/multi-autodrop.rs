@@ -1,7 +1,7 @@
-use std::thread;
+use indicatif::{MultiProgress, ProgressBar};
 use std::sync::mpsc;
+use std::thread;
 use std::time::Duration;
-use indicatif::{ProgressBar, MultiProgress};
 
 #[test]
 fn main() {
@@ -28,7 +28,8 @@ fn main() {
     thread::sleep(Duration::from_millis(50));
 
     // the driver thread shouldn't finish
-    rx.try_recv().expect_err("The driver thread shouldn't finish");
+    rx.try_recv()
+        .expect_err("The driver thread shouldn't finish");
 
     pb.set_message("Done");
     pb.finish();
