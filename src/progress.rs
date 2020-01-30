@@ -708,10 +708,31 @@ impl ProgressBar {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn wrap_read<R: io::Read>(&self, read: R) -> ProgressBarRead<R> {
-        ProgressBarRead {
+    pub fn wrap_read<R: io::Read>(&self, read: R) -> ProgressBarWrap<R> {
+        ProgressBarWrap {
             bar: self.clone(),
-            read,
+            wrap: read,
+        }
+    }
+
+    /// Wraps a Writer with the progress bar.
+    ///
+    /// ```rust,norun
+    /// # use std::fs::File;
+    /// # use std::io;
+    /// # use indicatif::ProgressBar;
+    /// # fn test () -> io::Result<()> {
+    /// let mut source = File::open("work.txt")?;
+    /// let target = File::create("done.txt")?;
+    /// let pb = ProgressBar::new(source.metadata()?.len());
+    /// io::copy(&mut source, &mut pb.wrap_write(target));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn wrap_write<W: io::Write>(&self, write: W) -> ProgressBarWrap<W> {
+        ProgressBarWrap {
+            bar: self.clone(),
+            wrap: write,
         }
     }
 
@@ -1028,28 +1049,57 @@ impl<I: Iterator> Iterator for ProgressBarIter<I> {
     }
 }
 
-/// Reader for `wrap_read`.
+/// wraps an io-object, either a Reader or a Writer (or both).
+///
+/// created by `wrap_read` or `wrap_write`
 #[derive(Debug)]
-pub struct ProgressBarRead<R> {
+pub struct ProgressBarWrap<W> {
     bar: ProgressBar,
-    read: R,
+    wrap: W,
 }
 
-impl<R: io::Read> io::Read for ProgressBarRead<R> {
+impl<R: io::Read> io::Read for ProgressBarWrap<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let inc = self.read.read(buf)?;
+        let inc = self.wrap.read(buf)?;
         self.bar.inc(inc as u64);
         Ok(inc)
     }
 }
 
-impl<S: io::Seek> io::Seek for ProgressBarRead<S> {
+impl<S: io::Seek> io::Seek for ProgressBarWrap<S> {
     fn seek(&mut self, f: io::SeekFrom) -> io::Result<u64> {
-        self.read.seek(f).map(|pos| {
+        self.wrap.seek(f).map(|pos| {
             self.bar.set_position(pos);
             pos
         })
     }
+}
+
+impl<W: io::Write> io::Write for ProgressBarWrap<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.wrap.write(buf).map(|inc| {
+            self.bar.inc(inc as u64);
+            inc
+        })
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        self.wrap.flush()
+    }
+
+    fn write_vectored(&mut self, bufs: &[io::IoSlice]) -> io::Result<usize> {
+        self.wrap.write_vectored(bufs).map(|inc| {
+            self.bar.inc(inc as u64);
+            inc
+        })
+    }
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
+        self.wrap.write_all(buf).map(|()| {
+            self.bar.inc(buf.len() as u64);
+        })
+    }
+    // write_fmt can not be captured with reasonable effort.
+    // as it uses write_all internally by default that should not be a problem.
+    // fn write_fmt(&mut self, fmt: fmt::Arguments) -> io::Result<()>;
 }
 
 #[cfg(test)]
@@ -1064,6 +1114,17 @@ mod tests {
         let mut writer = Vec::new();
         io::copy(&mut reader, &mut writer).unwrap();
         assert_eq!(writer, bytes);
+    }
+
+    #[test]
+    fn it_can_wrap_a_writer() {
+        let bytes = b"implementation of io::Read";
+        let mut reader = &bytes[..];
+        let pb = ProgressBar::new(bytes.len() as u64);
+        let writer = Vec::new();
+        let mut writer = pb.wrap_write(writer);
+        io::copy(&mut reader, &mut writer).unwrap();
+        assert_eq!(writer.wrap, bytes);
     }
 
     #[test]
