@@ -421,10 +421,11 @@ impl ProgressBar {
             return;
         }
 
-        let state_arc = self.state.clone();
+        // Using a weak pointer is required to prevent a potential deadlock. See issue #133
+        let state_arc = Arc::downgrade(&self.state);
         state.tick_thread = Some(thread::spawn(move || loop {
             thread::sleep(Duration::from_millis(ms));
-            {
+            if let Some(state_arc) = state_arc.upgrade() {
                 let mut state = state_arc.write().unwrap();
                 if state.is_finished() || state.steady_tick == 0 {
                     state.steady_tick = 0;
@@ -434,9 +435,11 @@ impl ProgressBar {
                 if state.tick != 0 {
                     state.tick = state.tick.saturating_add(1);
                 }
-            }
 
-            draw_state(&mut state_arc.write().unwrap()).ok();
+                draw_state(&mut state).ok();
+            } else {
+                break;
+            }
         }));
 
         // use the side effect of tick to force the bar to tick.
