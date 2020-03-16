@@ -1,7 +1,7 @@
 use std::thread;
 use std::time::Duration;
 
-use indicatif::{ProgressBar, ProgressStyle};
+use imdl_indicatif::{ProgressBar, ProgressStyle};
 
 fn main() {
     let pb = ProgressBar::new_spinner();

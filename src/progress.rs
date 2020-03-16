@@ -465,7 +465,7 @@ impl ProgressBar {
     /// position advances by `n` steps.
     ///
     /// ```rust,no_run
-    /// # use indicatif::ProgressBar;
+    /// # use imdl_indicatif::ProgressBar;
     /// let n = 1_000_000;
     /// let pb = ProgressBar::new(n);
     /// pb.set_draw_delta(n / 100); // redraw every 1% of additional progress
@@ -683,7 +683,7 @@ impl ProgressBar {
     /// for instance:
     ///
     /// ```rust,no_run
-    /// # use indicatif::{ProgressBar, ProgressDrawTarget};
+    /// # use imdl_indicatif::{ProgressBar, ProgressDrawTarget};
     /// let pb = ProgressBar::new(100);
     /// pb.set_draw_target(ProgressDrawTarget::stderr());
     /// ```
@@ -696,7 +696,7 @@ impl ProgressBar {
     /// Wraps an iterator with the progress bar.
     ///
     /// ```rust,norun
-    /// # use indicatif::ProgressBar;
+    /// # use imdl_indicatif::ProgressBar;
     /// let v = vec![1, 2, 3];
     /// let pb = ProgressBar::new(3);
     /// for item in pb.wrap_iter(v.iter()) {
@@ -715,7 +715,7 @@ impl ProgressBar {
     /// ```rust,norun
     /// # use std::fs::File;
     /// # use std::io;
-    /// # use indicatif::ProgressBar;
+    /// # use imdl_indicatif::ProgressBar;
     /// # fn test () -> io::Result<()> {
     /// let source = File::open("work.txt")?;
     /// let mut target = File::create("done.txt")?;
@@ -736,7 +736,7 @@ impl ProgressBar {
     /// ```rust,norun
     /// # use std::fs::File;
     /// # use std::io;
-    /// # use indicatif::ProgressBar;
+    /// # use imdl_indicatif::ProgressBar;
     /// # fn test () -> io::Result<()> {
     /// let mut source = File::open("work.txt")?;
     /// let target = File::create("done.txt")?;

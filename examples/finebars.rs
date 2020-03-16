@@ -1,7 +1,7 @@
 use std::thread;
 use std::time::Duration;
 
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use imdl_indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rand::{thread_rng, Rng};
 
 fn main() {

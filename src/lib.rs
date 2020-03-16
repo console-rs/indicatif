@@ -44,7 +44,7 @@
 //! bar will be removed).
 //!
 //! ```rust
-//! use indicatif::ProgressBar;
+//! use imdl_indicatif::ProgressBar;
 //!
 //! let bar = ProgressBar::new(1000);
 //! for _ in 0..1000 {
@@ -73,7 +73,7 @@
 //! associated with an iterator. For example:
 //!
 //! ```rust
-//! use indicatif::ProgressIterator;
+//! use imdl_indicatif::ProgressIterator;
 //!
 //! for _ in (0..1000).progress() {
 //!     // ...
@@ -95,7 +95,7 @@
 //!
 //! ```rust,ignore
 //! # extern crate rayon;
-//! use indicatif::ParallelProgressIterator;
+//! use imdl_indicatif::ParallelProgressIterator;
 //! use rayon::iter::{ParallelIterator, IntoParallelRefIterator};
 //!
 //! let v: Vec<_> = (0..100000).collect();
@@ -172,7 +172,7 @@
 //!
 //! ```ignore
 //! use std::time::Instant;
-//! use indicatif::{HumanDuration, HumanBytes};
+//! use imdl_indicatif::{HumanDuration, HumanBytes};
 //!
 //! let started = Instant::now();
 //! println!("The file is {} large", HumanBytes(file.size));

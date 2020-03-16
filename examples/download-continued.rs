@@ -2,7 +2,7 @@ use std::cmp::min;
 use std::thread;
 use std::time::Duration;
 
-use indicatif::{ProgressBar, ProgressStyle};
+use imdl_indicatif::{ProgressBar, ProgressStyle};
 
 fn main() {
     let mut downloaded = 69369369;

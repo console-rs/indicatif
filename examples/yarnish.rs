@@ -6,7 +6,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use console::{style, Emoji};
-use indicatif::{HumanDuration, MultiProgress, ProgressBar, ProgressStyle};
+use imdl_indicatif::{HumanDuration, MultiProgress, ProgressBar, ProgressStyle};
 
 static PACKAGES: &'static [&'static str] = &[
     "fs-events",

@@ -1,7 +1,7 @@
 use std::thread;
 use std::time::Duration;
 
-use indicatif::ProgressBar;
+use imdl_indicatif::ProgressBar;
 
 fn main() {
     let pb = ProgressBar::new(1024);

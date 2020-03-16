@@ -1,4 +1,4 @@
-use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
+use imdl_indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
 
 fn main() {
     // Default styling, attempt to use Iterator::size_hint to count input size

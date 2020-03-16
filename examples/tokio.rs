@@ -1,5 +1,5 @@
 use futures::Stream;
-use indicatif::ProgressBar;
+use imdl_indicatif::ProgressBar;
 use std::time::Duration;
 use tokio_core::reactor::{Core, Interval};
 

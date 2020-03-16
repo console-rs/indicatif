@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use imdl_indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 fn main() {
     let m = Arc::new(MultiProgress::new());

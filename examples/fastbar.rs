@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use indicatif::{HumanDuration, ProgressBar};
+use imdl_indicatif::{HumanDuration, ProgressBar};
 
 fn many_units_of_easy_work(n: u64, label: &str, draw_delta: Option<u64>) {
     let pb = ProgressBar::new(n);

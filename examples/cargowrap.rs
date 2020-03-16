@@ -2,7 +2,7 @@ use std::io::{BufRead, BufReader};
 use std::process;
 use std::time::Instant;
 
-use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
+use imdl_indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 
 pub fn main() {
     let started = Instant::now();
