@@ -174,6 +174,8 @@
 //! * `elapsed`: renders the elapsed time as `42s`, `1m` etc.
 //! * `per_sec`: renders the speed in steps per second.
 //! * `bytes_per_sec`: renders the speed in bytes per second.
+//! * `binary_bytes_per_sec`: renders the speed in bytes per second using
+//!   power-of-two units, i.e. `MiB`, `KiB`, etc.
 //! * `eta_precise`: the remaining time (like `elapsed_precise`).
 //! * `eta`: the remaining time (like `elapsed`).
 //! * `duration_precise`: the extrapolated total duration (like `elapsed_precise`).
