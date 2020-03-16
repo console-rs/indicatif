@@ -1,5 +1,5 @@
 [package]
-name = "indicatif"
+name = "imdl-indicatif"
 description = "A progress bar and cli reporting library for Rust"
 version = "0.14.0"
 keywords = ["cli", "progress", "pb", "colors", "progressbar"]
