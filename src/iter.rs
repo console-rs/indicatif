@@ -195,7 +195,6 @@ pub mod rayon_support {
                 v.par_iter().progress_with(pb)
             });
         }
-
     }
 }
 
