@@ -981,18 +981,17 @@ impl MultiProgress {
         };
 
         let move_cursor = self.state.read().unwrap().move_cursor;
-        let time_left: TickTimeTracker = time_limit.into();
+        let time_tracker: TickTimeTracker = time_limit.into();
         while !self.is_done() {
-            let (idx, draw_state) = if time_left.can_block() {
-                rx.recv().unwrap()
-            } else if time_left.can_probe() {
-                match rx.try_recv() {
+            let (idx, draw_state) = match time_tracker.time_left() {
+                TickTimeLeft::CanBlock => rx.recv().unwrap(),
+                TickTimeLeft::CanProbe => match rx.try_recv() {
                     Err(TryRecvError::Empty) => return Ok(()),
-                    recv  => recv.unwrap(),
-                }
-            } else {
-                return Ok(());
+                    recv => recv.unwrap(),
+                },
+                TickTimeLeft::None => return Ok(()),
             };
+
             let ts = draw_state.ts;
             let force_draw = draw_state.finished || draw_state.force_draw;
 
@@ -1085,20 +1084,27 @@ enum TickTimeTracker {
     Deadline(Instant),
 }
 
+enum TickTimeLeft {
+    /// Caller can indefinitely block the thread waiting for updates
+    CanBlock,
+    /// Caller can block as long as there are continuous updates
+    CanProbe,
+    /// The allocated time has run out and the caller must return
+    None,
+}
+
 impl TickTimeTracker {
-    /// Returns true if the time limit allows for unlimited blocking (created by invoking `join`)
-    fn can_block(&self) -> bool {
+    fn time_left(&self) -> TickTimeLeft {
         match self {
-            TickTimeTracker::Unlimited => true,
-            _ => false,
-        }
-    }
-    /// Returns true if there is still time left and it's allowed to try to update and false if
-    /// the deadline has already been reached
-    fn can_probe(&self) -> bool {
-        match self {
-            TickTimeTracker::Deadline(instant) => *instant > Instant::now(),
-            _ => true,
+            TickTimeTracker::Unlimited => TickTimeLeft::CanBlock,
+            TickTimeTracker::Deadline(deadline) => {
+                if *deadline > Instant::now() {
+                    TickTimeLeft::CanProbe
+                } else {
+                    TickTimeLeft::None
+                }
+            }
+            TickTimeTracker::Indefinite => TickTimeLeft::CanProbe,
         }
     }
 }
