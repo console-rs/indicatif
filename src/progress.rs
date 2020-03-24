@@ -2,8 +2,7 @@ use std::fmt;
 use std::io;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc, Weak};
-use std::sync::{Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -451,7 +450,15 @@ impl ProgressBar {
 
         // Using a weak pointer is required to prevent a potential deadlock. See issue #133
         let state_arc = Arc::downgrade(&self.state);
-        state.tick_thread = Some(thread::spawn(move || loop {
+        state.tick_thread = Some(thread::spawn(move || Self::steady_tick(state_arc, ms)));
+
+        ::std::mem::drop(state);
+        // use the side effect of tick to force the bar to tick.
+        self.tick();
+    }
+
+    fn steady_tick(state_arc: Weak<RwLock<ProgressState>>, mut ms: u64) {
+        loop {
             thread::sleep(Duration::from_millis(ms));
             if let Some(state_arc) = state_arc.upgrade() {
                 let mut state = state_arc.write().unwrap();
@@ -463,16 +470,13 @@ impl ProgressBar {
                 if state.tick != 0 {
                     state.tick = state.tick.saturating_add(1);
                 }
+                ms = state.steady_tick;
 
                 draw_state(&mut state).ok();
             } else {
                 break;
             }
-        }));
-
-        // use the side effect of tick to force the bar to tick.
-        ::std::mem::drop(state);
-        self.tick();
+        }
     }
 
     /// Undoes `enable_steady_tick`.
