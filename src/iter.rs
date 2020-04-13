@@ -27,7 +27,7 @@ where
 /// Wraps an iterator to display its progress.
 pub struct ProgressBarIter<T> {
     it: T,
-    progress: ProgressBar,
+    pub progress: ProgressBar,
 }
 
 impl<S, T: Iterator<Item = S>> Iterator for ProgressBarIter<T> {
