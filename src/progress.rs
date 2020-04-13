@@ -970,8 +970,18 @@ impl MultiProgress {
         self.joining.store(true, Ordering::Release);
 
         let move_cursor = self.state.read().unwrap().move_cursor;
+        // Max amount of grouped together updates at once. This is meant
+        // to ensure there isn't a situation where continuous updates prevent
+        // any actual draws happening.
+        const MAX_GROUP_SIZE: usize = 32;
+        let mut recv_peek = None;
+        let mut grouped = 0usize;
         while !self.is_done() {
-            let (idx, draw_state) = self.rx.recv().unwrap();
+            let (idx, draw_state) = if let Some(peeked) = recv_peek.take() {
+                peeked
+            } else {
+                self.rx.recv().unwrap()
+            };
             let ts = draw_state.ts;
             let force_draw = draw_state.finished || draw_state.force_draw;
 
@@ -999,6 +1009,20 @@ impl MultiProgress {
             // the rest from here is only drawing, we can skip it.
             if state.draw_target.is_hidden() {
                 continue;
+            }
+
+            debug_assert!(recv_peek.is_none());
+            if grouped >= MAX_GROUP_SIZE {
+                // Can't group any more draw calls, proceed to just draw
+                grouped = 0;
+            } else if let Ok(state) = self.rx.try_recv() {
+                // Only group draw calls if there is another draw already queued
+                recv_peek = Some(state);
+                grouped += 1;
+                continue;
+            } else {
+                // No more draws queued, proceed to just draw
+                grouped = 0;
             }
 
             let mut lines = vec![];
