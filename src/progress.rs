@@ -976,6 +976,7 @@ impl MultiProgress {
         const MAX_GROUP_SIZE: usize = 32;
         let mut recv_peek = None;
         let mut grouped = 0usize;
+        let mut orphan_lines: Vec<String> = Vec::new();
         while !self.is_done() {
             let (idx, draw_state) = if let Some(peeked) = recv_peek.take() {
                 peeked
@@ -991,11 +992,12 @@ impl MultiProgress {
             }
 
             // Split orphan lines out of the draw state, if any
-            let (orphan_lines, lines) = if draw_state.orphan_lines == 0 {
-                (vec![], draw_state.lines)
-            } else {
+            let lines = if draw_state.orphan_lines > 0 {
                 let split = draw_state.lines.split_at(draw_state.orphan_lines);
-                (split.0.to_vec(), split.1.to_vec())
+                orphan_lines.extend_from_slice(split.0);
+                split.1.to_vec()
+            } else {
+                draw_state.lines
             };
 
             let draw_state = ProgressDrawState {
@@ -1030,7 +1032,7 @@ impl MultiProgress {
             // Make orphaned lines appear at the top, so they can be properly
             // forgotten.
             let orphan_lines_count = orphan_lines.len();
-            lines.extend(orphan_lines);
+            lines.append(&mut orphan_lines);
 
             for obj in state.objects.iter() {
                 if let Some(ref draw_state) = obj.draw_state {
@@ -1043,7 +1045,7 @@ impl MultiProgress {
             state.draw_target.apply_draw_state(ProgressDrawState {
                 lines,
                 orphan_lines: orphan_lines_count,
-                force_draw,
+                force_draw: force_draw || orphan_lines_count > 0,
                 move_cursor,
                 finished,
                 ts,
