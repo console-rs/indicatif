@@ -1,7 +1,7 @@
 use std::fmt;
 use std::time::Duration;
 
-use number_prefix::{NumberPrefix, PrefixNames, Prefixed, Standalone};
+use number_prefix::NumberPrefix;
 
 /// Wraps an std duration for human basic formatting.
 #[derive(Debug)]
@@ -77,8 +77,8 @@ impl fmt::Display for HumanDuration {
 impl fmt::Display for HumanBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match NumberPrefix::binary(self.0 as f64) {
-            Standalone(number) => write!(f, "{:.0}B", number),
-            Prefixed(prefix, number) => write!(
+            NumberPrefix::Standalone(number) => write!(f, "{:.0}B", number),
+            NumberPrefix::Prefixed(prefix, number) => write!(
                 f,
                 "{:.2}{}B",
                 number,
@@ -91,8 +91,8 @@ impl fmt::Display for HumanBytes {
 impl fmt::Display for DecimalBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match NumberPrefix::decimal(self.0 as f64) {
-            Standalone(number) => write!(f, "{:.0}B", number),
-            Prefixed(prefix, number) => write!(f, "{:.2}{}B", number, prefix),
+            NumberPrefix::Standalone(number) => write!(f, "{:.0}B", number),
+            NumberPrefix::Prefixed(prefix, number) => write!(f, "{:.2}{}B", number, prefix),
         }
     }
 }
@@ -100,8 +100,8 @@ impl fmt::Display for DecimalBytes {
 impl fmt::Display for BinaryBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match NumberPrefix::binary(self.0 as f64) {
-            Standalone(number) => write!(f, "{:.0}B", number),
-            Prefixed(prefix, number) => write!(f, "{:.2}{}B", number, prefix),
+            NumberPrefix::Standalone(number) => write!(f, "{:.0}B", number),
+            NumberPrefix::Prefixed(prefix, number) => write!(f, "{:.2}{}B", number, prefix),
         }
     }
 }
