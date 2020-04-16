@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::cell::RefCell;
 use std::iter::repeat;
 
@@ -11,9 +10,9 @@ use crate::utils::{expand_template, pad_str};
 /// Controls the rendering style of progress bars.
 #[derive(Clone, Debug)]
 pub struct ProgressStyle {
-    tick_strings: Vec<String>,
-    progress_chars: Vec<char>,
-    template: Cow<'static, str>,
+    tick_strings: Box<[String]>,
+    progress_chars: Box<[char]>,
+    template: Box<str>,
 }
 
 impl ProgressStyle {
@@ -25,7 +24,7 @@ impl ProgressStyle {
                 .map(|c| c.to_string())
                 .collect(),
             progress_chars: "█░".chars().collect(),
-            template: Cow::Borrowed("{wide_bar} {pos}/{len}"),
+            template: "{wide_bar} {pos}/{len}".into(),
         }
     }
 
@@ -37,7 +36,7 @@ impl ProgressStyle {
                 .map(|c| c.to_string())
                 .collect(),
             progress_chars: "█░".chars().collect(),
-            template: Cow::Borrowed("{spinner} {msg}"),
+            template: "{spinner} {msg}".into(),
         }
     }
 
@@ -61,7 +60,7 @@ impl ProgressStyle {
 
     /// Sets the template string for the progress bar.
     pub fn template(mut self, s: &str) -> ProgressStyle {
-        self.template = Cow::Owned(s.into());
+        self.template = s.into();
         self
     }
 
