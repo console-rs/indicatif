@@ -14,11 +14,12 @@ fn main() {
             .template("{spinner:.green} [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
             .progress_chars("#>-"),
     );
+    pb.set_position(downloaded);
+    pb.reset_eta();
 
     while downloaded < total_size {
-        let new = min(downloaded + 123211, total_size);
-        downloaded = new;
-        pb.set_position(new);
+        downloaded = min(downloaded + 123211, total_size);
+        pb.set_position(downloaded);
         thread::sleep(Duration::from_millis(12));
     }
 
