@@ -109,7 +109,7 @@ impl<'a> TemplateVar<'a> {
     }
 }
 
-pub fn expand_template<F: Fn(&TemplateVar<'_>) -> String>(s: &str, f: F) -> Cow<'_, str> {
+pub fn expand_template<F: FnMut(&TemplateVar<'_>) -> String>(s: &str, mut f: F) -> Cow<'_, str> {
     lazy_static::lazy_static! {
         static ref VAR_RE: Regex = Regex::new(r"(\}\})|\{(\{|[^{}}]+\})").unwrap();
         static ref KEY_RE: Regex = Regex::new(

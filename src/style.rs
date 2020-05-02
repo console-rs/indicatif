@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::cell::RefCell;
 
 use console::{measure_text_width, Style};
 
@@ -194,49 +193,43 @@ impl ProgressStyle {
         let mut rv = vec![];
 
         for line in self.template.lines() {
-            let wide_element = RefCell::new(None);
+            let mut wide_element = None;
 
-            let s = expand_template(line, |var| {
-                let key = var.key;
-
-                match key {
-                    "wide_bar" => {
-                        *wide_element.borrow_mut() = Some(var.duplicate_for_key("bar"));
-                        "\x00".into()
-                    }
-                    "bar" => {
-                        self.format_bar(state, var.width.unwrap_or(20), var.alt_style.as_ref())
-                    }
-                    "spinner" => state.current_tick_str().to_string(),
-                    "wide_msg" => {
-                        *wide_element.borrow_mut() = Some(var.duplicate_for_key("msg"));
-                        "\x00".into()
-                    }
-                    "msg" => state.message().to_string(),
-                    "prefix" => state.prefix().to_string(),
-                    "pos" => pos.to_string(),
-                    "len" => len.to_string(),
-                    "percent" => format!("{:.*}", 0, state.fraction() * 100f32),
-                    "bytes" => format!("{}", HumanBytes(state.pos)),
-                    "total_bytes" => format!("{}", HumanBytes(state.len)),
-                    "decimal_bytes" => format!("{}", DecimalBytes(state.pos)),
-                    "decimal_total_bytes" => format!("{}", DecimalBytes(state.len)),
-                    "binary_bytes" => format!("{}", BinaryBytes(state.pos)),
-                    "binary_total_bytes" => format!("{}", BinaryBytes(state.len)),
-                    "elapsed_precise" => format!("{}", FormattedDuration(state.started.elapsed())),
-                    "elapsed" => format!("{:#}", HumanDuration(state.started.elapsed())),
-                    "per_sec" => format!("{}/s", state.per_sec()),
-                    "bytes_per_sec" => format!("{}/s", HumanBytes(state.per_sec())),
-                    "binary_bytes_per_sec" => format!("{}/s", BinaryBytes(state.per_sec())),
-                    "eta_precise" => format!("{}", FormattedDuration(state.eta())),
-                    "eta" => format!("{:#}", HumanDuration(state.eta())),
-                    "duration_precise" => format!("{}", FormattedDuration(state.duration())),
-                    "duration" => format!("{:#}", HumanDuration(state.duration())),
-                    _ => "".into(),
+            let s = expand_template(line, |var| match var.key {
+                "wide_bar" => {
+                    wide_element = Some(var.duplicate_for_key("bar"));
+                    "\x00".into()
                 }
+                "bar" => self.format_bar(state, var.width.unwrap_or(20), var.alt_style.as_ref()),
+                "spinner" => state.current_tick_str().to_string(),
+                "wide_msg" => {
+                    wide_element = Some(var.duplicate_for_key("msg"));
+                    "\x00".into()
+                }
+                "msg" => state.message().to_string(),
+                "prefix" => state.prefix().to_string(),
+                "pos" => pos.to_string(),
+                "len" => len.to_string(),
+                "percent" => format!("{:.*}", 0, state.fraction() * 100f32),
+                "bytes" => format!("{}", HumanBytes(state.pos)),
+                "total_bytes" => format!("{}", HumanBytes(state.len)),
+                "decimal_bytes" => format!("{}", DecimalBytes(state.pos)),
+                "decimal_total_bytes" => format!("{}", DecimalBytes(state.len)),
+                "binary_bytes" => format!("{}", BinaryBytes(state.pos)),
+                "binary_total_bytes" => format!("{}", BinaryBytes(state.len)),
+                "elapsed_precise" => format!("{}", FormattedDuration(state.started.elapsed())),
+                "elapsed" => format!("{:#}", HumanDuration(state.started.elapsed())),
+                "per_sec" => format!("{}/s", state.per_sec()),
+                "bytes_per_sec" => format!("{}/s", HumanBytes(state.per_sec())),
+                "binary_bytes_per_sec" => format!("{}/s", BinaryBytes(state.per_sec())),
+                "eta_precise" => format!("{}", FormattedDuration(state.eta())),
+                "eta" => format!("{:#}", HumanDuration(state.eta())),
+                "duration_precise" => format!("{}", FormattedDuration(state.duration())),
+                "duration" => format!("{:#}", HumanDuration(state.duration())),
+                _ => "".into(),
             });
 
-            rv.push(if let Some(ref var) = *wide_element.borrow() {
+            rv.push(if let Some(ref var) = wide_element {
                 let total_width = state.width();
                 if var.key == "bar" {
                     let bar_width = total_width.saturating_sub(measure_text_width(&s));
