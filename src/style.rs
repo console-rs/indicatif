@@ -8,12 +8,20 @@ use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, Hu
 use crate::progress::ProgressState;
 use crate::utils::{expand_template, pad_str};
 
+use unicode_segmentation::UnicodeSegmentation;
+
 /// Controls the rendering style of progress bars.
 #[derive(Clone, Debug)]
 pub struct ProgressStyle {
-    tick_strings: Vec<String>,
-    progress_chars: Vec<char>,
+    tick_strings: Vec<Box<str>>,
+    progress_chars: Vec<Box<str>>,
     template: Cow<'static, str>,
+}
+
+fn segment(s: &str) -> Vec<Box<str>> {
+    UnicodeSegmentation::graphemes(s, true)
+        .map(|s| s.into())
+        .collect()
 }
 
 impl ProgressStyle {
@@ -22,9 +30,9 @@ impl ProgressStyle {
         ProgressStyle {
             tick_strings: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
                 .chars()
-                .map(|c| c.to_string())
+                .map(|c| c.to_string().into())
                 .collect(),
-            progress_chars: "█░".chars().collect(),
+            progress_chars: segment("█░"),
             template: Cow::Borrowed("{wide_bar} {pos}/{len}"),
         }
     }
@@ -34,28 +42,29 @@ impl ProgressStyle {
         ProgressStyle {
             tick_strings: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
                 .chars()
-                .map(|c| c.to_string())
+                .map(|c| c.to_string().into())
                 .collect(),
-            progress_chars: "█░".chars().collect(),
+            progress_chars: segment("█░"),
             template: Cow::Borrowed("{spinner} {msg}"),
         }
     }
 
     /// Sets the tick character sequence for spinners.
     pub fn tick_chars(mut self, s: &str) -> ProgressStyle {
-        self.tick_strings = s.chars().map(|c| c.to_string()).collect();
+        self.tick_strings = s.chars().map(|c| c.to_string().into()).collect();
         self
     }
 
     /// Sets the tick string sequence for spinners.
     pub fn tick_strings(mut self, s: &[&str]) -> ProgressStyle {
-        self.tick_strings = s.iter().map(|s| s.to_string()).collect();
+        self.tick_strings = s.iter().map(|s| s.to_string().into()).collect();
         self
     }
 
-    /// Sets the three progress characters `(filled, current, to do)`.
+    /// Sets the progress characters `(filled, current, to do)`.
+    /// You can pass more then three for a more detailed display.
     pub fn progress_chars(mut self, s: &str) -> ProgressStyle {
-        self.progress_chars = s.chars().collect();
+        self.progress_chars = segment(s);
         self
     }
 
@@ -101,9 +110,12 @@ impl ProgressStyle {
             0
         };
 
-        let pb = repeat(state.style.progress_chars[0])
+        let pb = repeat(&state.style.progress_chars[0])
             .take(fill as usize)
-            .collect::<String>();
+            .fold(String::new(), |mut acc, new| {
+                acc.push_str(&new);
+                acc
+            });
         let cur = if head == 1 {
             let n = state.style.progress_chars.len().saturating_sub(2);
             let cur_char = if n == 0 {
@@ -118,7 +130,10 @@ impl ProgressStyle {
         let bg = width.saturating_sub(fill as usize).saturating_sub(head);
         let rest = repeat(state.style.progress_chars.last().unwrap())
             .take(bg)
-            .collect::<String>();
+            .fold(String::new(), |mut acc, new| {
+                acc.push_str(&new);
+                acc
+            });
         format!(
             "{}{}{}",
             pb,
