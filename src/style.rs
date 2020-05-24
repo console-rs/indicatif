@@ -16,6 +16,8 @@ pub struct ProgressStyle {
     tick_strings: Vec<Box<str>>,
     progress_chars: Vec<Box<str>>,
     template: Cow<'static, str>,
+    // how unicode-big each char in progress_chars is
+    char_width: usize,
 }
 
 fn segment(s: &str) -> Vec<Box<str>> {
@@ -24,27 +26,48 @@ fn segment(s: &str) -> Vec<Box<str>> {
         .collect()
 }
 
+/// finds the unicode-aware width of the passed grapheme cluters
+/// panics on an empty parameter, or if the characters are not equal-width
+fn width(c: &[Box<str>]) -> usize {
+    c.iter()
+        .map(|s| unicode_width::UnicodeWidthStr::width(s.as_ref()))
+        .fold(None, |acc, new| {
+            match acc {
+                None => return Some(new),
+                Some(old) => assert_eq!(old, new, "got passed un-equal width progress characters"),
+            }
+            acc
+        })
+        .unwrap()
+}
+
 impl ProgressStyle {
     /// Returns the default progress bar style for bars.
     pub fn default_bar() -> ProgressStyle {
+        let progress_chars = segment("█░");
+        let char_width = width(&progress_chars);
         ProgressStyle {
             tick_strings: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
                 .chars()
                 .map(|c| c.to_string().into())
                 .collect(),
-            progress_chars: segment("█░"),
+            progress_chars,
+            char_width,
             template: Cow::Borrowed("{wide_bar} {pos}/{len}"),
         }
     }
 
     /// Returns the default progress bar style for spinners.
     pub fn default_spinner() -> ProgressStyle {
+        let progress_chars = segment("█░");
+        let char_width = width(&progress_chars);
         ProgressStyle {
             tick_strings: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
                 .chars()
                 .map(|c| c.to_string().into())
                 .collect(),
-            progress_chars: segment("█░"),
+            progress_chars,
+            char_width,
             template: Cow::Borrowed("{spinner} {msg}"),
         }
     }
@@ -63,8 +86,10 @@ impl ProgressStyle {
 
     /// Sets the progress characters `(filled, current, to do)`.
     /// You can pass more then three for a more detailed display.
+    /// All passed grapheme clusters need to be of equal width.
     pub fn progress_chars(mut self, s: &str) -> ProgressStyle {
         self.progress_chars = segment(s);
+        self.char_width = width(&self.progress_chars);
         self
     }
 
@@ -102,32 +127,32 @@ impl ProgressStyle {
         width: usize,
         alt_style: Option<&Style>,
     ) -> String {
+        // todo: this code could really use some comments
+        let width = width / state.style.char_width;
         let pct = state.fraction();
         let fill = pct * width as f32;
-        let head = if pct > 0.0 && (fill as usize) < width {
-            1
-        } else {
-            0
-        };
+        let fill = fill as usize;
+        let head = if pct > 0.0 && fill < width { 1 } else { 0 };
 
-        let pb = repeat(&state.style.progress_chars[0])
-            .take(fill as usize)
-            .fold(String::new(), |mut acc, new| {
+        let pb = repeat(&state.style.progress_chars[0]).take(fill).fold(
+            String::new(),
+            |mut acc, new| {
                 acc.push_str(&new);
                 acc
-            });
+            },
+        );
         let cur = if head == 1 {
             let n = state.style.progress_chars.len().saturating_sub(2);
             let cur_char = if n == 0 {
                 1
             } else {
-                n.saturating_sub((fill * n as f32) as usize % n)
+                n.saturating_sub((fill * n) % n)
             };
             state.style.progress_chars[cur_char].to_string()
         } else {
             "".into()
         };
-        let bg = width.saturating_sub(fill as usize).saturating_sub(head);
+        let bg = width.saturating_sub(fill).saturating_sub(head);
         let rest = repeat(state.style.progress_chars.last().unwrap())
             .take(bg)
             .fold(String::new(), |mut acc, new| {
