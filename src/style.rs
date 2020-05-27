@@ -49,7 +49,7 @@ impl ProgressStyle {
 
     /// Sets the tick string sequence for spinners.
     pub fn tick_strings(mut self, s: &[&str]) -> ProgressStyle {
-        self.tick_strings = s.iter().map(|s| s.to_string()).collect();
+        self.tick_strings = s.iter().map(|&s| s.to_string()).collect();
         self
     }
 
