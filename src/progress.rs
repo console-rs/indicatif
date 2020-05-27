@@ -567,8 +567,8 @@ impl ProgressBar {
     ///
     /// For the prefix to be visible, `{prefix}` placeholder
     /// must be present in the template (see `ProgressStyle`).
-    pub fn set_prefix(&self, prefix: &str) {
-        let prefix = prefix.to_string();
+    pub fn set_prefix(&self, prefix: impl Into<String>) {
+        let prefix = prefix.into();
         self.update_and_draw(|state| {
             state.prefix = prefix;
             if state.steady_tick == 0 || state.tick == 0 {
@@ -581,8 +581,8 @@ impl ProgressBar {
     ///
     /// For the message to be visible, `{msg}` placeholder
     /// must be present in the template (see `ProgressStyle`).
-    pub fn set_message(&self, msg: &str) {
-        let msg = msg.to_string();
+    pub fn set_message(&self, msg: impl Into<String>) {
+        let msg = msg.into();
         self.update_and_draw(|state| {
             state.message = msg;
             if state.steady_tick == 0 || state.tick == 0 {
@@ -639,8 +639,8 @@ impl ProgressBar {
     ///
     /// For the message to be visible, `{msg}` placeholder
     /// must be present in the template (see `ProgressStyle`).
-    pub fn finish_with_message(&self, msg: &str) {
-        let msg = msg.to_string();
+    pub fn finish_with_message(&self, msg: impl Into<String>) {
+        let msg = msg.into();
         self.update_and_draw(|state| {
             state.message = msg;
             state.pos = state.len;
@@ -669,8 +669,8 @@ impl ProgressBar {
     ///
     /// For the message to be visible, `{msg}` placeholder
     /// must be present in the template (see `ProgressStyle`).
-    pub fn abandon_with_message(&self, msg: &str) {
-        let msg = msg.to_string();
+    pub fn abandon_with_message(&self, msg: impl Into<String>) {
+        let msg = msg.into();
         self.update_and_draw(|state| {
             state.message = msg;
             state.status = Status::DoneVisible;
