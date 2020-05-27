@@ -27,7 +27,7 @@ fn many_units_of_easy_work(n: u64, label: &str, draw_delta: Option<u64>) {
 }
 
 fn main() {
-    const N: u64 = (1 << 20);
+    const N: u64 = 1 << 20;
 
     // Perform a long sequence of many simple computations monitored by a
     // default progress bar.
