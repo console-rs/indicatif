@@ -134,13 +134,11 @@ impl ProgressStyle {
         let fill = fill as usize;
         let head = if pct > 0.0 && fill < width { 1 } else { 0 };
 
-        let pb = repeat(&state.style.progress_chars[0]).take(fill).fold(
-            String::new(),
-            |mut acc, new| {
-                acc.push_str(&new);
-                acc
-            },
-        );
+        let pb: String = repeat(&state.style.progress_chars[0])
+            .take(fill)
+            .map(|b| b.as_ref())
+            .collect();
+
         let cur = if head == 1 {
             let n = state.style.progress_chars.len().saturating_sub(2);
             let cur_char = if n == 0 {
@@ -153,12 +151,10 @@ impl ProgressStyle {
             "".into()
         };
         let bg = width.saturating_sub(fill).saturating_sub(head);
-        let rest = repeat(state.style.progress_chars.last().unwrap())
+        let rest: String = repeat(state.style.progress_chars.last().unwrap())
             .take(bg)
-            .fold(String::new(), |mut acc, new| {
-                acc.push_str(&new);
-                acc
-            });
+            .map(|b| b.as_ref())
+            .collect();
         format!(
             "{}{}{}",
             pb,
