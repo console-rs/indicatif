@@ -1,21 +1,23 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
+use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
-
-use std::fmt::Debug;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Clone, Debug)]
 struct Rng(u64);
 
-impl Default for Rng {
-    fn default() -> Self {
-        Self(14312312512314u64)
-    }
-}
-
 impl Rng {
+    fn new() -> Self {
+        let start = SystemTime::now();
+        let since_the_epoch = start
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_secs();
+        Self(since_the_epoch)
+    }
+
     fn gen_range(&mut self, n: u64) -> u64 {
         let mut state = self.0;
         state ^= state >> 12;
@@ -60,7 +62,9 @@ fn main() {
     let sty_main = ProgressStyle::default_bar().template("{bar:40.green/yellow} {pos:>4}/{len:4}");
     let sty_aux = ProgressStyle::default_bar().template("{spinner:.green} {msg} {pos:>4}/{len:4}");
 
-    let pb_main = mp.add(ProgressBar::new(ELEMENTS.iter().map(|e| e.progress_bar.length()).sum()));
+    let pb_main = mp.add(ProgressBar::new(
+        ELEMENTS.iter().map(|e| e.progress_bar.length()).sum(),
+    ));
     pb_main.set_style(sty_main);
     for elem in ELEMENTS.iter() {
         elem.progress_bar.set_style(sty_aux.clone());
@@ -71,7 +75,7 @@ fn main() {
 
     let mp2 = Arc::clone(&mp);
     let _ = thread::spawn(move || {
-        let mut rng = Rng::default();
+        let mut rng = Rng::new();
         pb_main.tick();
         loop {
             match get_action(&mut rng, &tree) {
@@ -118,7 +122,9 @@ fn main() {
 fn get_action<'a>(rng: &'a mut Rng, tree: &Mutex<Vec<&Elem>>) -> Option<Action> {
     let elem_len = ELEMENTS.len() as u64;
     let list_len = tree.lock().unwrap().len() as u64;
-    let sum_free = tree.lock().unwrap()
+    let sum_free = tree
+        .lock()
+        .unwrap()
         .iter()
         .map(|e| {
             let pos = e.progress_bar.position();
