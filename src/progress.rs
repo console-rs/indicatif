@@ -1037,8 +1037,19 @@ impl MultiProgress {
         self.joining.store(true, Ordering::Release);
 
         let move_cursor = self.state.read().unwrap().move_cursor;
+        // Max amount of grouped together updates at once. This is meant
+        // to ensure there isn't a situation where continuous updates prevent
+        // any actual draws happening.
+        const MAX_GROUP_SIZE: usize = 32;
+        let mut recv_peek = None;
+        let mut grouped = 0usize;
+        let mut orphan_lines: Vec<String> = Vec::new();
         while !self.is_done() {
-            let (idx, draw_state) = self.rx.recv().unwrap();
+            let (idx, draw_state) = if let Some(peeked) = recv_peek.take() {
+                peeked
+            } else {
+                self.rx.recv().unwrap()
+            };
             let ts = draw_state.ts;
             let force_draw = draw_state.finished || draw_state.force_draw;
 
@@ -1048,11 +1059,12 @@ impl MultiProgress {
             }
 
             // Split orphan lines out of the draw state, if any
-            let (orphan_lines, lines) = if draw_state.orphan_lines == 0 {
-                (vec![], draw_state.lines)
-            } else {
+            let lines = if draw_state.orphan_lines > 0 {
                 let split = draw_state.lines.split_at(draw_state.orphan_lines);
-                (split.0.to_vec(), split.1.to_vec())
+                orphan_lines.extend_from_slice(split.0);
+                split.1.to_vec()
+            } else {
+                draw_state.lines
             };
 
             let draw_state = ProgressDrawState {
@@ -1068,12 +1080,26 @@ impl MultiProgress {
                 continue;
             }
 
+            debug_assert!(recv_peek.is_none());
+            if grouped >= MAX_GROUP_SIZE {
+                // Can't group any more draw calls, proceed to just draw
+                grouped = 0;
+            } else if let Ok(state) = self.rx.try_recv() {
+                // Only group draw calls if there is another draw already queued
+                recv_peek = Some(state);
+                grouped += 1;
+                continue;
+            } else {
+                // No more draws queued, proceed to just draw
+                grouped = 0;
+            }
+
             let mut lines = vec![];
 
             // Make orphaned lines appear at the top, so they can be properly
             // forgotten.
             let orphan_lines_count = orphan_lines.len();
-            lines.extend(orphan_lines);
+            lines.append(&mut orphan_lines);
 
             for index in state.ordering.iter() {
                 let obj = &state.objects[*index];
@@ -1087,7 +1113,7 @@ impl MultiProgress {
             state.draw_target.apply_draw_state(ProgressDrawState {
                 lines,
                 orphan_lines: orphan_lines_count,
-                force_draw,
+                force_draw: force_draw || orphan_lines_count > 0,
                 move_cursor,
                 finished,
                 ts,
