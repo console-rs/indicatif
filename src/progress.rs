@@ -2,7 +2,7 @@ use std::fmt;
 use std::io;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::sync::{Mutex, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -591,6 +591,13 @@ impl ProgressBar {
         })
     }
 
+    /// Creates a new weak reference to this `ProgressBar`.
+    pub fn downgrade(&self) -> WeakProgressBar {
+        WeakProgressBar {
+            state: Arc::downgrade(&self.state),
+        }
+    }
+
     /// Resets the ETA calculation.
     ///
     /// This can be useful if progress bars make a huge jump or were
@@ -806,6 +813,24 @@ fn draw_state(state: &mut ProgressState) -> io::Result<()> {
     state.draw_target.apply_draw_state(draw_state)
 }
 
+/// A weak reference to a `ProgressBar`.
+///
+/// Useful for creating custom steady tick implementations
+#[derive(Clone)]
+pub struct WeakProgressBar {
+    state: Weak<RwLock<ProgressState>>,
+}
+
+impl WeakProgressBar {
+    /// Attempts to upgrade the Weak pointer to a [`ProgressBar`], delaying dropping of the inner
+    /// value if successful. Returns `None` if the inner value has since been dropped.
+    ///
+    /// [`ProgressBar`]: struct.ProgressBar.html
+    pub fn upgrade(&self) -> Option<ProgressBar> {
+        self.state.upgrade().map(|state| ProgressBar { state })
+    }
+}
+
 impl Drop for ProgressState {
     fn drop(&mut self) {
         if self.is_finished() {
@@ -847,6 +872,15 @@ fn test_get_position() {
     pb.inc(2);
     let pos = pb.position();
     assert_eq!(pos, 2);
+}
+
+#[test]
+fn test_weak_pb() {
+    let pb = ProgressBar::new(0);
+    let weak = pb.downgrade();
+    assert!(weak.upgrade().is_some());
+    ::std::mem::drop(pb);
+    assert!(weak.upgrade().is_none());
 }
 
 struct MultiObject {
