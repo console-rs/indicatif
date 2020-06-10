@@ -1,7 +1,7 @@
-use futures::Stream;
 use indicatif::ProgressBar;
 use std::time::Duration;
-use tokio_core::reactor::{Core, Interval};
+use tokio::runtime;
+use tokio::time::interval;
 
 fn main() {
     // Plain progress bar, totaling 1024 steps.
@@ -9,16 +9,24 @@ fn main() {
     let pb = ProgressBar::new(steps);
 
     // Stream of events, triggering every 5ms.
-    let mut tcore = Core::new().expect("failed to create core");
-    let intv = Interval::new(Duration::from_millis(5), &tcore.handle())
-        .expect("failed to create interval");
+    let mut rt = runtime::Builder::new()
+        .enable_time()
+        .build()
+        .expect("failed to create runtime");
 
-    // Future computation which runs for 100 interval events,
+    // Future computation which runs for `steps` interval events,
     // incrementing one step of the progress bar each time.
-    let future = intv.take(steps).for_each(|_| Ok(pb.inc(1)));
+    let future = async {
+        let mut intv = interval(Duration::from_millis(5));
+
+        for _ in 0..steps {
+            intv.tick().await;
+            pb.inc(1);
+        }
+    };
 
     // Drive the future to completion, blocking until done.
-    tcore.run(future).expect("failed to complete future");
+    rt.block_on(future);
 
     // Mark the progress bar as finished.
     pb.finish();
