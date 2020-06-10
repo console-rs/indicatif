@@ -695,7 +695,7 @@ impl ProgressBar {
 
     /// Wraps an iterator with the progress bar.
     ///
-    /// ```rust,norun
+    /// ```rust,no_run
     /// # use indicatif::ProgressBar;
     /// let v = vec![1, 2, 3];
     /// let pb = ProgressBar::new(3);
@@ -712,7 +712,7 @@ impl ProgressBar {
 
     /// Wraps a Reader with the progress bar.
     ///
-    /// ```rust,norun
+    /// ```rust,no_run
     /// # use std::fs::File;
     /// # use std::io;
     /// # use indicatif::ProgressBar;
@@ -733,7 +733,7 @@ impl ProgressBar {
 
     /// Wraps a Writer with the progress bar.
     ///
-    /// ```rust,norun
+    /// ```rust,no_run
     /// # use std::fs::File;
     /// # use std::io;
     /// # use indicatif::ProgressBar;
