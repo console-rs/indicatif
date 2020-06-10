@@ -52,7 +52,7 @@ impl<S, T: Iterator<Item = S>> ProgressIterator for T {
     }
 }
 
-#[cfg(feature = "with_rayon")]
+#[cfg(feature = "rayon")]
 pub mod rayon_support {
     use super::*;
     use rayon::iter::{

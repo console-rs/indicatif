@@ -8,54 +8,105 @@ use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, Hu
 use crate::progress::ProgressState;
 use crate::utils::{expand_template, pad_str};
 
+#[cfg(feature = "improved_unicode")]
+use unicode_segmentation::UnicodeSegmentation;
+
 /// Controls the rendering style of progress bars.
 #[derive(Clone, Debug)]
 pub struct ProgressStyle {
-    tick_strings: Vec<String>,
-    progress_chars: Vec<char>,
+    tick_strings: Vec<Box<str>>,
+    progress_chars: Vec<Box<str>>,
     template: Cow<'static, str>,
+    // how unicode-big each char in progress_chars is
+    char_width: usize,
+}
+
+#[cfg(feature = "improved_unicode")]
+fn segment(s: &str) -> Vec<Box<str>> {
+    UnicodeSegmentation::graphemes(s, true)
+        .map(|s| s.into())
+        .collect()
+}
+
+#[cfg(not(feature = "improved_unicode"))]
+fn segment(s: &str) -> Vec<Box<str>> {
+    s.chars().map(|x| x.to_string().into()).collect()
+}
+
+#[cfg(feature = "improved_unicode")]
+fn measure(s: &str) -> usize {
+    unicode_width::UnicodeWidthStr::width(s)
+}
+
+#[cfg(not(feature = "improved_unicode"))]
+fn measure(s: &str) -> usize {
+    s.chars().count()
+}
+
+/// finds the unicode-aware width of the passed grapheme cluters
+/// panics on an empty parameter, or if the characters are not equal-width
+fn width(c: &[Box<str>]) -> usize {
+    c.iter()
+        .map(|s| measure(s.as_ref()))
+        .fold(None, |acc, new| {
+            match acc {
+                None => return Some(new),
+                Some(old) => assert_eq!(old, new, "got passed un-equal width progress characters"),
+            }
+            acc
+        })
+        .unwrap()
 }
 
 impl ProgressStyle {
     /// Returns the default progress bar style for bars.
     pub fn default_bar() -> ProgressStyle {
+        let progress_chars = segment("█░");
+        let char_width = width(&progress_chars);
         ProgressStyle {
             tick_strings: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
                 .chars()
-                .map(|c| c.to_string())
+                .map(|c| c.to_string().into())
                 .collect(),
-            progress_chars: "█░".chars().collect(),
+            progress_chars,
+            char_width,
             template: Cow::Borrowed("{wide_bar} {pos}/{len}"),
         }
     }
 
     /// Returns the default progress bar style for spinners.
     pub fn default_spinner() -> ProgressStyle {
+        let progress_chars = segment("█░");
+        let char_width = width(&progress_chars);
         ProgressStyle {
             tick_strings: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
                 .chars()
-                .map(|c| c.to_string())
+                .map(|c| c.to_string().into())
                 .collect(),
-            progress_chars: "█░".chars().collect(),
+            progress_chars,
+            char_width,
             template: Cow::Borrowed("{spinner} {msg}"),
         }
     }
 
     /// Sets the tick character sequence for spinners.
     pub fn tick_chars(mut self, s: &str) -> ProgressStyle {
-        self.tick_strings = s.chars().map(|c| c.to_string()).collect();
+        self.tick_strings = s.chars().map(|c| c.to_string().into()).collect();
         self
     }
 
     /// Sets the tick string sequence for spinners.
     pub fn tick_strings(mut self, s: &[&str]) -> ProgressStyle {
-        self.tick_strings = s.iter().map(|s| s.to_string()).collect();
+        self.tick_strings = s.iter().map(|s| s.to_string().into()).collect();
         self
     }
 
-    /// Sets the three progress characters `(filled, current, to do)`.
+    /// Sets the progress characters `(filled, current, to do)`.
+    /// You can pass more then three for a more detailed display.
+    /// All passed grapheme clusters need to be of equal width.
     pub fn progress_chars(mut self, s: &str) -> ProgressStyle {
-        self.progress_chars = s.chars().collect();
+        self.progress_chars = segment(s);
+        self.char_width = width(&self.progress_chars);
         self
     }
 
@@ -93,32 +144,34 @@ impl ProgressStyle {
         width: usize,
         alt_style: Option<&Style>,
     ) -> String {
+        // todo: this code could really use some comments
+        let width = width / state.style.char_width;
         let pct = state.fraction();
         let fill = pct * width as f32;
-        let head = if pct > 0.0 && (fill as usize) < width {
-            1
-        } else {
-            0
-        };
+        let fill = fill as usize;
+        let head = if pct > 0.0 && fill < width { 1 } else { 0 };
 
-        let pb = repeat(state.style.progress_chars[0])
-            .take(fill as usize)
-            .collect::<String>();
+        let pb: String = repeat(&state.style.progress_chars[0])
+            .take(fill)
+            .map(|b| b.as_ref())
+            .collect();
+
         let cur = if head == 1 {
             let n = state.style.progress_chars.len().saturating_sub(2);
             let cur_char = if n == 0 {
                 1
             } else {
-                n.saturating_sub((fill * n as f32) as usize % n)
+                n.saturating_sub((fill * n) % n)
             };
             state.style.progress_chars[cur_char].to_string()
         } else {
             "".into()
         };
-        let bg = width.saturating_sub(fill as usize).saturating_sub(head);
-        let rest = repeat(state.style.progress_chars.last().unwrap())
+        let bg = width.saturating_sub(fill).saturating_sub(head);
+        let rest: String = repeat(state.style.progress_chars.last().unwrap())
             .take(bg)
-            .collect::<String>();
+            .map(|b| b.as_ref())
+            .collect();
         format!(
             "{}{}{}",
             pb,
