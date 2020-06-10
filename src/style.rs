@@ -8,6 +8,7 @@ use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, Hu
 use crate::progress::ProgressState;
 use crate::utils::{expand_template, pad_str};
 
+#[cfg(feature = "improved_unicode")]
 use unicode_segmentation::UnicodeSegmentation;
 
 /// Controls the rendering style of progress bars.
@@ -20,17 +21,33 @@ pub struct ProgressStyle {
     char_width: usize,
 }
 
+#[cfg(feature = "improved_unicode")]
 fn segment(s: &str) -> Vec<Box<str>> {
     UnicodeSegmentation::graphemes(s, true)
         .map(|s| s.into())
         .collect()
 }
 
+#[cfg(not(feature = "improved_unicode"))]
+fn segment(s: &str) -> Vec<Box<str>> {
+    s.chars().map(|x| x.to_string().into()).collect()
+}
+
+#[cfg(feature = "improved_unicode")]
+fn measure(s: &str) -> usize {
+    unicode_width::UnicodeWidthStr::width(s)
+}
+
+#[cfg(not(feature = "improved_unicode"))]
+fn measure(s: &str) -> usize {
+    s.chars().count()
+}
+
 /// finds the unicode-aware width of the passed grapheme cluters
 /// panics on an empty parameter, or if the characters are not equal-width
 fn width(c: &[Box<str>]) -> usize {
     c.iter()
-        .map(|s| unicode_width::UnicodeWidthStr::width(s.as_ref()))
+        .map(|s| measure(s.as_ref()))
         .fold(None, |acc, new| {
             match acc {
                 None => return Some(new),

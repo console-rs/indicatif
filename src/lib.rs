@@ -84,11 +84,11 @@
 //! methods to configure the number of elements in the iterator or change
 //! the progress bar style. Indicatif also has optional support for parallel
 //! iterators with [Rayon](https://github.com/rayon-rs/rayon). In your
-//! `cargo.toml`, use the "with_rayon" feature:
+//! `cargo.toml`, use the "rayon" feature:
 //!
 //! ```toml
 //! [dependencies]
-//! indicatif = {version = "*", features = ["with_rayon"]}
+//! indicatif = {version = "*", features = ["rayon"]}
 //! ```
 //!
 //! And then use it like this:
@@ -178,6 +178,11 @@
 //! println!("The file is {} large", HumanBytes(file.size));
 //! println!("The script took {}", HumanDuration(started.elapsed()));
 //! ```
+//!
+//! # Feature Flags
+//!
+//! * `rayon`: adds rayon support
+//! * `improved_unicode`: adds improved unicode support (graphemes, better width calculation)
 
 mod format;
 mod iter;
@@ -190,5 +195,5 @@ pub use crate::iter::{ProgressBarIter, ProgressIterator};
 pub use crate::progress::{MultiProgress, ProgressBar, ProgressBarWrap, ProgressDrawTarget};
 pub use crate::style::ProgressStyle;
 
-#[cfg(feature = "with_rayon")]
+#[cfg(feature = "rayon")]
 pub use iter::rayon_support::{ParProgressBarIter, ParallelProgressIterator};
