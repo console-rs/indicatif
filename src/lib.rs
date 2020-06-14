@@ -36,7 +36,7 @@
 //!
 //! To whet your appetite, this is what this can look like:
 //!
-//! <img src="https://github.com/mitsuhiko/indicatif/raw/master/screenshots/yarn.gif?raw=true" width="60%">
+//! <img src="https://github.com/mitsuhiko/indicatif/raw/main/screenshots/yarn.gif?raw=true" width="60%">
 //!
 //! Progress bars are manually advanced and by default draw to stderr.
 //! When you are done, the progress bar can be finished either visibly
