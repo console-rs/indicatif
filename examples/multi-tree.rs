@@ -44,7 +44,7 @@ struct Elem {
 }
 
 lazy_static! {
-    static ref ELEMENTS: [Elem; 9] = [
+    static ref ELEMENTS: [Elem; 12] = [
         Elem { indent: 1, index: 0, progress_bar: ProgressBar::new(32), key: "jumps".to_string() },
         Elem { indent: 2, index: 1, progress_bar: ProgressBar::new(32), key: "lazy".to_string() },
         Elem { indent: 0, index: 0, progress_bar: ProgressBar::new(32), key: "the".to_string() },
@@ -54,6 +54,9 @@ lazy_static! {
         Elem { indent: 1, index: 1, progress_bar: ProgressBar::new(32), key: "quick".to_string() },
         Elem { indent: 3, index: 5, progress_bar: ProgressBar::new(32), key: "a".to_string() },
         Elem { indent: 3, index: 3, progress_bar: ProgressBar::new(32), key: "fox".to_string() },
+        Elem { indent: 0, index: 3, progress_bar: ProgressBar::new(32), key: "THIS LINE WILL BE REMOVED".to_string() },
+        Elem { indent: 0, index: 3, progress_bar: ProgressBar::new(32), key: "THIS LINE WILL BE REMOVED".to_string() },
+        Elem { indent: 0, index: 11, progress_bar: ProgressBar::new(32), key: "THIS LINE WILL BE REMOVED".to_string() },
     ];
 }
 
@@ -81,8 +84,7 @@ fn main() {
             match get_action(&mut rng, &tree) {
                 None => {
                     // all elements were exhausted
-                    pb_main.finish();
-                    return;
+                    break;
                 }
                 Some(Action::AddProgressBar(el_idx)) => {
                     let elem = &ELEMENTS[el_idx];
@@ -108,6 +110,17 @@ fn main() {
             }
             thread::sleep(Duration::from_millis(15));
         }
+
+        thread::sleep(Duration::from_millis(1000));
+        mp2.remove(4);
+        thread::sleep(Duration::from_millis(1000));
+        mp2.remove(4);
+        thread::sleep(Duration::from_millis(1000));
+        mp2.remove(10);
+        thread::sleep(Duration::from_millis(1000));
+
+        pb_main.finish();
+        return;
     });
 
     mp.join().unwrap();
@@ -115,7 +128,9 @@ fn main() {
     println!("===============================");
     println!("the tree should be the same as:");
     for elem in tree2.lock().unwrap().iter() {
+      if elem.key != "THIS LINE WILL BE REMOVED" {
         println!("{}  {}", "  ".repeat(elem.indent), elem.key);
+      }
     }
 }
 

@@ -6,6 +6,7 @@ use std::sync::{Arc, Weak};
 use std::sync::{Mutex, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
+use std::collections::HashSet;
 
 use crate::style::ProgressStyle;
 use crate::utils::{duration_to_secs, secs_to_duration, Estimate};
@@ -29,6 +30,14 @@ struct ProgressDrawState {
 }
 
 #[derive(Debug)]
+enum DrawMessage {
+  Update(ProgressDrawState),
+  Remove {
+    ts: Instant
+  }
+}
+
+#[derive(Debug)]
 enum Status {
     InProgress,
     DoneVisible,
@@ -37,7 +46,7 @@ enum Status {
 
 enum ProgressDrawTargetKind {
     Term(Term, Option<ProgressDrawState>, Option<Duration>),
-    Remote(usize, Mutex<Sender<(usize, ProgressDrawState)>>),
+    Remote(usize, Mutex<Sender<(usize, DrawMessage)>>),
     Hidden,
 }
 
@@ -168,7 +177,7 @@ impl ProgressDrawTarget {
                 return chan
                     .lock()
                     .unwrap()
-                    .send((idx, draw_state))
+                    .send((idx, DrawMessage::Update(draw_state)))
                     .map_err(|e| io::Error::new(io::ErrorKind::Other, e));
             }
             ProgressDrawTargetKind::Hidden => {}
@@ -185,14 +194,14 @@ impl ProgressDrawTarget {
                     .unwrap()
                     .send((
                         idx,
-                        ProgressDrawState {
+                        DrawMessage::Update(ProgressDrawState {
                             lines: vec![],
                             orphan_lines: 0,
                             finished: true,
                             force_draw: false,
                             move_cursor: false,
                             ts: Instant::now(),
-                        },
+                        }),
                     ))
                     .ok();
             }
@@ -885,6 +894,7 @@ fn test_weak_pb() {
 
 struct MultiObject {
     done: bool,
+    to_be_removed: bool,
     draw_state: Option<ProgressDrawState>,
 }
 
@@ -899,8 +909,8 @@ struct MultiProgressState {
 pub struct MultiProgress {
     state: RwLock<MultiProgressState>,
     joining: AtomicBool,
-    tx: Sender<(usize, ProgressDrawState)>,
-    rx: Receiver<(usize, ProgressDrawState)>,
+    tx: Sender<(usize, DrawMessage)>,
+    rx: Receiver<(usize, DrawMessage)>,
 }
 
 impl fmt::Debug for MultiProgress {
@@ -968,6 +978,7 @@ impl MultiProgress {
         let object_idx = state.objects.len();
         state.objects.push(MultiObject {
             done: false,
+            to_be_removed: false,
             draw_state: None,
         });
         state.ordering.push(object_idx);
@@ -975,6 +986,23 @@ impl MultiProgress {
             kind: ProgressDrawTargetKind::Remote(object_idx, Mutex::new(self.tx.clone())),
         });
         pb
+    }
+
+    /// Removes a progress bar.
+    ///
+    /// Remove the progress bar at the index. If the index is not valid,
+    /// nothing will happen.
+    pub fn remove(&self, index: usize) {
+      let state = self.state.write().unwrap();
+      let len = state.objects.len();
+      if index >= len {
+        return;
+      }
+
+      let msg = DrawMessage::Remove {
+        ts: Instant::now(),
+      };
+      self.tx.send((index, msg)).unwrap();
     }
 
     /// Inserts a progress bar.
@@ -990,6 +1018,7 @@ impl MultiProgress {
         let object_idx = state.objects.len();
         state.objects.push(MultiObject {
             done: false,
+            to_be_removed: false,
             draw_state: None,
         });
         if index > state.ordering.len() {
@@ -1045,35 +1074,51 @@ impl MultiProgress {
         let mut grouped = 0usize;
         let mut orphan_lines: Vec<String> = Vec::new();
         while !self.is_done() {
-            let (idx, draw_state) = if let Some(peeked) = recv_peek.take() {
+            let (idx, draw_message) = if let Some(peeked) = recv_peek.take() {
                 peeked
             } else {
                 self.rx.recv().unwrap()
             };
-            let ts = draw_state.ts;
-            let force_draw = draw_state.finished || draw_state.force_draw;
+            let ts = match draw_message {
+              DrawMessage::Update(ref draw_state) => draw_state.ts.clone(),
+              DrawMessage::Remove { ts, .. } => ts
+            };
+
+            let force_draw = match draw_message {
+              DrawMessage::Update(ref draw_state) => draw_state.finished || draw_state.force_draw,
+              DrawMessage::Remove { .. } => true,
+            };
 
             let mut state = self.state.write().unwrap();
-            if draw_state.finished {
+            match draw_message {
+              DrawMessage::Update(ref draw_state) if draw_state.finished => {
                 state.objects[idx].done = true;
+              },
+              _ => ()
             }
 
-            // Split orphan lines out of the draw state, if any
-            let lines = if draw_state.orphan_lines > 0 {
-                let split = draw_state.lines.split_at(draw_state.orphan_lines);
-                orphan_lines.extend_from_slice(split.0);
-                split.1.to_vec()
-            } else {
-                draw_state.lines
-            };
-
-            let draw_state = ProgressDrawState {
-                lines,
-                orphan_lines: 0,
-                ..draw_state
-            };
-
-            state.objects[idx].draw_state = Some(draw_state);
+            match draw_message {
+              DrawMessage::Remove { .. } => {
+                let obj_idx = state.ordering[idx];
+                state.objects[obj_idx].to_be_removed = true;
+              },
+              DrawMessage::Update(draw_state) => {
+                // Split orphan lines out of the draw state, if any
+                let lines = if draw_state.orphan_lines > 0 {
+                  let split = draw_state.lines.split_at(draw_state.orphan_lines);
+                  orphan_lines.extend_from_slice(split.0);
+                  split.1.to_vec()
+                } else {
+                  draw_state.lines
+                };
+                let new_draw_state = ProgressDrawState {
+                  lines,
+                  orphan_lines: 0,
+                  ..draw_state
+                };
+                state.objects[idx].draw_state = Some(new_draw_state);
+              }
+            }
 
             // the rest from here is only drawing, we can skip it.
             if state.draw_target.is_hidden() {
@@ -1101,11 +1146,30 @@ impl MultiProgress {
             let orphan_lines_count = orphan_lines.len();
             lines.append(&mut orphan_lines);
 
-            for index in state.ordering.iter() {
-                let obj = &state.objects[*index];
+            let mut remove_indices = HashSet::new();
+
+            for objects_index in state.ordering.iter() {
+              let obj = &state.objects[*objects_index];
+              if obj.to_be_removed {
+                remove_indices.insert(*objects_index);
+              } else {
                 if let Some(ref draw_state) = obj.draw_state {
-                    lines.extend_from_slice(&draw_state.lines[..]);
+                  lines.extend_from_slice(&draw_state.lines[..]);
                 }
+              }
+            }
+
+            for index in remove_indices.into_iter() {
+              state.objects.remove(index);
+              let ordering = state.ordering.iter().position(|i| *i == index);
+              if let Some(order_index) = ordering {
+                state.ordering.remove(order_index);
+                for item in state.ordering.iter_mut() {
+                  if *item > index {
+                    *item -= 1;
+                  }
+                }
+              }
             }
 
             // !any(!done) is also true when iter() is empty, contrary to all(done)
