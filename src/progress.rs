@@ -909,8 +909,8 @@ struct MultiProgressState {
 pub struct MultiProgress {
     state: RwLock<MultiProgressState>,
     joining: AtomicBool,
-    tx: Sender<(usize, DrawMessage)>,
-    rx: Receiver<(usize, DrawMessage)>,
+    tx: Mutex<Sender<(usize, DrawMessage)>>,
+    rx: Mutex<Receiver<(usize, DrawMessage)>>,
 }
 
 impl fmt::Debug for MultiProgress {
@@ -919,7 +919,6 @@ impl fmt::Debug for MultiProgress {
     }
 }
 
-unsafe impl Sync for MultiProgress {}
 
 impl Default for MultiProgress {
     fn default() -> MultiProgress {
@@ -948,8 +947,8 @@ impl MultiProgress {
                 move_cursor: false,
             }),
             joining: AtomicBool::new(false),
-            tx,
-            rx,
+            tx: Mutex::new(tx),
+            rx: Mutex::new(rx),
         }
     }
 
@@ -982,8 +981,9 @@ impl MultiProgress {
             draw_state: None,
         });
         state.ordering.push(object_idx);
+        let new_tx = self.tx.lock().unwrap().clone();
         pb.set_draw_target(ProgressDrawTarget {
-            kind: ProgressDrawTargetKind::Remote(object_idx, Mutex::new(self.tx.clone())),
+            kind: ProgressDrawTargetKind::Remote(object_idx, Mutex::new(new_tx))
         });
         pb
     }
@@ -1002,7 +1002,7 @@ impl MultiProgress {
       let msg = DrawMessage::Remove {
         ts: Instant::now(),
       };
-      self.tx.send((index, msg)).unwrap();
+      self.tx.lock().unwrap().send((index, msg)).unwrap();
     }
 
     /// Inserts a progress bar.
@@ -1026,8 +1026,9 @@ impl MultiProgress {
         } else {
             state.ordering.insert(index, object_idx);
         }
+        let new_tx = self.tx.lock().unwrap().clone();
         pb.set_draw_target(ProgressDrawTarget {
-            kind: ProgressDrawTargetKind::Remote(object_idx, Mutex::new(self.tx.clone())),
+            kind: ProgressDrawTargetKind::Remote(object_idx, Mutex::new(new_tx)),
         });
         pb
     }
@@ -1077,7 +1078,8 @@ impl MultiProgress {
             let (idx, draw_message) = if let Some(peeked) = recv_peek.take() {
                 peeked
             } else {
-                self.rx.recv().unwrap()
+                let rx = self.rx.lock().unwrap();
+                rx.recv().unwrap()
             };
             let ts = match draw_message {
               DrawMessage::Update(ref draw_state) => draw_state.ts.clone(),
@@ -1129,7 +1131,7 @@ impl MultiProgress {
             if grouped >= MAX_GROUP_SIZE {
                 // Can't group any more draw calls, proceed to just draw
                 grouped = 0;
-            } else if let Ok(state) = self.rx.try_recv() {
+            } else if let Ok(state) = self.rx.lock().unwrap().try_recv() {
                 // Only group draw calls if there is another draw already queued
                 recv_peek = Some(state);
                 grouped += 1;
