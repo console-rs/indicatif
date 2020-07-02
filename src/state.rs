@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use crate::style::{ProgressFinish, ProgressStyle};
 use crate::utils::{duration_to_secs, secs_to_duration, Estimate};
 use console::Term;
+use std::collections::HashSet;
 
 /// The state of a progress bar at a moment in time.
 pub(crate) struct ProgressState {
@@ -275,9 +276,15 @@ impl Drop for ProgressState {
 }
 
 pub(crate) struct MultiProgressState {
-    pub(crate) objects: Vec<MultiObject>,
+    /// The collection of states corresponding to progress bars
+    pub(crate) objects: Vec<Option<MultiObject>>,
+    /// Set of `None` elements in the `objects` vector
+    pub(crate) free_set: HashSet<usize>,
+    /// Indices to the `objects` to maintain correct visual order
     pub(crate) ordering: Vec<usize>,
+    /// Target for draw operation for MultiProgress
     pub(crate) draw_target: ProgressDrawTarget,
+    /// Whether or not to just move cursor instead of clearing lines
     pub(crate) move_cursor: bool,
 }
 
@@ -290,9 +297,11 @@ impl MultiProgressState {
         if self.objects.is_empty() {
             return true;
         }
-        for obj in &self.objects {
-            if !obj.done {
-                return false;
+        for obj in self.objects.iter() {
+            if let Some(o) = obj {
+                if !o.done {
+                    return false;
+                }
             }
         }
         true

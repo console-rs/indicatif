@@ -14,6 +14,7 @@ use crate::state::{
 use crate::style::ProgressStyle;
 use crate::utils::Estimate;
 use crate::{ProgressBarIter, ProgressIterator};
+use std::collections::HashSet;
 
 /// A progress bar or spinner.
 ///
@@ -523,7 +524,8 @@ impl MultiProgress {
         let (tx, rx) = channel();
         MultiProgress {
             state: Arc::new(RwLock::new(MultiProgressState {
-                objects: vec![],
+                objects: Vec::new(),
+                free_set: HashSet::new(),
                 ordering: vec![],
                 draw_target,
                 move_cursor: false,
@@ -556,16 +558,12 @@ impl MultiProgress {
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
-        let idx = state.objects.len();
-        state.objects.push(MultiObject {
-            done: false,
-            draw_state: None,
-        });
-        state.ordering.push(idx);
+        let object_idx = MultiProgress::extend_state(&mut state);
+        state.ordering.push(object_idx);
         pb.set_draw_target(ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Remote {
                 state: self.state.clone(),
-                idx,
+                idx: object_idx,
                 chan: Mutex::new(self.tx.clone()),
             },
         });
@@ -582,11 +580,7 @@ impl MultiProgress {
     /// is added to the end of the list.
     pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
-        let object_idx = state.objects.len();
-        state.objects.push(MultiObject {
-            done: false,
-            draw_state: None,
-        });
+        let object_idx = MultiProgress::extend_state(&mut state);
         if index > state.ordering.len() {
             state.ordering.push(object_idx);
         } else {
@@ -602,6 +596,32 @@ impl MultiProgress {
         pb
     }
 
+    /// Removes a progress bar.
+    ///
+    /// The progress bar is removed only if it was previously inserted or added
+    /// by the methods `MultiProgress::insert` or `MultiProgress::add`.
+    /// If the passed progress bar does not satisfy the condition above,
+    /// the `remove` method does nothing.
+    pub fn remove(&self, pb: &ProgressBar) {
+        let mut state = self.state.write().unwrap();
+        match &pb.state.lock().unwrap().draw_target.kind {
+            ProgressDrawTargetKind::Term { .. } => {}
+            ProgressDrawTargetKind::Remote { idx, .. } => {
+                state.objects[*idx] = None;
+                state.free_set.insert(*idx);
+                if let Some(idx) = state.ordering.iter().position(|x| *x == *idx) {
+                    state.ordering.remove(idx);
+                }
+            }
+            ProgressDrawTargetKind::Hidden => {}
+        }
+    }
+
+    pub fn count(&self) -> usize {
+        let state = self.state.read().unwrap();
+        state.objects.len()
+    }
+
     /// Waits for all progress bars to report that they are finished.
     ///
     /// You need to call this as this will request the draw instructions
@@ -614,6 +634,26 @@ impl MultiProgress {
     /// Works like `join` but clears the progress bar in the end.
     pub fn join_and_clear(&self) -> io::Result<()> {
         self.join_impl(true)
+    }
+
+    /// Modify the state on inserting/adding a progress bar
+    fn extend_state(state: &mut MultiProgressState) -> usize {
+        let object_idx;
+        if let Some(i) = state.free_set.iter().next().cloned() {
+            state.objects[i] = Some(MultiObject {
+                done: false,
+                draw_state: None,
+            });
+            state.free_set.remove(&i);
+            object_idx = i;
+        } else {
+            state.objects.push(Some(MultiObject {
+                done: false,
+                draw_state: None,
+            }));
+            object_idx = state.objects.len() - 1;
+        }
+        object_idx
     }
 
     fn join_impl(&self, clear: bool) -> io::Result<()> {
@@ -641,7 +681,9 @@ impl MultiProgress {
 
             let mut state = self.state.write().unwrap();
             if draw_state.finished {
-                state.objects[idx].done = true;
+                if let Some(ref mut obj) = &mut state.objects[idx] {
+                    obj.done = true;
+                }
             }
 
             // Split orphan lines out of the draw state, if any
@@ -659,7 +701,9 @@ impl MultiProgress {
                 ..draw_state
             };
 
-            state.objects[idx].draw_state = Some(draw_state);
+            if let Some(ref mut obj) = &mut state.objects[idx] {
+                obj.draw_state = Some(draw_state);
+            }
 
             // the rest from here is only drawing, we can skip it.
             if state.draw_target.is_hidden() {
@@ -688,9 +732,10 @@ impl MultiProgress {
             lines.append(&mut orphan_lines);
 
             for index in state.ordering.iter() {
-                let obj = &state.objects[*index];
-                if let Some(ref draw_state) = obj.draw_state {
-                    lines.extend_from_slice(&draw_state.lines[..]);
+                if let Some(obj) = &state.objects[*index] {
+                    if let Some(ref draw_state) = obj.draw_state {
+                        lines.extend_from_slice(&draw_state.lines[..]);
+                    }
                 }
             }
 
@@ -842,5 +887,52 @@ mod tests {
         let _: Box<dyn Send> = Box::new(ProgressBar::new(1));
         let _: Box<dyn Sync> = Box::new(MultiProgress::new());
         let _: Box<dyn Send> = Box::new(MultiProgress::new());
+    }
+
+    #[test]
+    fn multi_progress_modifications() {
+        let mp = MultiProgress::new();
+        let p0 = mp.add(ProgressBar::new(1));
+        let p1 = mp.add(ProgressBar::new(1));
+        let p2 = mp.add(ProgressBar::new(1));
+        let p3 = mp.add(ProgressBar::new(1));
+        mp.remove(&p2);
+        mp.remove(&p1);
+        let p4 = mp.insert(1, ProgressBar::new(1));
+
+        let state = mp.state.read().unwrap();
+        // the removed place for p1 is reused
+        assert_eq!(state.objects.len(), 4);
+        assert_eq!(
+            state
+                .objects
+                .iter()
+                .map(|o| if o.is_some() { 1 } else { 0 })
+                .sum::<usize>(),
+            3
+        );
+        // free_set may contain 1 or 2
+        let set_1 = vec![1_usize].into_iter().collect();
+        let set_2 = vec![2_usize].into_iter().collect();
+        if state.free_set == set_1 {
+            assert_eq!(state.ordering, vec![0, 2, 3]);
+            assert_eq!(extract_index(&p4), 2);
+        } else if state.free_set == set_2 {
+            assert_eq!(state.ordering, vec![0, 1, 3]);
+            assert_eq!(extract_index(&p4), 1);
+        } else {
+            unreachable!();
+        }
+        assert_eq!(extract_index(&p0), 0);
+        assert_eq!(extract_index(&p1), 1);
+        assert_eq!(extract_index(&p2), 2);
+        assert_eq!(extract_index(&p3), 3);
+    }
+
+    fn extract_index(pb: &ProgressBar) -> usize {
+        match pb.state.lock().unwrap().draw_target.kind {
+            ProgressDrawTargetKind::Remote { idx, .. } => idx,
+            _ => unreachable!(),
+        }
     }
 }
