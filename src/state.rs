@@ -1,4 +1,6 @@
 use std::borrow::Cow;
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
 use std::io;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex, RwLock};
@@ -276,7 +278,9 @@ impl Drop for ProgressState {
 
 pub(crate) struct MultiProgressState {
     /// The collection of states corresponding to progress bars
-    pub(crate) objects: Vec<MultiObject>,
+    pub(crate) objects: Vec<Option<MultiObject>>,
+    /// Set of `None` elements in the `objects` vector
+    pub(crate) free_set: BinaryHeap<Reverse<usize>>,
     /// Indices to the `objects` to maintain correct visual order
     pub(crate) ordering: Vec<usize>,
     /// Target for draw operation for MultiProgress
@@ -291,7 +295,10 @@ impl MultiProgressState {
     }
 
     pub(crate) fn is_done(&self) -> bool {
-        self.objects.iter().all(|obj| obj.done)
+        self.objects.iter().all(|o| match o {
+            Some(obj) => obj.done,
+            None => true,
+        })
     }
 }
 
