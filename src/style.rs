@@ -148,11 +148,10 @@ impl ProgressStyle {
         let width = width / state.style.char_width;
         let pct = state.fraction();
         let fill = pct * width as f32;
-        let fill = fill as usize;
-        let head = if pct > 0.0 && fill < width { 1 } else { 0 };
+        let head = if pct > 0.0 && (fill as usize) < width { 1 } else { 0 };
 
         let pb: String = repeat(&state.style.progress_chars[0])
-            .take(fill)
+            .take(fill as usize)
             .map(|b| b.as_ref())
             .collect();
 
@@ -161,13 +160,13 @@ impl ProgressStyle {
             let cur_char = if n == 0 {
                 1
             } else {
-                n.saturating_sub((fill * n) % n)
+                n.saturating_sub((fill * n as f32) as usize % n)
             };
             state.style.progress_chars[cur_char].to_string()
         } else {
             "".into()
         };
-        let bg = width.saturating_sub(fill).saturating_sub(head);
+        let bg = width.saturating_sub(fill as usize).saturating_sub(head);
         let rest: String = repeat(state.style.progress_chars.last().unwrap())
             .take(bg)
             .map(|b| b.as_ref())
