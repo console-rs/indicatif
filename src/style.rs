@@ -110,6 +110,8 @@ impl ProgressStyle {
     }
 
     /// Sets the template string for the progress bar.
+    ///
+    /// List of keys is available at crate root docs.
     pub fn template(mut self, s: &str) -> ProgressStyle {
         self.template = Cow::Owned(s.into());
         self
