@@ -691,6 +691,11 @@ impl MultiProgress {
                 if let Some(ref mut obj) = &mut state.objects[idx] {
                     obj.done = true;
                 }
+                if draw_state.lines.is_empty() {
+                    // `finish_and_clear` was called
+                    state.free_set.push(idx);
+                    state.ordering.retain(|&x| x != idx);
+                }
             }
 
             // Split orphan lines out of the draw state, if any
