@@ -103,6 +103,20 @@
 //! assert_eq!(v2[0], 1);
 //! ```
 //!
+//! Or if you'd like to customize the progress bar:
+//!
+//! ```rust,ignore
+//! # extern crate rayon;
+//! use indicatif::{ProgressBar, ParallelProgressIterator};
+//! use rayon::iter::{ParallelIterator, IntoParallelRefIterator};
+//!
+//! // Use `ProgressBar::with_style` to change the view
+//! let pb = ProgressBar::new();
+//! let v: Vec<_> = (0..100000).collect();
+//! let v2: Vec<_> = v.par_iter().progress_with(pb).map(|i| i + 1).collect();
+//! assert_eq!(v2[0], 1);
+//! ```
+//!
 //! # Templates
 //!
 //! Progress bars can be styled with simple format strings similar to the
