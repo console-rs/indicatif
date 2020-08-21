@@ -73,12 +73,18 @@ pub mod rayon_support {
     where
         Self: Sized,
     {
+        /// Wrap an iterator with a custom progress bar.
         fn progress_with(self, progress: ProgressBar) -> ParProgressBarIter<Self>;
 
+        /// Wrap an iterator with an explicit element count.
         fn progress_count(self, len: u64) -> ParProgressBarIter<Self> {
             self.progress_with(ProgressBar::new(len))
         }
 
+        /// Wrap an iterator with default styling. Contrary to `std::iter::Iterator`,
+        /// `ParallelProgressIterator` does not have a `size_hint` function. Due to this
+        /// the resulting progress bar will always show a length of `0` as there is no
+        /// way to determine the iterator's length without consuming it in the process.
         fn progress(self) -> ParProgressBarIter<Self> {
             self.progress_count(0)
         }
