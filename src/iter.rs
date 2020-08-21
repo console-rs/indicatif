@@ -80,14 +80,6 @@ pub mod rayon_support {
         fn progress_count(self, len: u64) -> ParProgressBarIter<Self> {
             self.progress_with(ProgressBar::new(len))
         }
-
-        /// Wrap an iterator with default styling. Contrary to `std::iter::Iterator`,
-        /// `ParallelProgressIterator` does not have a `size_hint` function. Due to this
-        /// the resulting progress bar will always show a length of `0` as there is no
-        /// way to determine the iterator's length without consuming it in the process.
-        fn progress(self) -> ParProgressBarIter<Self> {
-            self.progress_count(0)
-        }
     }
 
     impl<S: Send, T: ParallelIterator<Item = S>> ParallelProgressIterator for T {
@@ -194,7 +186,6 @@ pub mod rayon_support {
                 assert_eq!(it.map(|x| x * 2).collect::<Vec<_>>(), vec![2, 4, 6]);
             };
 
-            wrap(v.par_iter().progress());
             wrap(v.par_iter().progress_count(3));
             wrap({
                 let pb = ProgressBar::new(v.len() as u64);
