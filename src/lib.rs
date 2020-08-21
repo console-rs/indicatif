@@ -84,7 +84,7 @@
 //! methods to configure the number of elements in the iterator or change
 //! the progress bar style. Indicatif also has optional support for parallel
 //! iterators with [Rayon](https://github.com/rayon-rs/rayon). In your
-//! `cargo.toml`, use the "rayon" feature:
+//! `Cargo.toml`, use the "rayon" feature:
 //!
 //! ```toml
 //! [dependencies]
@@ -99,7 +99,7 @@
 //! use rayon::iter::{ParallelIterator, IntoParallelRefIterator};
 //!
 //! let v: Vec<_> = (0..100000).collect();
-//! let v2: Vec<_> = v.par_iter().progress().map(|i| i + 1).collect();
+//! let v2: Vec<_> = v.par_iter().progress_count(v.len() as u64).map(|i| i + 1).collect();
 //! assert_eq!(v2[0], 1);
 //! ```
 //!
@@ -133,7 +133,9 @@
 //!
 //! Example configuration:
 //!
-//! ```ignore
+//! ```rust
+//! # use indicatif::{ProgressBar, ProgressStyle};
+//! # let bar = ProgressBar::new(0);
 //! bar.set_style(ProgressStyle::default_bar()
 //!     .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
 //!     .progress_chars("##-"));
@@ -173,13 +175,12 @@
 //! There are some formatting wrappers for showing elapsed time and
 //! file sizes for human users:
 //!
-//! ```ignore
-//! use std::time::Instant;
+//! ```rust
+//! # use std::time::Duration;
 //! use indicatif::{HumanDuration, HumanBytes};
 //!
-//! let started = Instant::now();
-//! println!("The file is {} large", HumanBytes(file.size));
-//! println!("The script took {}", HumanDuration(started.elapsed()));
+//! assert_eq!("3.00MB", HumanBytes(3*1024*1024).to_string());
+//! assert_eq!("8 seconds", HumanDuration(Duration::from_secs(8)).to_string());
 //! ```
 //!
 //! # Feature Flags
