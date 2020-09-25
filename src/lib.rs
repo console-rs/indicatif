@@ -160,6 +160,9 @@
 //! * `bytes_per_sec`: renders the speed in bytes per second.
 //! * `eta_precise`: the remaining time (like `elapsed_precise`).
 //! * `eta`: the remaining time (like `elapsed`).
+//! * `duration_precise`: the extrapolated total duration (like `elapsed_precise`).
+//! * `duration`: the extrapolated total duration time (like `elapsed`).
+
 //!
 //! The design of the progress bar can be altered with the integrated
 //! template functionality.  The template can be set by changing a
