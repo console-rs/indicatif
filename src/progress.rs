@@ -316,6 +316,14 @@ impl ProgressState {
         secs_to_duration(t * self.len.saturating_sub(self.pos) as f64 + 0.75)
     }
 
+    /// The expected total duration (that is, elapsed time + expected ETA)
+    pub fn duration(&self) -> Duration {
+        if self.len == !0 || self.is_finished() {
+            return Duration::new(0, 0);
+        }
+        self.started.elapsed() + self.eta()
+    }
+
     /// The number of steps per second
     pub fn per_sec(&self) -> u64 {
         let avg_time = self.avg_time_per_step().as_nanos();
