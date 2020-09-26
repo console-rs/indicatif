@@ -56,8 +56,10 @@ impl<S, T: Iterator<Item = S>> ProgressIterator for T {
 pub mod rayon_support {
     use super::*;
     use rayon::iter::{
-        plumbing::Consumer, plumbing::Folder, plumbing::UnindexedConsumer, ParallelIterator,
+        plumbing::Consumer, plumbing::Folder, plumbing::UnindexedConsumer, IndexedParallelIterator,
+        ParallelIterator,
     };
+    use std::convert::TryInto;
     use std::sync::{Arc, Mutex};
 
     pub struct ParProgressBarIter<T> {
@@ -82,12 +84,41 @@ pub mod rayon_support {
         }
     }
 
+    pub trait IndexedParallelProgressIterator
+    where
+        Self: Sized,
+    {
+        fn progress_with(self, progress: ProgressBar) -> ParProgressBarIter<Self>;
+
+        fn progress_count(self, len: u64) -> ParProgressBarIter<Self> {
+            self.progress_with(ProgressBar::new(len))
+        }
+
+        fn progress(self) -> ParProgressBarIter<Self> {
+            self.progress_count(0)
+        }
+    }
+
     impl<S: Send, T: ParallelIterator<Item = S>> ParallelProgressIterator for T {
         fn progress_with(self, progress: ProgressBar) -> ParProgressBarIter<Self> {
             ParProgressBarIter {
                 it: self,
                 progress: Arc::new(Mutex::new(progress)),
             }
+        }
+    }
+
+    impl<S: Send, T: IndexedParallelIterator<Item = S>> IndexedParallelProgressIterator for T {
+        fn progress_with(self, progress: ProgressBar) -> ParProgressBarIter<Self> {
+            ParProgressBarIter {
+                it: self,
+                progress: Arc::new(Mutex::new(progress)),
+            }
+        }
+
+        fn progress(self) -> ParProgressBarIter<Self> {
+            let len = self.len().try_into().unwrap();
+            IndexedParallelProgressIterator::progress_count(self, len)
         }
     }
 
