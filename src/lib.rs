@@ -198,4 +198,6 @@ pub use crate::progress::{
 pub use crate::style::ProgressStyle;
 
 #[cfg(feature = "rayon")]
-pub use iter::rayon_support::{ParProgressBarIter, ParallelProgressIterator};
+pub use iter::rayon_support::{
+    IndexedParallelProgressIterator, ParProgressBarIter, ParallelProgressIterator,
+};
