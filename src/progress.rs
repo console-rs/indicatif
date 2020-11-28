@@ -399,6 +399,24 @@ impl ProgressBar {
         self
     }
 
+    /// A convenience builder-like function for a progress bar with a given prefix.
+    pub fn with_prefix(self, prefix: &str) -> ProgressBar {
+        self.state.write().unwrap().prefix = prefix.to_string();
+        self
+    }
+
+    /// A convenience builder-like function for a progress bar with a given message.
+    pub fn with_message(self, message: &str) -> ProgressBar {
+        self.state.write().unwrap().message = message.to_string();
+        self
+    }
+
+    /// A convenience builder-like function for a progress bar with a given position.
+    pub fn with_position(self, pos: u64) -> ProgressBar {
+        self.state.write().unwrap().pos = pos;
+        self
+    }
+
     /// Creates a new spinner.
     ///
     /// This spinner by default draws directly to stderr.  This adds the
