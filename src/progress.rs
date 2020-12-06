@@ -570,10 +570,10 @@ impl ProgressBar {
     /// Note that if the progress bar is hidden (which by default happens if
     /// the progress bar is redirected into a file) println will not do
     /// anything either.
-    pub fn println<I: Into<String>>(&self, msg: I) {
+    pub fn println<I: AsRef<str>>(&self, msg: I) {
         let mut state = self.state.write().unwrap();
 
-        let mut lines: Vec<String> = msg.into().lines().map(Into::into).collect();
+        let mut lines: Vec<String> = msg.as_ref().lines().map(Into::into).collect();
         let orphan_lines = lines.len();
         if state.should_render() {
             lines.extend(state.style.format_state(&*state));
