@@ -956,6 +956,20 @@ struct MultiProgressState {
     move_cursor: bool,
 }
 
+impl MultiProgressState {
+    fn is_done(&self) -> bool {
+        if self.objects.is_empty() {
+            return true;
+        }
+        for obj in &self.objects {
+            if !obj.done {
+                return false;
+            }
+        }
+        true
+    }
+}
+
 /// Manages multiple progress bars from different threads.
 pub struct MultiProgress {
     state: RwLock<MultiProgressState>,
@@ -1078,19 +1092,6 @@ impl MultiProgress {
         self.join_impl(true)
     }
 
-    fn is_done(&self) -> bool {
-        let state = self.state.read().unwrap();
-        if state.objects.is_empty() {
-            return true;
-        }
-        for obj in &state.objects {
-            if !obj.done {
-                return false;
-            }
-        }
-        true
-    }
-
     fn join_impl(&self, clear: bool) -> io::Result<()> {
         if self.joining.load(Ordering::Acquire) {
             panic!("Already joining!");
@@ -1106,7 +1107,7 @@ impl MultiProgress {
         let mut grouped = 0usize;
         let mut orphan_lines: Vec<String> = Vec::new();
         let mut force_draw = false;
-        while !self.is_done() {
+        while !self.state.read().unwrap().is_done() {
             let (idx, draw_state) = if let Some(peeked) = recv_peek.take() {
                 peeked
             } else {
@@ -1170,8 +1171,7 @@ impl MultiProgress {
                 }
             }
 
-            // !any(!done) is also true when iter() is empty, contrary to all(done)
-            let finished = !state.objects.iter().any(|ref x| !x.done);
+            let finished = state.is_done();
             state.draw_target.apply_draw_state(ProgressDrawState {
                 lines,
                 orphan_lines: orphan_lines_count,
