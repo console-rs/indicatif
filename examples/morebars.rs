@@ -27,7 +27,6 @@ fn main() {
             pb.inc(1);
         }
         pb.finish_with_message("done");
-    });
-
-    m.join().unwrap();
+    })
+    .join();
 }

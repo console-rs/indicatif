@@ -108,9 +108,8 @@ fn main() {
             }
             thread::sleep(Duration::from_millis(15));
         }
-    });
-
-    mp.join().unwrap();
+    })
+    .join();
 
     println!("===============================");
     println!("the tree should be the same as:");
