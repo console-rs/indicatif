@@ -230,6 +230,7 @@ pub(crate) struct ProgressState {
     message: String,
     prefix: String,
     draw_delta: u64,
+    draw_rate: u64,
     draw_next: u64,
     status: Status,
     est: Estimate,
@@ -373,6 +374,7 @@ impl ProgressBar {
                 len,
                 tick: 0,
                 draw_delta: 0,
+                draw_rate: 0,
                 draw_next: 0,
                 status: Status::InProgress,
                 started: Instant::now(),
@@ -476,6 +478,27 @@ impl ProgressBar {
         let mut state = self.state.write().unwrap();
         state.draw_delta = n;
         state.draw_next = state.pos.saturating_add(state.draw_delta);
+    }
+
+    /// Sets the refresh rate of progress bar to `n` updates per seconds. Defaults to 0.
+    ///
+    /// This is similar to `set_draw_delta` but automatically adapts to a constant refresh rate
+    /// regardless of how consistent the progress is.
+    ///
+    /// This parameter takes precedence on `set_draw_delta` if different from 0.
+    ///
+    /// ```rust,no_run
+    /// # use indicatif::ProgressBar;
+    /// let n = 1_000_000;
+    /// let pb = ProgressBar::new(n);
+    /// pb.set_draw_rate(25); // aims at redrawing at most 25 times per seconds.
+    /// ```
+    ///
+    /// Note that `ProgressDrawTarget` may impose additional buffering of redraws.
+    pub fn set_draw_rate(&self, n: u64) {
+        let mut state = self.state.write().unwrap();
+        state.draw_rate = n;
+        state.draw_next = state.pos.saturating_add(state.per_sec() / n);
     }
 
     /// Manually ticks the spinner or progress bar.
@@ -770,7 +793,11 @@ impl ProgressBar {
                 state.est.record_step(new_pos);
             }
             if new_pos >= state.draw_next {
-                state.draw_next = new_pos.saturating_add(state.draw_delta);
+                state.draw_next = new_pos.saturating_add(if state.draw_rate != 0 {
+                    state.per_sec() / state.draw_rate
+                } else {
+                    state.draw_delta
+                });
                 draw = true;
             }
         }
@@ -839,7 +866,11 @@ impl Drop for ProgressState {
 
         self.status = Status::DoneHidden;
         if self.pos >= self.draw_next {
-            self.draw_next = self.pos.saturating_add(self.draw_delta);
+            self.draw_next = self.pos.saturating_add(if self.draw_rate != 0 {
+                self.per_sec() / self.draw_rate
+            } else {
+                self.draw_delta
+            });
             draw_state(self).ok();
         }
     }
