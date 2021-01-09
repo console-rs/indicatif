@@ -886,7 +886,6 @@ fn test_weak_pb() {
 
 #[derive(Debug)]
 struct MultiObject {
-    done: bool,
     draw_state: Option<ProgressDrawState>,
 }
 
@@ -902,10 +901,6 @@ impl MultiProgressState {
     fn draw(&mut self, idx: usize, draw_state: ProgressDrawState) -> io::Result<()> {
         let ts = draw_state.ts;
         let force_draw = draw_state.finished || draw_state.force_draw;
-
-        if draw_state.finished {
-            self.objects[idx].done = true;
-        }
 
         let mut orphan_lines = vec![];
 
@@ -946,7 +941,10 @@ impl MultiProgressState {
         }
 
         // !any(!done) is also true when iter() is empty, contrary to all(done)
-        let finished = !self.objects.iter().any(|ref x| !x.done);
+        let finished = !self
+            .objects
+            .iter()
+            .any(|ref x| !x.draw_state.as_ref().map(|s| s.finished).unwrap_or(false));
         self.draw_target.apply_draw_state(ProgressDrawState {
             lines,
             orphan_lines: orphan_lines_count,
@@ -1015,10 +1013,7 @@ impl MultiProgress {
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
         let object_idx = state.objects.len();
-        state.objects.push(MultiObject {
-            done: false,
-            draw_state: None,
-        });
+        state.objects.push(MultiObject { draw_state: None });
         state.ordering.push(object_idx);
         pb.set_draw_target(ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Remote(object_idx, self.state.clone()),
@@ -1037,10 +1032,7 @@ impl MultiProgress {
     pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
         let object_idx = state.objects.len();
-        state.objects.push(MultiObject {
-            done: false,
-            draw_state: None,
-        });
+        state.objects.push(MultiObject { draw_state: None });
         if index > state.ordering.len() {
             state.ordering.push(object_idx);
         } else {
