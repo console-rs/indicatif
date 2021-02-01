@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
-use std::iter::repeat;
 
 use console::{measure_text_width, Style};
 
@@ -144,34 +143,42 @@ impl ProgressStyle {
         width: usize,
         alt_style: Option<&Style>,
     ) -> String {
-        // todo: this code could really use some comments
+        // The number of clusters from progress_chars to write (rounding down).
         let width = width / state.style.char_width;
-        let pct = state.fraction();
-        let fill = pct * width as f32;
-        let fill = fill as usize;
-        let head = if pct > 0.0 && fill < width { 1 } else { 0 };
+        // The number of full clusters (including a fractional component for a partially-full one).
+        let fill = state.fraction() * width as f32;
+        // The number of entirely full clusters (by truncating `fill`).
+        let entirely_filled = fill as usize;
+        // 1 if the bar is not entirely empty or full (meaning we need to draw the "current"
+        // character between the filled and "to do" segment), 0 otherwise.
+        let head = if fill > 0.0 && entirely_filled < width {
+            1
+        } else {
+            0
+        };
 
-        let pb: String = repeat(&state.style.progress_chars[0])
-            .take(fill)
-            .map(|b| b.as_ref())
-            .collect();
+        let pb = state.style.progress_chars[0].repeat(entirely_filled);
 
         let cur = if head == 1 {
+            // Number of fine-grained progress entries in progress_chars.
             let n = state.style.progress_chars.len().saturating_sub(2);
-            let cur_char = if n == 0 {
+            let cur_char = if n <= 1 {
+                // No fine-grained entries. 1 is the single "current" entry if we have one, the "to
+                // do" entry if not.
                 1
             } else {
-                n.saturating_sub((fill * n) % n)
+                // Pick a fine-grained entry, ranging from the last one (n) if the fractional part
+                // of fill is 0 to the first one (1) if the fractional part of fill is almost 1.
+                n.saturating_sub((fill.fract() * n as f32) as usize)
             };
             state.style.progress_chars[cur_char].to_string()
         } else {
             "".into()
         };
-        let bg = width.saturating_sub(fill).saturating_sub(head);
-        let rest: String = repeat(state.style.progress_chars.last().unwrap())
-            .take(bg)
-            .map(|b| b.as_ref())
-            .collect();
+
+        // Number of entirely empty clusters needed to fill the bar up to `width`.
+        let bg = width.saturating_sub(entirely_filled).saturating_sub(head);
+        let rest = state.style.progress_chars.last().unwrap().repeat(bg);
         format!(
             "{}{}{}",
             pb,
