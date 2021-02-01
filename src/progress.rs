@@ -1044,6 +1044,7 @@ impl MultiProgress {
         let mut recv_peek = None;
         let mut grouped = 0usize;
         let mut orphan_lines: Vec<String> = Vec::new();
+        let mut force_draw = false;
         while !self.is_done() {
             let (idx, draw_state) = if let Some(peeked) = recv_peek.take() {
                 peeked
@@ -1051,7 +1052,7 @@ impl MultiProgress {
                 self.rx.recv().unwrap()
             };
             let ts = draw_state.ts;
-            let force_draw = draw_state.finished || draw_state.force_draw;
+            force_draw |= draw_state.finished || draw_state.force_draw;
 
             let mut state = self.state.write().unwrap();
             if draw_state.finished {
@@ -1118,6 +1119,8 @@ impl MultiProgress {
                 finished,
                 ts,
             })?;
+
+            force_draw = false;
         }
 
         if clear {
