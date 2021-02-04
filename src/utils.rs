@@ -111,7 +111,7 @@ impl<'a> TemplateVar<'a> {
 
 pub fn expand_template<F: Fn(&TemplateVar<'_>) -> String>(s: &str, f: F) -> Cow<'_, str> {
     lazy_static::lazy_static! {
-        static ref VAR_RE: Regex = Regex::new(r"(\}\})|\{(\{|[^}]+\})").unwrap();
+        static ref VAR_RE: Regex = Regex::new(r"(\}\})|\{(\{|[^{}}]+\})").unwrap();
         static ref KEY_RE: Regex = Regex::new(
             r"(?x)
                 ([^:]+)
@@ -212,6 +212,8 @@ pub fn pad_str(s: &str, width: usize, align: Alignment, truncate: bool) -> Cow<'
 fn test_expand_template() {
     let rv = expand_template("{{ {foo} {bar} }}", |var| var.key.to_uppercase());
     assert_eq!(&rv, "{ FOO BAR }");
+    let rv = expand_template(r#"{ "foo": "{foo}", "bar": {bar} }"#, |var| var.key.to_uppercase());
+    assert_eq!(&rv, r#"{ "foo": "FOO", "bar": BAR }"#);
 }
 
 #[test]
