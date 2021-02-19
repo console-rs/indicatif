@@ -1,4 +1,5 @@
 use crate::progress::ProgressBar;
+use std::borrow::Borrow;
 
 /// Wraps an iterator to display its progress.
 pub trait ProgressIterator
@@ -7,7 +8,7 @@ where
 {
     /// Wrap an iterator with default styling. Attempt to guess iterator
     /// length using `Iterator::size_hint`.
-    fn progress(self) -> ProgressBarIter<Self> {
+    fn progress(self) -> ProgressBarIter<Self, ProgressBar> {
         let n = match self.size_hint() {
             (_, Some(n)) => n as u64,
             _ => 0,
@@ -16,30 +17,30 @@ where
     }
 
     /// Wrap an iterator with an explicit element count.
-    fn progress_count(self, len: u64) -> ProgressBarIter<Self> {
+    fn progress_count(self, len: u64) -> ProgressBarIter<Self, ProgressBar> {
         self.progress_with(ProgressBar::new(len))
     }
 
     /// Wrap an iterator with a custom progress bar.
-    fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self>;
+    fn progress_with<P: Borrow<ProgressBar>>(self, progress: P) -> ProgressBarIter<Self, P>;
 }
 
 /// Wraps an iterator to display its progress.
-pub struct ProgressBarIter<T> {
+pub struct ProgressBarIter<T, P: Borrow<ProgressBar>> {
     it: T,
-    pub progress: ProgressBar,
+    pub progress: P,
 }
 
-impl<S, T: Iterator<Item = S>> Iterator for ProgressBarIter<T> {
+impl<S, T: Iterator<Item = S>, P: Borrow<ProgressBar>> Iterator for ProgressBarIter<T, P> {
     type Item = S;
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.it.next();
 
         if next.is_some() {
-            self.progress.inc(1);
+            self.progress.borrow().inc(1);
         } else {
-            self.progress.finish();
+            self.progress.borrow().finish();
         }
 
         next
@@ -47,7 +48,7 @@ impl<S, T: Iterator<Item = S>> Iterator for ProgressBarIter<T> {
 }
 
 impl<S, T: Iterator<Item = S>> ProgressIterator for T {
-    fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self> {
+    fn progress_with<P: Borrow<ProgressBar>>(self, progress: P) -> ProgressBarIter<Self, P> {
         ProgressBarIter { it: self, progress }
     }
 }
@@ -234,7 +235,7 @@ mod test {
     #[test]
     fn it_can_wrap_an_iterator() {
         let v = vec![1, 2, 3];
-        let wrap = |it: ProgressBarIter<_>| {
+        let wrap = |it: ProgressBarIter<_,_>| {
             assert_eq!(it.map(|x| x * 2).collect::<Vec<_>>(), vec![2, 4, 6]);
         };
 
@@ -244,5 +245,11 @@ mod test {
             let pb = ProgressBar::new(v.len() as u64);
             v.iter().progress_with(pb)
         });
+        let pb = ProgressBar::new(v.len() as u64);
+        let it = v.iter().progress_with(&pb);
+        assert_eq!(it.map(|x| x * 2).collect::<Vec<_>>(), vec![2, 4, 6]);
+        let pb = Box::new(ProgressBar::new(v.len() as u64));
+        let it = v.iter().progress_with(pb);
+        assert_eq!(it.map(|x| x * 2).collect::<Vec<_>>(), vec![2, 4, 6]);
     }
 }
