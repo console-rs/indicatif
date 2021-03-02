@@ -36,7 +36,11 @@ enum Status {
 
 enum ProgressDrawTargetKind {
     Term(Term, Option<ProgressDrawState>, Option<Duration>),
-    Remote(usize, Mutex<Sender<(usize, ProgressDrawState)>>),
+    Remote(
+        Arc<RwLock<MultiProgressState>>,
+        usize,
+        Mutex<Sender<(usize, ProgressDrawState)>>,
+    ),
     Hidden,
 }
 
@@ -136,6 +140,18 @@ impl ProgressDrawTarget {
         }
     }
 
+    /// Returns the current width of the draw target.
+    fn width(&self) -> usize {
+        match self.kind {
+            ProgressDrawTargetKind::Term(ref term, ..) => term.size().1 as usize,
+            ProgressDrawTargetKind::Remote(ref state, ..) => state.read().unwrap().width(),
+            ProgressDrawTargetKind::Hidden => {
+                // TODO: Expose `console::term::DEFAULT_WIDTH`?
+                79
+            }
+        }
+    }
+
     /// Apply the given draw state (draws it).
     fn apply_draw_state(&mut self, draw_state: ProgressDrawState) -> io::Result<()> {
         // no need to apply anything to hidden draw targets.
@@ -163,7 +179,7 @@ impl ProgressDrawTarget {
                     *last_state = Some(draw_state);
                 }
             }
-            ProgressDrawTargetKind::Remote(idx, ref chan) => {
+            ProgressDrawTargetKind::Remote(_, idx, ref chan) => {
                 return chan
                     .lock()
                     .unwrap()
@@ -179,7 +195,7 @@ impl ProgressDrawTarget {
     fn disconnect(&self) {
         match self.kind {
             ProgressDrawTargetKind::Term(_, _, _) => {}
-            ProgressDrawTargetKind::Remote(idx, ref chan) => {
+            ProgressDrawTargetKind::Remote(_, idx, ref chan) => {
                 chan.lock()
                     .unwrap()
                     .send((
@@ -296,7 +312,7 @@ impl ProgressState {
         if let Some(width) = self.width {
             width as usize
         } else {
-            Term::stderr().size().1 as usize
+            self.draw_target.width()
         }
     }
 
@@ -957,6 +973,10 @@ struct MultiProgressState {
 }
 
 impl MultiProgressState {
+    fn width(&self) -> usize {
+        self.draw_target.width()
+    }
+
     fn is_done(&self) -> bool {
         if self.objects.is_empty() {
             return true;
@@ -972,7 +992,7 @@ impl MultiProgressState {
 
 /// Manages multiple progress bars from different threads.
 pub struct MultiProgress {
-    state: RwLock<MultiProgressState>,
+    state: Arc<RwLock<MultiProgressState>>,
     joining: AtomicBool,
     tx: Sender<(usize, ProgressDrawState)>,
     rx: Receiver<(usize, ProgressDrawState)>,
@@ -1006,12 +1026,12 @@ impl MultiProgress {
     pub fn with_draw_target(draw_target: ProgressDrawTarget) -> MultiProgress {
         let (tx, rx) = channel();
         MultiProgress {
-            state: RwLock::new(MultiProgressState {
+            state: Arc::new(RwLock::new(MultiProgressState {
                 objects: vec![],
                 ordering: vec![],
                 draw_target,
                 move_cursor: false,
-            }),
+            })),
             joining: AtomicBool::new(false),
             tx,
             rx,
@@ -1047,7 +1067,11 @@ impl MultiProgress {
         });
         state.ordering.push(object_idx);
         pb.set_draw_target(ProgressDrawTarget {
-            kind: ProgressDrawTargetKind::Remote(object_idx, Mutex::new(self.tx.clone())),
+            kind: ProgressDrawTargetKind::Remote(
+                self.state.clone(),
+                object_idx,
+                Mutex::new(self.tx.clone()),
+            ),
         });
         pb
     }
@@ -1073,7 +1097,11 @@ impl MultiProgress {
             state.ordering.insert(index, object_idx);
         }
         pb.set_draw_target(ProgressDrawTarget {
-            kind: ProgressDrawTargetKind::Remote(object_idx, Mutex::new(self.tx.clone())),
+            kind: ProgressDrawTargetKind::Remote(
+                self.state.clone(),
+                object_idx,
+                Mutex::new(self.tx.clone()),
+            ),
         });
         pb
     }
