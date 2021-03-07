@@ -1268,6 +1268,17 @@ impl<R: io::Read> io::Read for ProgressBarWrap<R> {
     }
 }
 
+impl<R: io::BufRead> io::BufRead for ProgressBarWrap<R> {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        self.wrap.fill_buf()
+    }
+
+    fn consume(&mut self, amt: usize) {
+        self.wrap.consume(amt);
+        self.bar.inc(amt as u64);
+    }
+}
+
 impl<S: io::Seek> io::Seek for ProgressBarWrap<S> {
     fn seek(&mut self, f: io::SeekFrom) -> io::Result<u64> {
         self.wrap.seek(f).map(|pos| {
