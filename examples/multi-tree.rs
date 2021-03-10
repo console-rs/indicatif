@@ -1,11 +1,11 @@
+use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
 use std::fmt::Debug;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use console::style;
 
 #[derive(Clone, Debug)]
 struct Rng(u64);
@@ -60,28 +60,118 @@ static ELEM_IDX: AtomicUsize = AtomicUsize::new(0);
 
 lazy_static! {
     static ref ELEMENTS: [Elem; 27] = [
-        Elem::AddItem(Item { indent: 8, index: 0, progress_bar: ProgressBar::new(PB_LEN), key: "dog".to_string() }),
-        Elem::AddItem(Item { indent: 3, index: 0, progress_bar: ProgressBar::new(PB_LEN), key: "temp_1".to_string() }),
-        Elem::AddItem(Item { indent: 7, index: 1, progress_bar: ProgressBar::new(PB_LEN), key: "lazy".to_string() }),
-        Elem::AddItem(Item { indent: 3, index: 1, progress_bar: ProgressBar::new(PB_LEN), key: "temp_2".to_string() }),
-        Elem::AddItem(Item { indent: 0, index: 0, progress_bar: ProgressBar::new(PB_LEN), key: "the".to_string() }),
-        Elem::AddItem(Item { indent: 3, index: 0, progress_bar: ProgressBar::new(PB_LEN), key: "temp_3".to_string() }),
-        Elem::AddItem(Item { indent: 6, index: 3, progress_bar: ProgressBar::new(PB_LEN), key: "a".to_string() }),
-        Elem::AddItem(Item { indent: 3, index: 3, progress_bar: ProgressBar::new(PB_LEN), key: "temp_4".to_string() }),
-        Elem::AddItem(Item { indent: 5, index: 2, progress_bar: ProgressBar::new(PB_LEN), key: "over".to_string() }),
+        Elem::AddItem(Item {
+            indent: 8,
+            index: 0,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "dog".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 3,
+            index: 0,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "temp_1".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 7,
+            index: 1,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "lazy".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 3,
+            index: 1,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "temp_2".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 0,
+            index: 0,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "the".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 3,
+            index: 0,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "temp_3".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 6,
+            index: 3,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "a".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 3,
+            index: 3,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "temp_4".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 5,
+            index: 2,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "over".to_string()
+        }),
         Elem::RemoveItem(Index(6)),
         Elem::RemoveItem(Index(4)),
         Elem::RemoveItem(Index(3)),
         Elem::RemoveItem(Index(0)),
-        Elem::AddItem(Item { indent: 3, index: 2, progress_bar: ProgressBar::new(PB_LEN), key: "temp_5".to_string() }),
-        Elem::AddItem(Item { indent: 3, index: 1, progress_bar: ProgressBar::new(PB_LEN), key: "fox".to_string() }),
-        Elem::AddItem(Item { indent: 3, index: 1, progress_bar: ProgressBar::new(PB_LEN), key: "temp_6".to_string() }),
-        Elem::AddItem(Item { indent: 1, index: 1, progress_bar: ProgressBar::new(PB_LEN), key: "quick".to_string() }),
-        Elem::AddItem(Item { indent: 3, index: 1, progress_bar: ProgressBar::new(PB_LEN), key: "temp_7".to_string() }),
-        Elem::AddItem(Item { indent: 4, index: 5, progress_bar: ProgressBar::new(PB_LEN), key: "jumps".to_string() }),
-        Elem::AddItem(Item { indent: 3, index: 5, progress_bar: ProgressBar::new(PB_LEN), key: "temp_8".to_string() }),
-        Elem::AddItem(Item { indent: 2, index: 4, progress_bar: ProgressBar::new(PB_LEN), key: "brown".to_string() }),
-        Elem::AddItem(Item { indent: 3, index: 3, progress_bar: ProgressBar::new(PB_LEN), key: "temp_9".to_string() }),
+        Elem::AddItem(Item {
+            indent: 3,
+            index: 2,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "temp_5".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 3,
+            index: 1,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "fox".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 3,
+            index: 1,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "temp_6".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 1,
+            index: 1,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "quick".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 3,
+            index: 1,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "temp_7".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 4,
+            index: 5,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "jumps".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 3,
+            index: 5,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "temp_8".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 2,
+            index: 4,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "brown".to_string()
+        }),
+        Elem::AddItem(Item {
+            indent: 3,
+            index: 3,
+            progress_bar: ProgressBar::new(PB_LEN),
+            key: "temp_9".to_string()
+        }),
         Elem::RemoveItem(Index(10)),
         Elem::RemoveItem(Index(7)),
         Elem::RemoveItem(Index(4)),
@@ -93,7 +183,8 @@ lazy_static! {
 pub fn main() {
     let mp = Arc::new(MultiProgress::new());
     let sty_main = ProgressStyle::default_bar().template("{bar:40.green/yellow} {pos:>4}/{len:4}");
-    let sty_aux = ProgressStyle::default_bar().template("[{pos:>2}/{len:2}] {prefix}{spinner:.green} {msg}");
+    let sty_aux =
+        ProgressStyle::default_bar().template("[{pos:>2}/{len:2}] {prefix}{spinner:.green} {msg}");
     let sty_fin = ProgressStyle::default_bar().template("[{pos:>2}/{len:2}] {prefix}{msg}");
 
     let pb_main = mp.add(ProgressBar::new(
@@ -148,7 +239,11 @@ pub fn main() {
                     let len = item.progress_bar.length();
                     if pos >= len {
                         item.progress_bar.set_style(sty_fin.clone());
-                        item.progress_bar.finish_with_message(&format!("{} {}", style("✔").green(), item.key));
+                        item.progress_bar.finish_with_message(&format!(
+                            "{} {}",
+                            style("✔").green(),
+                            item.key
+                        ));
                     }
                     pb_main.inc(1);
                 }
