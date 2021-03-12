@@ -72,7 +72,7 @@ pub fn main() {
     );
     let m = MultiProgress::new();
     for i in 0..4 {
-        let count = rng.gen_range(30, 80);
+        let count = rng.gen_range(30..80);
         let pb = m.add(ProgressBar::new(count));
         pb.set_style(spinner_style.clone());
         pb.set_prefix(&format!("[{}/?]", i + 1));
@@ -83,7 +83,7 @@ pub fn main() {
                 let cmd = COMMANDS.choose(&mut rng).unwrap();
                 pb.set_message(&format!("{}: {}", pkg, cmd));
                 pb.inc(1);
-                thread::sleep(Duration::from_millis(rng.gen_range(25, 200)));
+                thread::sleep(Duration::from_millis(rng.gen_range(25..200)));
             }
             pb.finish_with_message("waiting...");
         });

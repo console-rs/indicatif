@@ -71,9 +71,9 @@ fn main() {
                     thread::sleep(Duration::from_millis(
                         // last compile and linking is always slow, let's mimic that
                         if CRATES[CRATES.len() - 1] == *krate {
-                            rng.gen_range(1000, 2000)
+                            rng.gen_range(1000..2000)
                         } else {
-                            rng.gen_range(50, 300)
+                            rng.gen_range(50..300)
                         },
                     ));
                 } else {

@@ -9,7 +9,7 @@ fn main() {
     let pb = ProgressBar::new(steps);
 
     // Stream of events, triggering every 5ms.
-    let mut rt = runtime::Builder::new()
+    let rt = runtime::Builder::new_current_thread()
         .enable_time()
         .build()
         .expect("failed to create runtime");
