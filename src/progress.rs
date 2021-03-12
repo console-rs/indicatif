@@ -254,7 +254,6 @@ pub(crate) struct ProgressState {
     pub(crate) tick: u64,
     pub(crate) started: Instant,
     draw_target: ProgressDrawTarget,
-    width: Option<u16>,
     message: String,
     prefix: String,
     draw_delta: u64,
@@ -319,11 +318,7 @@ impl ProgressState {
 
     /// The entire draw width
     pub fn width(&self) -> usize {
-        if let Some(width) = self.width {
-            width as usize
-        } else {
-            self.draw_target.width()
-        }
+        self.draw_target.width()
     }
 
     /// Return the current average time per step
@@ -400,7 +395,6 @@ impl ProgressBar {
             state: Arc::new(RwLock::new(ProgressState {
                 style: ProgressStyle::default_bar(),
                 draw_target: target,
-                width: None,
                 message: "".into(),
                 prefix: "".into(),
                 pos: 0,
