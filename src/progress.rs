@@ -154,10 +154,7 @@ impl ProgressDrawTarget {
         match self.kind {
             ProgressDrawTargetKind::Term { ref term, .. } => term.size().1 as usize,
             ProgressDrawTargetKind::Remote { ref state, .. } => state.read().unwrap().width(),
-            ProgressDrawTargetKind::Hidden => {
-                // TODO: Expose `console::term::DEFAULT_WIDTH`?
-                79
-            }
+            ProgressDrawTargetKind::Hidden => 0,
         }
     }
 
