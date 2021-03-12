@@ -23,7 +23,7 @@ fn main() {
                 .progress_chars(s.1),
         );
         pb.set_prefix(s.0);
-        let wait = Duration::from_millis(thread_rng().gen_range(10, 30));
+        let wait = Duration::from_millis(thread_rng().gen_range(10..30));
         thread::spawn(move || {
             for i in 0..512 {
                 pb.inc(1);
