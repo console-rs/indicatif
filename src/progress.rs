@@ -359,7 +359,7 @@ impl ProgressState {
 /// shared with the original one.
 #[derive(Clone)]
 pub struct ProgressBar {
-    state: Arc<RwLock<ProgressState>>,
+    state: Arc<Mutex<ProgressState>>,
 }
 
 impl fmt::Debug for ProgressBar {
@@ -389,7 +389,7 @@ impl ProgressBar {
     /// Creates a new progress bar with a given length and draw target.
     pub fn with_draw_target(len: u64, target: ProgressDrawTarget) -> ProgressBar {
         ProgressBar {
-            state: Arc::new(RwLock::new(ProgressState {
+            state: Arc::new(Mutex::new(ProgressState {
                 style: ProgressStyle::default_bar(),
                 draw_target: target,
                 message: "".into(),
@@ -411,25 +411,25 @@ impl ProgressBar {
 
     /// A convenience builder-like function for a progress bar with a given style.
     pub fn with_style(self, style: ProgressStyle) -> ProgressBar {
-        self.state.write().unwrap().style = style;
+        self.state.lock().unwrap().style = style;
         self
     }
 
     /// A convenience builder-like function for a progress bar with a given prefix.
     pub fn with_prefix(self, prefix: &str) -> ProgressBar {
-        self.state.write().unwrap().prefix = prefix.to_string();
+        self.state.lock().unwrap().prefix = prefix.to_string();
         self
     }
 
     /// A convenience builder-like function for a progress bar with a given message.
     pub fn with_message(self, message: &str) -> ProgressBar {
-        self.state.write().unwrap().message = message.to_string();
+        self.state.lock().unwrap().message = message.to_string();
         self
     }
 
     /// A convenience builder-like function for a progress bar with a given position.
     pub fn with_position(self, pos: u64) -> ProgressBar {
-        self.state.write().unwrap().pos = pos;
+        self.state.lock().unwrap().pos = pos;
         self
     }
 
@@ -447,7 +447,7 @@ impl ProgressBar {
     ///
     /// This does not redraw the bar.  Call `tick` to force it.
     pub fn set_style(&self, style: ProgressStyle) {
-        self.state.write().unwrap().style = style;
+        self.state.lock().unwrap().style = style;
     }
 
     /// Spawns a background thread to tick the progress bar.
@@ -459,7 +459,7 @@ impl ProgressBar {
     /// When steady ticks are enabled calling `.tick()` on a progress
     /// bar does not do anything.
     pub fn enable_steady_tick(&self, ms: u64) {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.lock().unwrap();
         state.steady_tick = ms;
         if state.tick_thread.is_some() {
             return;
@@ -474,11 +474,11 @@ impl ProgressBar {
         self.tick();
     }
 
-    fn steady_tick(state_arc: Weak<RwLock<ProgressState>>, mut ms: u64) {
+    fn steady_tick(state_arc: Weak<Mutex<ProgressState>>, mut ms: u64) {
         loop {
             thread::sleep(Duration::from_millis(ms));
             if let Some(state_arc) = state_arc.upgrade() {
-                let mut state = state_arc.write().unwrap();
+                let mut state = state_arc.lock().unwrap();
                 if state.is_finished() || state.steady_tick == 0 {
                     state.steady_tick = 0;
                     state.tick_thread = None;
@@ -522,7 +522,7 @@ impl ProgressBar {
     ///
     /// Note that `ProgressDrawTarget` may impose additional buffering of redraws.
     pub fn set_draw_delta(&self, n: u64) {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.lock().unwrap();
         state.draw_delta = n;
         state.draw_next = state.pos.saturating_add(state.draw_delta);
     }
@@ -543,7 +543,7 @@ impl ProgressBar {
     ///
     /// Note that `ProgressDrawTarget` may impose additional buffering of redraws.
     pub fn set_draw_rate(&self, n: u64) {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.lock().unwrap();
         state.draw_rate = n;
         state.draw_next = state.pos.saturating_add(state.per_sec() / n);
     }
@@ -571,12 +571,12 @@ impl ProgressBar {
 
     /// A quick convenience check if the progress bar is hidden.
     pub fn is_hidden(&self) -> bool {
-        self.state.read().unwrap().draw_target.is_hidden()
+        self.state.lock().unwrap().draw_target.is_hidden()
     }
 
     /// Indicates that the progress bar finished.
     pub fn is_finished(&self) -> bool {
-        self.state.read().unwrap().is_finished()
+        self.state.lock().unwrap().is_finished()
     }
 
     /// Print a log line above the progress bar.
@@ -588,7 +588,7 @@ impl ProgressBar {
     /// the progress bar is redirected into a file) println will not do
     /// anything either.
     pub fn println<I: AsRef<str>>(&self, msg: I) {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.lock().unwrap();
 
         let mut lines: Vec<String> = msg.as_ref().lines().map(Into::into).collect();
         let orphan_lines = lines.len();
@@ -764,7 +764,7 @@ impl ProgressBar {
     /// pb.set_draw_target(ProgressDrawTarget::stderr());
     /// ```
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.lock().unwrap();
         state.draw_target.disconnect();
         state.draw_target = target;
     }
@@ -831,7 +831,7 @@ impl ProgressBar {
     fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, f: F) {
         let mut draw = false;
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.lock().unwrap();
             let old_pos = state.pos;
             f(&mut state);
             let new_pos = state.pos;
@@ -853,15 +853,15 @@ impl ProgressBar {
     }
 
     fn draw(&self) -> io::Result<()> {
-        draw_state(&mut self.state.write().unwrap())
+        draw_state(&mut self.state.lock().unwrap())
     }
 
     pub fn position(&self) -> u64 {
-        self.state.read().unwrap().pos
+        self.state.lock().unwrap().pos
     }
 
     pub fn length(&self) -> u64 {
-        self.state.read().unwrap().len
+        self.state.lock().unwrap().len
     }
 }
 
@@ -890,7 +890,7 @@ fn draw_state(state: &mut ProgressState) -> io::Result<()> {
 /// Useful for creating custom steady tick implementations
 #[derive(Clone)]
 pub struct WeakProgressBar {
-    state: Weak<RwLock<ProgressState>>,
+    state: Weak<Mutex<ProgressState>>,
 }
 
 impl WeakProgressBar {
@@ -918,14 +918,14 @@ impl Drop for ProgressState {
 #[test]
 fn test_pbar_zero() {
     let pb = ProgressBar::new(0);
-    assert_eq!(pb.state.read().unwrap().fraction(), 1.0);
+    assert_eq!(pb.state.lock().unwrap().fraction(), 1.0);
 }
 
 #[allow(clippy::float_cmp)]
 #[test]
 fn test_pbar_maxu64() {
     let pb = ProgressBar::new(!0);
-    assert_eq!(pb.state.read().unwrap().fraction(), 0.0);
+    assert_eq!(pb.state.lock().unwrap().fraction(), 0.0);
 }
 
 #[test]
