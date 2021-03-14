@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use console::{measure_text_width, Style};
 
 use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
@@ -14,7 +12,7 @@ use unicode_segmentation::UnicodeSegmentation;
 pub struct ProgressStyle {
     tick_strings: Vec<Box<str>>,
     progress_chars: Vec<Box<str>>,
-    template: Cow<'static, str>,
+    template: Box<str>,
     // how unicode-big each char in progress_chars is
     char_width: usize,
 }
@@ -68,7 +66,7 @@ impl ProgressStyle {
                 .collect(),
             progress_chars,
             char_width,
-            template: Cow::Borrowed("{wide_bar} {pos}/{len}"),
+            template: "{wide_bar} {pos}/{len}".into(),
         }
     }
 
@@ -83,7 +81,7 @@ impl ProgressStyle {
                 .collect(),
             progress_chars,
             char_width,
-            template: Cow::Borrowed("{spinner} {msg}"),
+            template: "{spinner} {msg}".into(),
         }
     }
 
@@ -112,7 +110,7 @@ impl ProgressStyle {
     ///
     /// List of keys is available at crate root docs.
     pub fn template(mut self, s: &str) -> ProgressStyle {
-        self.template = Cow::Owned(s.into());
+        self.template = s.into();
         self
     }
 
