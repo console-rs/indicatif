@@ -135,7 +135,15 @@ impl ProgressDrawTarget {
     pub fn is_hidden(&self) -> bool {
         match self.kind {
             ProgressDrawTargetKind::Hidden => true,
-            ProgressDrawTargetKind::Term(ref term, ..) => !term.is_term(),
+            ProgressDrawTargetKind::Term(ref term, ..) => {
+                // This deprecation was reversed but the new version isn't yet released. However
+                // even when the new version is released this should probably be allowed until
+                // we stop depending (in Cargo.toml) on the version with deprecation
+                // See <https://github.com/mitsuhiko/console/issues/86> and
+                // <https://github.com/mitsuhiko/console/issues/94>
+                #[allow(deprecated)]
+                !term.is_term()
+            },
             _ => false,
         }
     }
