@@ -263,7 +263,6 @@ pub(crate) struct ProgressState {
     pub(crate) style: ProgressStyle,
     pub(crate) pos: u64,
     pub(crate) len: u64,
-    pub(crate) tick: u64,
     pub(crate) started: Instant,
     draw_target: ProgressDrawTarget,
     message: String,
@@ -284,7 +283,7 @@ impl ProgressState {
         if self.is_finished() {
             self.style.get_final_tick_str()
         } else {
-            self.style.get_tick_str(self.tick)
+            self.style.current_tick_str()
         }
     }
 
@@ -411,7 +410,6 @@ impl ProgressBar {
                 prefix: "".into(),
                 pos: 0,
                 len,
-                tick: 0,
                 draw_delta: 0,
                 draw_rate: 0,
                 draw_next: 0,
@@ -499,9 +497,6 @@ impl ProgressBar {
                     state.tick_thread = None;
                     break;
                 }
-                if state.tick != 0 {
-                    state.tick = state.tick.saturating_add(1);
-                }
                 ms = state.steady_tick;
 
                 draw_state(&mut state).ok();
@@ -567,20 +562,14 @@ impl ProgressBar {
     ///
     /// This automatically happens on any other change to a progress bar.
     pub fn tick(&self) {
-        self.update_and_draw(|state| {
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
-        });
+        // Underlying draw call will update the spinner when formatting
+        self.update_and_draw(|_| {})
     }
 
     /// Advances the position of a progress bar by delta.
     pub fn inc(&self, delta: u64) {
         self.update_and_draw(|state| {
             state.pos = state.pos.saturating_add(delta);
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
         })
     }
 
@@ -627,9 +616,6 @@ impl ProgressBar {
         self.update_and_draw(|state| {
             state.draw_next = pos;
             state.pos = pos;
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
         })
     }
 
@@ -655,9 +641,6 @@ impl ProgressBar {
         let prefix = prefix.to_string();
         self.update_and_draw(|state| {
             state.prefix = prefix;
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
         })
     }
 
@@ -669,9 +652,6 @@ impl ProgressBar {
         let msg = msg.to_string();
         self.update_and_draw(|state| {
             state.message = msg;
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
         })
     }
 

@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::cell::Cell;
 
 use console::{measure_text_width, Style};
 
@@ -13,6 +14,7 @@ use unicode_segmentation::UnicodeSegmentation;
 #[derive(Clone, Debug)]
 pub struct ProgressStyle {
     tick_strings: Vec<Box<str>>,
+    tick: Cell<u8>,
     progress_chars: Vec<Box<str>>,
     template: Cow<'static, str>,
     // how unicode-big each char in progress_chars is
@@ -66,6 +68,7 @@ impl ProgressStyle {
                 .chars()
                 .map(|c| c.to_string().into())
                 .collect(),
+            tick: Cell::new(0),
             progress_chars,
             char_width,
             template: Cow::Borrowed("{wide_bar} {pos}/{len}"),
@@ -81,6 +84,7 @@ impl ProgressStyle {
                 .chars()
                 .map(|c| c.to_string().into())
                 .collect(),
+            tick: Cell::new(0),
             progress_chars,
             char_width,
             template: Cow::Borrowed("{spinner} {msg}"),
@@ -90,12 +94,22 @@ impl ProgressStyle {
     /// Sets the tick character sequence for spinners.
     pub fn tick_chars(mut self, s: &str) -> ProgressStyle {
         self.tick_strings = s.chars().map(|c| c.to_string().into()).collect();
+        assert!(
+            self.tick_strings.len() < u8::MAX as usize,
+            "at most {} tick chars are allowed",
+            u8::MAX
+        );
         self
     }
 
     /// Sets the tick string sequence for spinners.
     pub fn tick_strings(mut self, s: &[&str]) -> ProgressStyle {
         self.tick_strings = s.iter().map(|s| s.to_string().into()).collect();
+        assert!(
+            self.tick_strings.len() < u8::MAX as usize,
+            "at most {} tick chars are allowed",
+            u8::MAX
+        );
         self
     }
 
@@ -125,6 +139,10 @@ impl ProgressStyle {
     /// Returns the tick string for a given number.
     pub fn get_tick_str(&self, idx: u64) -> &str {
         &self.tick_strings[(idx as usize) % (self.tick_strings.len() - 1)]
+    }
+
+    pub fn current_tick_str(&self) -> &str {
+        self.get_tick_str(u64::from(self.tick.get()))
     }
 
     /// Returns the tick char for the finished state.
@@ -201,7 +219,12 @@ impl ProgressStyle {
                     "\x00".into()
                 }
                 "bar" => self.format_bar(state, var.width.unwrap_or(20), var.alt_style.as_ref()),
-                "spinner" => state.current_tick_str().to_string(),
+                "spinner" => {
+                    let s = state.current_tick_str().to_string();
+                    let val = state.style.tick.get().wrapping_add(1);
+                    state.style.tick.replace(val);
+                    s
+                }
                 "wide_msg" => {
                     wide_element = Some(var.duplicate_for_key("msg"));
                     "\x00".into()
