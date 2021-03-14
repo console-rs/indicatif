@@ -1,33 +1,10 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
+use rand::{rngs::ThreadRng, Rng, RngCore};
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
-#[derive(Clone, Debug)]
-struct Rng(u64);
-
-impl Rng {
-    fn new() -> Self {
-        let start = SystemTime::now();
-        let since_the_epoch = start
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_secs();
-        Self(since_the_epoch)
-    }
-
-    fn gen_range(&mut self, n: u64) -> u64 {
-        let mut state = self.0;
-        state ^= state >> 12;
-        state ^= state << 25;
-        state ^= state >> 27;
-        state = state.wrapping_mul(2685821657736338717u64);
-        self.0 = state;
-        state % n
-    }
-}
+use std::time::Duration;
 
 #[derive(Debug, Clone)]
 enum Action {
@@ -75,7 +52,7 @@ fn main() {
 
     let mp2 = Arc::clone(&mp);
     let _ = thread::spawn(move || {
-        let mut rng = Rng::new();
+        let mut rng = ThreadRng::default();
         pb_main.tick();
         loop {
             match get_action(&mut rng, &tree) {
@@ -119,7 +96,7 @@ fn main() {
     }
 }
 
-fn get_action<'a>(rng: &'a mut Rng, tree: &Mutex<Vec<&Elem>>) -> Option<Action> {
+fn get_action<'a>(rng: &'a mut dyn RngCore, tree: &Mutex<Vec<&Elem>>) -> Option<Action> {
     let elem_len = ELEMENTS.len() as u64;
     let list_len = tree.lock().unwrap().len() as u64;
     let sum_free = tree
@@ -141,7 +118,7 @@ fn get_action<'a>(rng: &'a mut Rng, tree: &Mutex<Vec<&Elem>>) -> Option<Action> 
     } else {
         loop {
             let list = tree.lock().unwrap();
-            let k = rng.gen_range(17);
+            let k = rng.gen_range(0..17);
             if k == 0 && list_len < elem_len {
                 return Some(Action::AddProgressBar(list.len()));
             } else {
