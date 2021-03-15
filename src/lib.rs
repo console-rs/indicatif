@@ -207,6 +207,8 @@
 mod format;
 mod iter;
 mod progress;
+#[cfg(feature = "rayon")]
+mod rayon;
 mod style;
 mod utils;
 
@@ -216,6 +218,6 @@ pub use crate::progress::{MultiProgress, ProgressBar, ProgressDrawTarget, WeakPr
 pub use crate::style::ProgressStyle;
 
 #[cfg(feature = "rayon")]
-pub use iter::rayon_support::{
+pub use crate::rayon::{
     IndexedParallelProgressIterator, ParProgressBarIter, ParallelProgressIterator,
 };
