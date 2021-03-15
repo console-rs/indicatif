@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use console::{style, Emoji};
 use indicatif::{HumanDuration, MultiProgress, ProgressBar, ProgressStyle};
 
-static PACKAGES: &'static [&'static str] = &[
+static PACKAGES: &[&str] = &[
     "fs-events",
     "my-awesome-module",
     "emoji-speaker",
@@ -17,7 +17,7 @@ static PACKAGES: &'static [&'static str] = &[
     "acorn-dynamic-import",
 ];
 
-static COMMANDS: &'static [&'static str] = &[
+static COMMANDS: &[&str] = &[
     "cmake .",
     "make",
     "make clean",

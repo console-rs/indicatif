@@ -6,7 +6,7 @@ use console::Term;
 use indicatif::{ProgressBar, ProgressStyle};
 use rand::Rng;
 
-static CRATES: &'static [&'static str] = &[
+static CRATES: &[&str] = &[
     "console",
     "lazy_static",
     "libc",
