@@ -22,15 +22,60 @@ struct Elem {
 
 lazy_static! {
     static ref ELEMENTS: [Elem; 9] = [
-        Elem { indent: 1, index: 0, progress_bar: ProgressBar::new(32), key: "jumps".to_string() },
-        Elem { indent: 2, index: 1, progress_bar: ProgressBar::new(32), key: "lazy".to_string() },
-        Elem { indent: 0, index: 0, progress_bar: ProgressBar::new(32), key: "the".to_string() },
-        Elem { indent: 3, index: 3, progress_bar: ProgressBar::new(32), key: "dog".to_string() },
-        Elem { indent: 2, index: 2, progress_bar: ProgressBar::new(32), key: "over".to_string() },
-        Elem { indent: 2, index: 1, progress_bar: ProgressBar::new(32), key: "brown".to_string() },
-        Elem { indent: 1, index: 1, progress_bar: ProgressBar::new(32), key: "quick".to_string() },
-        Elem { indent: 3, index: 5, progress_bar: ProgressBar::new(32), key: "a".to_string() },
-        Elem { indent: 3, index: 3, progress_bar: ProgressBar::new(32), key: "fox".to_string() },
+        Elem {
+            indent: 1,
+            index: 0,
+            progress_bar: ProgressBar::new(32),
+            key: "jumps".to_string()
+        },
+        Elem {
+            indent: 2,
+            index: 1,
+            progress_bar: ProgressBar::new(32),
+            key: "lazy".to_string()
+        },
+        Elem {
+            indent: 0,
+            index: 0,
+            progress_bar: ProgressBar::new(32),
+            key: "the".to_string()
+        },
+        Elem {
+            indent: 3,
+            index: 3,
+            progress_bar: ProgressBar::new(32),
+            key: "dog".to_string()
+        },
+        Elem {
+            indent: 2,
+            index: 2,
+            progress_bar: ProgressBar::new(32),
+            key: "over".to_string()
+        },
+        Elem {
+            indent: 2,
+            index: 1,
+            progress_bar: ProgressBar::new(32),
+            key: "brown".to_string()
+        },
+        Elem {
+            indent: 1,
+            index: 1,
+            progress_bar: ProgressBar::new(32),
+            key: "quick".to_string()
+        },
+        Elem {
+            indent: 3,
+            index: 5,
+            progress_bar: ProgressBar::new(32),
+            key: "a".to_string()
+        },
+        Elem {
+            indent: 3,
+            index: 3,
+            progress_bar: ProgressBar::new(32),
+            key: "fox".to_string()
+        },
     ];
 }
 
