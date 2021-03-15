@@ -218,4 +218,4 @@ pub use crate::progress::{MultiProgress, ProgressBar, ProgressDrawTarget, WeakPr
 pub use crate::style::ProgressStyle;
 
 #[cfg(feature = "rayon")]
-pub use crate::rayon::{ParProgressBarIter, ParallelProgressIterator};
+pub use crate::rayon::ParallelProgressIterator;
