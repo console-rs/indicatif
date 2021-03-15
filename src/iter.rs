@@ -1,5 +1,6 @@
 use crate::progress::ProgressBar;
-use std::io;
+use std::io::{self, IoSliceMut};
+use std::iter::FusedIterator;
 
 /// Wraps an iterator to display its progress.
 pub trait ProgressIterator
@@ -36,24 +37,63 @@ impl<S, T: Iterator<Item = S>> Iterator for ProgressBarIter<T> {
     type Item = S;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let next = self.it.next();
+        let item = self.it.next();
 
-        if next.is_some() {
+        if item.is_some() {
             self.progress.inc(1);
         } else {
             self.progress.finish();
         }
 
-        next
+        item
     }
 }
 
+impl<T: ExactSizeIterator> ExactSizeIterator for ProgressBarIter<T> {
+    fn len(&self) -> usize {
+        self.it.len()
+    }
+}
+
+impl<T: DoubleEndedIterator> DoubleEndedIterator for ProgressBarIter<T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let item = self.it.next_back();
+
+        if item.is_some() {
+            self.progress.inc(1);
+        } else {
+            self.progress.finish();
+        }
+
+        item
+    }
+}
+
+impl<T: FusedIterator> FusedIterator for ProgressBarIter<T> {}
 
 impl<R: io::Read> io::Read for ProgressBarIter<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let inc = self.it.read(buf)?;
         self.progress.inc(inc as u64);
         Ok(inc)
+    }
+
+    fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        let inc = self.it.read_vectored(bufs)?;
+        self.progress.inc(inc as u64);
+        Ok(inc)
+    }
+
+    fn read_to_string(&mut self, buf: &mut String) -> io::Result<usize> {
+        let inc = self.it.read_to_string(buf)?;
+        self.progress.inc(inc as u64);
+        Ok(inc)
+    }
+
+    fn read_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
+        self.it.read_exact(buf)?;
+        self.progress.inc(buf.len() as u64);
+        Ok(())
     }
 }
 
