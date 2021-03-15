@@ -154,7 +154,7 @@ impl ProgressDrawTarget {
         match self.kind {
             ProgressDrawTargetKind::Term { ref term, .. } => term.size().1 as usize,
             ProgressDrawTargetKind::Remote { ref state, .. } => state.read().unwrap().width(),
-            ProgressDrawTargetKind::Hidden => 0,
+            ProgressDrawTargetKind::Hidden => unreachable!(),
         }
     }
 
@@ -592,7 +592,7 @@ impl ProgressBar {
 
         let mut lines: Vec<String> = msg.as_ref().lines().map(Into::into).collect();
         let orphan_lines = lines.len();
-        if state.should_render() {
+        if state.should_render() && !state.draw_target.is_hidden() {
             lines.extend(state.style.format_state(&*state));
         }
 
