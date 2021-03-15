@@ -16,42 +16,55 @@ pub fn secs_to_duration(s: f64) -> Duration {
 }
 
 pub struct Estimate {
-    buf: Vec<f64>,
-    buf_cap: usize,
-    last_idx: usize,
+    buf: Box<[f64; 15]>,
+    data: u8,
     started: Option<(Instant, u64)>,
 }
 
 impl Estimate {
-    pub fn new() -> Estimate {
-        Estimate {
-            buf: vec![],
-            buf_cap: 10,
-            last_idx: 0,
+    fn len(&self) -> u8 {
+        self.data & 0x0F
+    }
+
+    fn set_len(&mut self, len: u8) {
+        // Sanity check to make sure math is correct as otherwise it could result in unexpected bugs
+        debug_assert!(len < 16);
+        self.data = (self.data & 0xF0) | len;
+    }
+
+    fn last_idx(&self) -> u8 {
+        (self.data & 0xF0) >> 4
+    }
+
+    fn set_last_idx(&mut self, last_idx: u8) {
+        // This will wrap last_idx on overflow (setting to 16 will result in 0); this is fine
+        // because Estimate::buf is 15 elements long
+        self.data = ((last_idx & 0x0F) << 4) | (self.data & 0x0F);
+    }
+
+    pub fn new() -> Self {
+        let this = Self {
+            buf: Box::new([0.0; 15]),
+            data: 0,
             started: Some((<Instant>::now(), 0)),
-        }
+        };
+        // Make sure not to break anything accidentally as self.data can't handle bufs longer than
+        // 15 elements
+        debug_assert!(this.buf.len() < 16);
+        this
     }
 
     pub fn reset(&mut self) {
-        self.buf.clear();
-        self.last_idx = 0;
         self.started = None;
+        self.data = 0;
     }
 
     pub fn record_step(&mut self, value: u64) {
         // record initial position
-        let (started_time, started_value) = match self.started {
-            None => {
-                let rv = (Instant::now(), value);
-                self.started = Some(rv);
-                rv
-            }
-            Some(value) => value,
-        };
+        let (started_time, started_value) =
+            *self.started.get_or_insert_with(|| (Instant::now(), value));
 
-        let item = if value == 0 {
-            0.0
-        } else {
+        let item = {
             let divisor = value.saturating_sub(started_value) as f64;
             if divisor == 0.0 {
                 0.0
@@ -59,21 +72,21 @@ impl Estimate {
                 duration_to_secs(started_time.elapsed()) / divisor
             }
         };
-        if self.buf.len() >= self.buf_cap {
-            let idx = self.last_idx % self.buf.len();
-            self.buf[idx] = item;
+        let len = self.len();
+        let last_idx = self.last_idx();
+        if self.buf.len() <= usize::from(len) {
+            let idx = last_idx % len;
+            self.buf[usize::from(idx)] = item;
         } else {
-            self.buf.push(item);
+            self.set_len(len + 1);
+            self.buf[usize::from(last_idx)] = item;
         }
-        self.last_idx += 1;
+        self.set_last_idx(last_idx + 1);
     }
 
     pub fn time_per_step(&self) -> Duration {
-        if self.buf.is_empty() {
-            Duration::new(0, 0)
-        } else {
-            secs_to_duration(self.buf.iter().sum::<f64>() / self.buf.len() as f64)
-        }
+        let len = self.len();
+        secs_to_duration(self.buf[0..usize::from(len)].iter().sum::<f64>() / f64::from(len))
     }
 }
 
