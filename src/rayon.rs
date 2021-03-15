@@ -1,7 +1,7 @@
 use crate::{ProgressBar, ProgressBarIter};
 use rayon::iter::{
-    plumbing::Consumer, plumbing::Folder, plumbing::UnindexedConsumer, IndexedParallelIterator,
-    ParallelIterator,
+    plumbing::{Consumer, Folder, Producer, ProducerCallback, UnindexedConsumer},
+    IndexedParallelIterator, ParallelIterator,
 };
 use std::convert::TryFrom;
 
@@ -10,8 +10,8 @@ use std::convert::TryFrom;
 /// See [`ProgressIterator`](trait.ProgressIterator.html) for method
 /// documentation.
 pub trait ParallelProgressIterator
-    where
-        Self: Sized + ParallelIterator,
+where
+    Self: Sized + ParallelIterator,
 {
     /// Wrap an iterator with a custom progress bar.
     fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self>;
@@ -22,8 +22,8 @@ pub trait ParallelProgressIterator
     }
 
     fn progress(self) -> ProgressBarIter<Self>
-        where
-            Self: IndexedParallelIterator,
+    where
+        Self: IndexedParallelIterator,
     {
         let len = u64::try_from(self.len()).unwrap();
         self.progress_count(len)
@@ -33,6 +33,86 @@ pub trait ParallelProgressIterator
 impl<S: Send, T: ParallelIterator<Item = S>> ParallelProgressIterator for T {
     fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self> {
         ProgressBarIter { it: self, progress }
+    }
+}
+
+impl<S: Send, T: IndexedParallelIterator<Item = S>> IndexedParallelIterator for ProgressBarIter<T> {
+    fn len(&self) -> usize {
+        self.it.len()
+    }
+
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> <C as Consumer<Self::Item>>::Result {
+        let consumer = ProgressConsumer::new(consumer, self.progress);
+        self.it.drive(consumer)
+    }
+
+    fn with_producer<CB: ProducerCallback<Self::Item>>(
+        self,
+        callback: CB,
+    ) -> <CB as ProducerCallback<Self::Item>>::Output {
+        return self.it.with_producer(Callback {
+            callback,
+            progress: self.progress,
+        });
+
+        struct Callback<CB> {
+            callback: CB,
+            progress: ProgressBar,
+        }
+
+        impl<T, CB: ProducerCallback<T>> ProducerCallback<T> for Callback<CB> {
+            type Output = CB::Output;
+
+            fn callback<P>(self, base: P) -> CB::Output
+            where
+                P: Producer<Item = T>,
+            {
+                let producer = ProgressProducer {
+                    base,
+                    progress: self.progress,
+                };
+                self.callback.callback(producer)
+            }
+        }
+    }
+}
+
+struct ProgressProducer<T> {
+    base: T,
+    progress: ProgressBar,
+}
+
+impl<T, P: Producer<Item = T>> Producer for ProgressProducer<P> {
+    type Item = T;
+    type IntoIter = ProgressBarIter<P::IntoIter>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ProgressBarIter {
+            it: self.base.into_iter(),
+            progress: self.progress,
+        }
+    }
+
+    fn min_len(&self) -> usize {
+        self.base.min_len()
+    }
+
+    fn max_len(&self) -> usize {
+        self.base.max_len()
+    }
+
+    fn split_at(self, index: usize) -> (Self, Self) {
+        let (left, right) = self.base.split_at(index);
+        (
+            ProgressProducer {
+                base: left,
+                progress: self.progress.clone(),
+            },
+            ProgressProducer {
+                base: right,
+                progress: self.progress,
+            },
+        )
     }
 }
 
@@ -119,7 +199,7 @@ impl<S: Send, T: ParallelIterator<Item = S>> ParallelIterator for ProgressBarIte
 
 #[cfg(test)]
 mod test {
-    use crate::{ProgressBar, ProgressBarIter, ParallelProgressIterator};
+    use crate::{ParallelProgressIterator, ProgressBar, ProgressBarIter};
     use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
     #[test]
