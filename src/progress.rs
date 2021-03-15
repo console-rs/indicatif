@@ -288,10 +288,7 @@ impl ProgressState {
     /// Returns `false` if the progress bar should no longer be
     /// drawn.
     pub fn should_render(&self) -> bool {
-        match self.status {
-            Status::DoneHidden => false,
-            _ => true,
-        }
+        !matches!(self.status, Status::DoneHidden)
     }
 
     /// Returns the completion as a floating-point number between 0 and 1
