@@ -1,4 +1,5 @@
 use crate::progress::ProgressBar;
+use std::io;
 
 /// Wraps an iterator to display its progress.
 pub trait ProgressIterator
@@ -25,8 +26,9 @@ where
 }
 
 /// Wraps an iterator to display its progress.
+#[derive(Debug)]
 pub struct ProgressBarIter<T> {
-    it: T,
+    pub(crate) it: T,
     pub progress: ProgressBar,
 }
 
@@ -44,6 +46,65 @@ impl<S, T: Iterator<Item = S>> Iterator for ProgressBarIter<T> {
 
         next
     }
+}
+
+
+impl<R: io::Read> io::Read for ProgressBarIter<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let inc = self.it.read(buf)?;
+        self.progress.inc(inc as u64);
+        Ok(inc)
+    }
+}
+
+impl<R: io::BufRead> io::BufRead for ProgressBarIter<R> {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        self.it.fill_buf()
+    }
+
+    fn consume(&mut self, amt: usize) {
+        self.it.consume(amt);
+        self.progress.inc(amt as u64);
+    }
+}
+
+impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
+    fn seek(&mut self, f: io::SeekFrom) -> io::Result<u64> {
+        self.it.seek(f).map(|pos| {
+            self.progress.set_position(pos);
+            pos
+        })
+    }
+}
+
+impl<W: io::Write> io::Write for ProgressBarIter<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.it.write(buf).map(|inc| {
+            self.progress.inc(inc as u64);
+            inc
+        })
+    }
+
+    fn write_vectored(&mut self, bufs: &[io::IoSlice]) -> io::Result<usize> {
+        self.it.write_vectored(bufs).map(|inc| {
+            self.progress.inc(inc as u64);
+            inc
+        })
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.it.flush()
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
+        self.it.write_all(buf).map(|()| {
+            self.progress.inc(buf.len() as u64);
+        })
+    }
+
+    // write_fmt can not be captured with reasonable effort.
+    // as it uses write_all internally by default that should not be a problem.
+    // fn write_fmt(&mut self, fmt: fmt::Arguments) -> io::Result<()>;
 }
 
 impl<S, T: Iterator<Item = S>> ProgressIterator for T {
