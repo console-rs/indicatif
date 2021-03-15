@@ -212,7 +212,9 @@ pub fn pad_str(s: &str, width: usize, align: Alignment, truncate: bool) -> Cow<'
 fn test_expand_template() {
     let rv = expand_template("{{ {foo} {bar} }}", |var| var.key.to_uppercase());
     assert_eq!(&rv, "{ FOO BAR }");
-    let rv = expand_template(r#"{ "foo": "{foo}", "bar": {bar} }"#, |var| var.key.to_uppercase());
+    let rv = expand_template(r#"{ "foo": "{foo}", "bar": {bar} }"#, |var| {
+        var.key.to_uppercase()
+    });
     assert_eq!(&rv, r#"{ "foo": "FOO", "bar": BAR }"#);
 }
 
