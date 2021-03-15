@@ -15,8 +15,8 @@ pub struct ParProgressBarIter<T> {
 /// See [`ProgressIterator`](trait.ProgressIterator.html) for method
 /// documentation.
 pub trait ParallelProgressIterator
-where
-    Self: Sized,
+    where
+        Self: Sized + ParallelIterator,
 {
     /// Wrap an iterator with a custom progress bar.
     fn progress_with(self, progress: ProgressBar) -> ParProgressBarIter<Self>;
@@ -25,37 +25,19 @@ where
     fn progress_count(self, len: u64) -> ParProgressBarIter<Self> {
         self.progress_with(ProgressBar::new(len))
     }
-}
 
-pub trait IndexedParallelProgressIterator
-where
-    Self: Sized,
-{
-    fn progress_with(self, progress: ProgressBar) -> ParProgressBarIter<Self>;
-
-    fn progress_count(self, len: u64) -> ParProgressBarIter<Self> {
-        self.progress_with(ProgressBar::new(len))
-    }
-
-    fn progress(self) -> ParProgressBarIter<Self> {
-        self.progress_count(0)
+    fn progress(self) -> ParProgressBarIter<Self>
+        where
+            Self: IndexedParallelIterator,
+    {
+        let len = u64::try_from(self.len()).unwrap();
+        self.progress_count(len)
     }
 }
 
 impl<S: Send, T: ParallelIterator<Item = S>> ParallelProgressIterator for T {
     fn progress_with(self, progress: ProgressBar) -> ParProgressBarIter<Self> {
         ParProgressBarIter { it: self, progress }
-    }
-}
-
-impl<S: Send, T: IndexedParallelIterator<Item = S>> IndexedParallelProgressIterator for T {
-    fn progress_with(self, progress: ProgressBar) -> ParProgressBarIter<Self> {
-        ParProgressBarIter { it: self, progress }
-    }
-
-    fn progress(self) -> ParProgressBarIter<Self> {
-        let len = u64::from(self.len()).unwrap();
-        IndexedParallelProgressIterator::progress_count(self, len)
     }
 }
 
