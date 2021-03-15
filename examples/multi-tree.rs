@@ -154,12 +154,13 @@ fn get_action<'a>(rng: &'a mut dyn RngCore, tree: &Mutex<Vec<&Elem>>) -> Option<
             len - pos
         })
         .sum::<u64>();
+
     if sum_free == 0 && list_len == elem_len {
         // nothing to do more
-        return None;
+        None
     } else if sum_free == 0 && list_len < elem_len {
         // there is no place to make an increment
-        return Some(Action::AddProgressBar(tree.lock().unwrap().len()));
+        Some(Action::AddProgressBar(tree.lock().unwrap().len()))
     } else {
         loop {
             let list = tree.lock().unwrap();
