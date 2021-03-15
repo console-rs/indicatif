@@ -1,20 +1,24 @@
 use crate::progress::ProgressBar;
 use std::io::{self, IoSliceMut};
 use std::iter::FusedIterator;
+use std::convert::TryFrom;
 
 /// Wraps an iterator to display its progress.
 pub trait ProgressIterator
-where
-    Self: Sized + Iterator,
+    where
+        Self: Sized + Iterator,
 {
-    /// Wrap an iterator with default styling. Attempt to guess iterator
-    /// length using `Iterator::size_hint`.
-    fn progress(self) -> ProgressBarIter<Self> {
-        let n = match self.size_hint() {
-            (_, Some(n)) => n as u64,
-            _ => 0,
-        };
-        self.progress_count(n)
+    /// Wrap an iterator with default styling. Uses `Iterator::size_hint` to get length.
+    /// Returns `Some(..)` only if `size_hint.1` is `Some`. If you want to create a progress bar
+    /// even if `size_hint.1` returns `None` use `progress_count` or `progress_with` instead.
+    fn try_progress(self) -> Option<ProgressBarIter<Self>> {
+        self.size_hint().1.map(|len| self.progress_count(u64::try_from(len).unwrap()))
+    }
+
+    /// Wrap an iterator with default styling.
+    fn progress(self) -> ProgressBarIter<Self> where Self: ExactSizeIterator {
+        let len = u64::try_from(self.len()).unwrap();
+        self.progress_count(len)
     }
 
     /// Wrap an iterator with an explicit element count.
