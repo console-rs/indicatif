@@ -4,11 +4,10 @@ use rayon::iter::{
     ParallelIterator,
 };
 use std::convert::TryInto;
-use std::sync::{Arc, Mutex};
 
 pub struct ParProgressBarIter<T> {
     it: T,
-    progress: Arc<Mutex<ProgressBar>>,
+    progress: ProgressBar,
 }
 
 /// Wraps a Rayon parallel iterator.
@@ -45,19 +44,13 @@ where
 
 impl<S: Send, T: ParallelIterator<Item = S>> ParallelProgressIterator for T {
     fn progress_with(self, progress: ProgressBar) -> ParProgressBarIter<Self> {
-        ParProgressBarIter {
-            it: self,
-            progress: Arc::new(Mutex::new(progress)),
-        }
+        ParProgressBarIter { it: self, progress }
     }
 }
 
 impl<S: Send, T: IndexedParallelIterator<Item = S>> IndexedParallelProgressIterator for T {
     fn progress_with(self, progress: ProgressBar) -> ParProgressBarIter<Self> {
-        ParProgressBarIter {
-            it: self,
-            progress: Arc::new(Mutex::new(progress)),
-        }
+        ParProgressBarIter { it: self, progress }
     }
 
     fn progress(self) -> ParProgressBarIter<Self> {
@@ -68,11 +61,11 @@ impl<S: Send, T: IndexedParallelIterator<Item = S>> IndexedParallelProgressItera
 
 struct ProgressConsumer<C> {
     base: C,
-    progress: Arc<Mutex<ProgressBar>>,
+    progress: ProgressBar,
 }
 
 impl<C> ProgressConsumer<C> {
-    fn new(base: C, progress: Arc<Mutex<ProgressBar>>) -> Self {
+    fn new(base: C, progress: ProgressBar) -> Self {
         ProgressConsumer { base, progress }
     }
 }
@@ -86,7 +79,7 @@ impl<T, C: Consumer<T>> Consumer<T> for ProgressConsumer<C> {
         let (left, right, reducer) = self.base.split_at(index);
         (
             ProgressConsumer::new(left, self.progress.clone()),
-            ProgressConsumer::new(right, self.progress.clone()),
+            ProgressConsumer::new(right, self.progress),
             reducer,
         )
     }
@@ -94,7 +87,7 @@ impl<T, C: Consumer<T>> Consumer<T> for ProgressConsumer<C> {
     fn into_folder(self) -> Self::Folder {
         ProgressFolder {
             base: self.base.into_folder(),
-            progress: self.progress.clone(),
+            progress: self.progress,
         }
     }
 
@@ -115,14 +108,14 @@ impl<T, C: UnindexedConsumer<T>> UnindexedConsumer<T> for ProgressConsumer<C> {
 
 struct ProgressFolder<C> {
     base: C,
-    progress: Arc<Mutex<ProgressBar>>,
+    progress: ProgressBar,
 }
 
 impl<T, C: Folder<T>> Folder<T> for ProgressFolder<C> {
     type Result = C::Result;
 
     fn consume(self, item: T) -> Self {
-        self.progress.lock().unwrap().inc(1);
+        self.progress.inc(1);
         ProgressFolder {
             base: self.base.consume(item),
             progress: self.progress,
