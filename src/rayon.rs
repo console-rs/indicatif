@@ -1,14 +1,9 @@
-use crate::ProgressBar;
+use crate::{ProgressBar, ProgressBarIter};
 use rayon::iter::{
     plumbing::Consumer, plumbing::Folder, plumbing::UnindexedConsumer, IndexedParallelIterator,
     ParallelIterator,
 };
 use std::convert::TryFrom;
-
-pub struct ParProgressBarIter<T> {
-    it: T,
-    progress: ProgressBar,
-}
 
 /// Wraps a Rayon parallel iterator.
 ///
@@ -19,14 +14,14 @@ pub trait ParallelProgressIterator
         Self: Sized + ParallelIterator,
 {
     /// Wrap an iterator with a custom progress bar.
-    fn progress_with(self, progress: ProgressBar) -> ParProgressBarIter<Self>;
+    fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self>;
 
     /// Wrap an iterator with an explicit element count.
-    fn progress_count(self, len: u64) -> ParProgressBarIter<Self> {
+    fn progress_count(self, len: u64) -> ProgressBarIter<Self> {
         self.progress_with(ProgressBar::new(len))
     }
 
-    fn progress(self) -> ParProgressBarIter<Self>
+    fn progress(self) -> ProgressBarIter<Self>
         where
             Self: IndexedParallelIterator,
     {
@@ -36,8 +31,8 @@ pub trait ParallelProgressIterator
 }
 
 impl<S: Send, T: ParallelIterator<Item = S>> ParallelProgressIterator for T {
-    fn progress_with(self, progress: ProgressBar) -> ParProgressBarIter<Self> {
-        ParProgressBarIter { it: self, progress }
+    fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self> {
+        ProgressBarIter { it: self, progress }
     }
 }
 
@@ -113,7 +108,7 @@ impl<T, C: Folder<T>> Folder<T> for ProgressFolder<C> {
     }
 }
 
-impl<S: Send, T: ParallelIterator<Item = S>> ParallelIterator for ParProgressBarIter<T> {
+impl<S: Send, T: ParallelIterator<Item = S>> ParallelIterator for ProgressBarIter<T> {
     type Item = S;
 
     fn drive_unindexed<C: UnindexedConsumer<Self::Item>>(self, consumer: C) -> C::Result {
@@ -124,16 +119,15 @@ impl<S: Send, T: ParallelIterator<Item = S>> ParallelIterator for ParProgressBar
 
 #[cfg(test)]
 mod test {
-    use super::{ParProgressBarIter, ParallelProgressIterator};
-    use crate::progress::ProgressBar;
+    use crate::{ProgressBar, ProgressBarIter, ParallelProgressIterator};
     use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
     #[test]
     fn it_can_wrap_a_parallel_iterator() {
         let v = vec![1, 2, 3];
-        let wrap = |it: ParProgressBarIter<_>| {
+        fn wrap<'a, T: ParallelIterator<Item = &'a i32>>(it: ProgressBarIter<T>) {
             assert_eq!(it.map(|x| x * 2).collect::<Vec<_>>(), vec![2, 4, 6]);
-        };
+        }
 
         wrap(v.par_iter().progress_count(3));
         wrap({
