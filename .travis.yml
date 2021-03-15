@@ -1,9 +1,0 @@
-sudo: false
-language: rust
-rust:
-  - stable
-  - beta
-
-script:
-  - cargo test
-  - cargo test --all-features
