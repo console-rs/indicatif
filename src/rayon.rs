@@ -3,7 +3,7 @@ use rayon::iter::{
     plumbing::Consumer, plumbing::Folder, plumbing::UnindexedConsumer, IndexedParallelIterator,
     ParallelIterator,
 };
-use std::convert::TryInto;
+use std::convert::TryFrom;
 
 pub struct ParProgressBarIter<T> {
     it: T,
@@ -54,7 +54,7 @@ impl<S: Send, T: IndexedParallelIterator<Item = S>> IndexedParallelProgressItera
     }
 
     fn progress(self) -> ParProgressBarIter<Self> {
-        let len = self.len().try_into().unwrap();
+        let len = u64::from(self.len()).unwrap();
         IndexedParallelProgressIterator::progress_count(self, len)
     }
 }
