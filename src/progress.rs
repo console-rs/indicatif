@@ -1333,7 +1333,7 @@ mod tests {
     fn late_pb_drop() {
         let pb = ProgressBar::new(10);
         let mpb = MultiProgress::new();
-        mpb.add(pb.clone());
+        mpb.add(pb);
     }
 
     #[test]

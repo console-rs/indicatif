@@ -35,7 +35,7 @@ fn main() {
     });
 
     let pb = m.add(ProgressBar::new(1024));
-    pb.set_style(sty.clone());
+    pb.set_style(sty);
     let _ = thread::spawn(move || {
         for i in 0..1024 {
             pb.set_message(&format!("item #{}", i + 1));
