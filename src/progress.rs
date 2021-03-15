@@ -33,12 +33,17 @@ enum Status {
 }
 
 enum ProgressDrawTargetKind {
-    Term(Term, Option<ProgressDrawState>, Option<Duration>, Option<Instant>),
-    Remote(
-        Arc<RwLock<MultiProgressState>>,
-        usize,
-        Mutex<Sender<(usize, ProgressDrawState)>>,
-    ),
+    Term {
+        term: Term,
+        last_state: Option<ProgressDrawState>,
+        rate: Option<Duration>,
+        last_draw: Option<Instant>,
+    },
+    Remote {
+        state: Arc<RwLock<MultiProgressState>>,
+        idx: usize,
+        chan: Mutex<Sender<(usize, ProgressDrawState)>>,
+    },
     Hidden,
 }
 
@@ -113,7 +118,12 @@ impl ProgressDrawTarget {
     pub fn to_term(term: Term, refresh_rate: impl Into<Option<u64>>) -> ProgressDrawTarget {
         let rate = refresh_rate.into().map(|x| Duration::from_millis(1000 / x));
         ProgressDrawTarget {
-            kind: ProgressDrawTargetKind::Term(term, None, rate, None),
+            kind: ProgressDrawTargetKind::Term {
+                term,
+                last_state: None,
+                rate,
+                last_draw: None,
+            },
         }
     }
 
@@ -133,7 +143,7 @@ impl ProgressDrawTarget {
     pub fn is_hidden(&self) -> bool {
         match self.kind {
             ProgressDrawTargetKind::Hidden => true,
-            ProgressDrawTargetKind::Term(ref term, ..) => !term.is_term(),
+            ProgressDrawTargetKind::Term { ref term, .. } => !term.is_term(),
             _ => false,
         }
     }
@@ -141,8 +151,8 @@ impl ProgressDrawTarget {
     /// Returns the current width of the draw target.
     fn width(&self) -> usize {
         match self.kind {
-            ProgressDrawTargetKind::Term(ref term, ..) => term.size().1 as usize,
-            ProgressDrawTargetKind::Remote(ref state, ..) => state.read().unwrap().width(),
+            ProgressDrawTargetKind::Term { ref term, .. } => term.size().1 as usize,
+            ProgressDrawTargetKind::Remote { ref state, .. } => state.read().unwrap().width(),
             ProgressDrawTargetKind::Hidden => {
                 // TODO: Expose `console::term::DEFAULT_WIDTH`?
                 79
@@ -157,7 +167,12 @@ impl ProgressDrawTarget {
             return Ok(());
         }
         match self.kind {
-            ProgressDrawTargetKind::Term(ref term, ref mut last_state, rate, ref mut last_draw) => {
+            ProgressDrawTargetKind::Term {
+                ref term,
+                ref mut last_state,
+                rate,
+                ref mut last_draw,
+            } => {
                 if draw_state.finished
                     || draw_state.force_draw
                     || rate.is_none()
@@ -177,7 +192,7 @@ impl ProgressDrawTarget {
                     *last_draw = Some(Instant::now());
                 }
             }
-            ProgressDrawTargetKind::Remote(_, idx, ref chan) => {
+            ProgressDrawTargetKind::Remote { idx, ref chan, .. } => {
                 return chan
                     .lock()
                     .unwrap()
@@ -192,8 +207,8 @@ impl ProgressDrawTarget {
     /// Properly disconnects from the draw target
     fn disconnect(&self) {
         match self.kind {
-            ProgressDrawTargetKind::Term(..) => {}
-            ProgressDrawTargetKind::Remote(_, idx, ref chan) => {
+            ProgressDrawTargetKind::Term { .. } => {}
+            ProgressDrawTargetKind::Remote { idx, ref chan, .. } => {
                 chan.lock()
                     .unwrap()
                     .send((
@@ -1058,18 +1073,18 @@ impl MultiProgress {
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
-        let object_idx = state.objects.len();
+        let idx = state.objects.len();
         state.objects.push(MultiObject {
             done: false,
             draw_state: None,
         });
-        state.ordering.push(object_idx);
+        state.ordering.push(idx);
         pb.set_draw_target(ProgressDrawTarget {
-            kind: ProgressDrawTargetKind::Remote(
-                self.state.clone(),
-                object_idx,
-                Mutex::new(self.tx.clone()),
-            ),
+            kind: ProgressDrawTargetKind::Remote {
+                state: self.state.clone(),
+                idx,
+                chan: Mutex::new(self.tx.clone()),
+            },
         });
         pb
     }
@@ -1095,11 +1110,11 @@ impl MultiProgress {
             state.ordering.insert(index, object_idx);
         }
         pb.set_draw_target(ProgressDrawTarget {
-            kind: ProgressDrawTargetKind::Remote(
-                self.state.clone(),
-                object_idx,
-                Mutex::new(self.tx.clone()),
-            ),
+            kind: ProgressDrawTargetKind::Remote {
+                state: self.state.clone(),
+                idx: object_idx,
+                chan: Mutex::new(self.tx.clone()),
+            },
         });
         pb
     }
