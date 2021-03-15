@@ -115,6 +115,7 @@ impl ProgressDrawTarget {
     /// terminal is not user attended the entire progress bar will be
     /// hidden.  This is done so that piping to a file will not produce
     /// useless escape codes in that file.
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_term(term: Term, refresh_rate: impl Into<Option<u64>>) -> ProgressDrawTarget {
         let rate = refresh_rate.into().map(|x| Duration::from_millis(1000 / x));
         ProgressDrawTarget {
@@ -922,12 +923,14 @@ impl Drop for ProgressState {
     }
 }
 
+#[allow(clippy::float_cmp)]
 #[test]
 fn test_pbar_zero() {
     let pb = ProgressBar::new(0);
     assert_eq!(pb.state.read().unwrap().fraction(), 1.0);
 }
 
+#[allow(clippy::float_cmp)]
 #[test]
 fn test_pbar_maxu64() {
     let pb = ProgressBar::new(!0);
