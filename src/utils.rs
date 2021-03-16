@@ -29,7 +29,8 @@ pub struct Estimate {
     /// insertion order, `last_index + 1` is the least recently used position and is the first
     /// to be overwritten.
     data: u8,
-    started: Option<(Instant, u64)>,
+    start_time: Instant,
+    start_value: u64,
 }
 
 impl Estimate {
@@ -58,7 +59,8 @@ impl Estimate {
         let this = Self {
             buf: Box::new([0.0; 15]),
             data: 0,
-            started: Some((<Instant>::now(), 0)),
+            start_time: Instant::now(),
+            start_value: 0,
         };
         // Make sure not to break anything accidentally as self.data can't handle bufs longer than
         // 15 elements (not enough space in a u8)
@@ -66,22 +68,19 @@ impl Estimate {
         this
     }
 
-    pub fn reset(&mut self) {
-        self.started = None;
+    pub fn reset(&mut self, start_value: u64) {
+        self.start_time = Instant::now();
+        self.start_value = start_value;
         self.data = 0;
     }
 
     pub fn record_step(&mut self, value: u64) {
-        // record initial position
-        let (started_time, started_value) =
-            *self.started.get_or_insert_with(|| (Instant::now(), value));
-
         let item = {
-            let divisor = value.saturating_sub(started_value) as f64;
+            let divisor = value.saturating_sub(self.start_value) as f64;
             if divisor == 0.0 {
                 0.0
             } else {
-                duration_to_secs(started_time.elapsed()) / divisor
+                duration_to_secs(self.start_time.elapsed()) / divisor
             }
         };
 
@@ -119,7 +118,8 @@ impl fmt::Debug for Estimate {
             .field("buf", &self.buf)
             .field("len", &self.len())
             .field("last_idx", &self.last_idx())
-            .field("started", &self.started)
+            .field("start_time", &self.start_time)
+            .field("start_value", &self.start_value)
             .finish()
     }
 }
