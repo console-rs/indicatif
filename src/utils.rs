@@ -15,8 +15,17 @@ pub fn secs_to_duration(s: f64) -> Duration {
     Duration::new(secs, nanos)
 }
 
+/// Ring buffer with constant capacity
 pub struct Estimate {
     buf: Box<[f64; 15]>,
+    /// Lower 4 bits signify the current length, meaning how many values of `buf` are actually
+    /// meaningful (and not just set to 0 by initialization).
+    ///
+    /// The upper 4 bits signify the last used index in the `buf`. The estimate is currently
+    /// implemented as a ring buffer and when recording a new step the oldest value is overwritten.
+    /// Last index is the most recently used position, and as elements are always stored with
+    /// insertion order, `last_index + 1` is the least recently used position and is the first
+    /// to be overwritten.
     data: u8,
     started: Option<(Instant, u64)>,
 }
@@ -38,7 +47,8 @@ impl Estimate {
 
     fn set_last_idx(&mut self, last_idx: u8) {
         // This will wrap last_idx on overflow (setting to 16 will result in 0); this is fine
-        // because Estimate::buf is 15 elements long
+        // because Estimate::buf is 15 elements long and this is a ring buffer, so overwriting
+        // the oldest value is correct
         self.data = ((last_idx & 0x0F) << 4) | (self.data & 0x0F);
     }
 
@@ -49,7 +59,7 @@ impl Estimate {
             started: Some((<Instant>::now(), 0)),
         };
         // Make sure not to break anything accidentally as self.data can't handle bufs longer than
-        // 15 elements
+        // 15 elements (not enough space in a u8)
         debug_assert!(this.buf.len() < 16);
         this
     }
@@ -72,15 +82,26 @@ impl Estimate {
                 duration_to_secs(started_time.elapsed()) / divisor
             }
         };
+
+        self.push(item);
+    }
+
+    /// Adds the `value` into the buffer, overwriting the oldest one if full, or increasing length
+    /// by 1 and appending otherwise.
+    fn push(&mut self, value: f64) {
         let len = self.len();
         let last_idx = self.last_idx();
-        if self.buf.len() <= usize::from(len) {
-            let idx = last_idx % len;
-            self.buf[usize::from(idx)] = item;
-        } else {
+
+        if self.buf.len() > usize::from(len) {
+            // Buffer isn't yet full, increase it's size
             self.set_len(len + 1);
-            self.buf[usize::from(last_idx)] = item;
+            self.buf[usize::from(last_idx)] = value;
+        } else {
+            // Buffer is full, overwrite the oldest value
+            let idx = last_idx % len;
+            self.buf[usize::from(idx)] = value;
         }
+
         self.set_last_idx(last_idx + 1);
     }
 
