@@ -138,14 +138,14 @@ impl ProgressStyle {
 
     pub(crate) fn format_bar(
         &self,
-        state: &ProgressState,
+        fract: f32,
         width: usize,
         alt_style: Option<&Style>,
     ) -> String {
         // The number of clusters from progress_chars to write (rounding down).
-        let width = width / state.style.char_width;
+        let width = width / self.char_width;
         // The number of full clusters (including a fractional component for a partially-full one).
-        let fill = state.fraction() * width as f32;
+        let fill = fract * width as f32;
         // The number of entirely full clusters (by truncating `fill`).
         let entirely_filled = fill as usize;
         // 1 if the bar is not entirely empty or full (meaning we need to draw the "current"
@@ -156,11 +156,11 @@ impl ProgressStyle {
             0
         };
 
-        let pb = state.style.progress_chars[0].repeat(entirely_filled);
+        let pb = self.progress_chars[0].repeat(entirely_filled);
 
         let cur = if head == 1 {
             // Number of fine-grained progress entries in progress_chars.
-            let n = state.style.progress_chars.len().saturating_sub(2);
+            let n = self.progress_chars.len().saturating_sub(2);
             let cur_char = if n <= 1 {
                 // No fine-grained entries. 1 is the single "current" entry if we have one, the "to
                 // do" entry if not.
@@ -170,14 +170,14 @@ impl ProgressStyle {
                 // of fill is 0 to the first one (1) if the fractional part of fill is almost 1.
                 n.saturating_sub((fill.fract() * n as f32) as usize)
             };
-            state.style.progress_chars[cur_char].to_string()
+            self.progress_chars[cur_char].to_string()
         } else {
             "".into()
         };
 
         // Number of entirely empty clusters needed to fill the bar up to `width`.
         let bg = width.saturating_sub(entirely_filled).saturating_sub(head);
-        let rest = state.style.progress_chars.last().unwrap().repeat(bg);
+        let rest = self.progress_chars[self.progress_chars.len() - 1].repeat(bg);
         format!(
             "{}{}{}",
             pb,
@@ -198,7 +198,7 @@ impl ProgressStyle {
                     wide_element = Some(var.duplicate_for_key("bar"));
                     "\x00".into()
                 }
-                "bar" => self.format_bar(state, var.width.unwrap_or(20), var.alt_style.as_ref()),
+                "bar" => self.format_bar(state.fraction(), var.width.unwrap_or(20), var.alt_style.as_ref()),
                 "spinner" => state.current_tick_str().to_string(),
                 "wide_msg" => {
                     wide_element = Some(var.duplicate_for_key("msg"));
@@ -233,7 +233,7 @@ impl ProgressStyle {
                     let bar_width = total_width.saturating_sub(measure_text_width(&s));
                     s.replace(
                         "\x00",
-                        &self.format_bar(state, bar_width, var.alt_style.as_ref()),
+                        &self.format_bar(state.fraction(), bar_width, var.alt_style.as_ref()),
                     )
                 } else if var.key == "msg" {
                     let msg_width = total_width.saturating_sub(measure_text_width(&s));
