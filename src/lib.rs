@@ -215,7 +215,7 @@ mod utils;
 pub use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
 pub use crate::iter::{ProgressBarIter, ProgressIterator};
 pub use crate::progress::{MultiProgress, ProgressBar, ProgressDrawTarget, WeakProgressBar};
-pub use crate::style::ProgressStyle;
+pub use crate::style::{ProgressFinish, ProgressStyle};
 
 #[cfg(feature = "rayon")]
 pub use crate::rayon::ParallelProgressIterator;
