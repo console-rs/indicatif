@@ -90,7 +90,10 @@ impl ProgressStyle {
         self.tick_strings = s.chars().map(|c| c.to_string().into()).collect();
         // Format bar will panic with some potentially confusing message, better to panic here
         // with a message explicitly informing of the problem
-        assert!(self.tick_strings.len() >= 2, "at least 2 tick chars required");
+        assert!(
+            self.tick_strings.len() >= 2,
+            "at least 2 tick chars required"
+        );
         self
     }
 
@@ -99,7 +102,10 @@ impl ProgressStyle {
         self.tick_strings = s.iter().map(|s| s.to_string().into()).collect();
         // Format bar will panic with some potentially confusing message, better to panic here
         // with a message explicitly informing of the problem
-        assert!(self.progress_chars.len() >= 2, "at least 2 tick strings required");
+        assert!(
+            self.progress_chars.len() >= 2,
+            "at least 2 tick strings required"
+        );
         self
     }
 
@@ -110,7 +116,10 @@ impl ProgressStyle {
         self.progress_chars = segment(s);
         // Format bar will panic with some potentially confusing message, better to panic here
         // with a message explicitly informing of the problem
-        assert!(self.progress_chars.len() >= 2, "at least 2 progress chars required");
+        assert!(
+            self.progress_chars.len() >= 2,
+            "at least 2 progress chars required"
+        );
         self.char_width = width(&self.progress_chars);
         self
     }
@@ -145,12 +154,7 @@ impl ProgressStyle {
         &self.tick_strings[self.tick_strings.len() - 1]
     }
 
-    pub(crate) fn format_bar(
-        &self,
-        fract: f32,
-        width: usize,
-        alt_style: Option<&Style>,
-    ) -> String {
+    pub(crate) fn format_bar(&self, fract: f32, width: usize, alt_style: Option<&Style>) -> String {
         // The number of clusters from progress_chars to write (rounding down).
         let width = width / self.char_width;
         // The number of full clusters (including a fractional component for a partially-full one).
@@ -207,7 +211,11 @@ impl ProgressStyle {
                     wide_element = Some(var.duplicate_for_key("bar"));
                     "\x00".into()
                 }
-                "bar" => self.format_bar(state.fraction(), var.width.unwrap_or(20), var.alt_style.as_ref()),
+                "bar" => self.format_bar(
+                    state.fraction(),
+                    var.width.unwrap_or(20),
+                    var.alt_style.as_ref(),
+                ),
                 "spinner" => state.current_tick_str().to_string(),
                 "wide_msg" => {
                     wide_element = Some(var.duplicate_for_key("msg"));
