@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::fmt;
 use std::time::{Duration, Instant};
 
 use regex::{Captures, Regex};
@@ -15,7 +16,8 @@ pub fn secs_to_duration(s: f64) -> Duration {
     Duration::new(secs, nanos)
 }
 
-/// Ring buffer with constant capacity
+/// Ring buffer with constant capacity. Used by `ProgressBar`s to display `{eta}`, `{eta_precise}`,
+/// and `{*_per_sec}`.
 pub struct Estimate {
     buf: Box<[f64; 15]>,
     /// Lower 4 bits signify the current length, meaning how many values of `buf` are actually
@@ -108,6 +110,17 @@ impl Estimate {
     pub fn time_per_step(&self) -> Duration {
         let len = self.len();
         secs_to_duration(self.buf[0..usize::from(len)].iter().sum::<f64>() / f64::from(len))
+    }
+}
+
+impl fmt::Debug for Estimate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Estimate")
+            .field("buf", &self.buf)
+            .field("len", &self.len())
+            .field("last_idx", &self.last_idx())
+            .field("started", &self.started)
+            .finish()
     }
 }
 
