@@ -978,12 +978,37 @@ impl WeakProgressBar {
 
 impl Drop for ProgressState {
     fn drop(&mut self) {
+        // Progress bar is already finished.  Do not need to do anything.
         if self.is_finished() {
             return;
         }
 
-        self.status = Status::DoneHidden;
-        draw_state(self).ok();
+        // How should we finish the bar?
+        match std::mem::take(&mut self.style.on_finish) {
+            ProgressFinish::Default => {
+                self.finish();
+            }
+            ProgressFinish::AtCurrentPos => {
+                self.finish_at_current_pos();
+            }
+            ProgressFinish::WithMessage(msg) => {
+                self.finish_with_message(&msg);
+            }
+            ProgressFinish::AndClear => {
+                self.finish_and_clear();
+            }
+            ProgressFinish::Abandon => {
+                self.abandon();
+            }
+            ProgressFinish::AbandonWithMessage(msg) => {
+                self.abandon_with_message(&msg);
+            }
+            // Fallback to original drop behavior for bars that are not finished.
+            ProgressFinish::None => {
+                self.status = Status::DoneHidden;
+                draw_state(self).ok();
+            }
+        }
     }
 }
 
