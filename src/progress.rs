@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex, RwLock, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::style::ProgressStyle;
+use crate::style::{ProgressFinish, ProgressStyle};
 use crate::utils::{duration_to_secs, secs_to_duration, Estimate};
 use crate::{ProgressBarIter, ProgressIterator};
 use console::Term;
@@ -822,6 +822,33 @@ impl ProgressBar {
     /// must be present in the template (see `ProgressStyle`).
     pub fn abandon_with_message(&self, msg: &str) {
         self.state.lock().unwrap().abandon_with_message(msg);
+    }
+
+    /// Finishes the progress bar using the [`ProgressFinish`] behavior stored
+    /// in the [`ProgressStyle`].
+    pub fn finish_using_style(&self) {
+        let on_finish = self.state.lock().unwrap().style.get_on_finish().clone();
+        match on_finish {
+            ProgressFinish::Default => {
+                self.finish();
+            }
+            ProgressFinish::AtCurrentPos => {
+                self.finish_at_current_pos();
+            }
+            ProgressFinish::WithMessage(msg) => {
+                self.finish_with_message(&msg);
+            }
+            ProgressFinish::AndClear => {
+                self.finish_and_clear();
+            }
+            ProgressFinish::Abandon => {
+                self.abandon();
+            }
+            ProgressFinish::AbandonWithMessage(msg) => {
+                self.abandon_with_message(&msg);
+            }
+            ProgressFinish::None => { /* do nothing */ }
+        }
     }
 
     /// Sets a different draw target for the progress bar.
