@@ -88,12 +88,18 @@ impl ProgressStyle {
     /// Sets the tick character sequence for spinners.
     pub fn tick_chars(mut self, s: &str) -> ProgressStyle {
         self.tick_strings = s.chars().map(|c| c.to_string().into()).collect();
+        // Format bar will panic with some potentially confusing message, better to panic here
+        // with a message explicitly informing of the problem
+        assert!(self.tick_strings.len() >= 2, "at least 2 tick chars required");
         self
     }
 
     /// Sets the tick string sequence for spinners.
     pub fn tick_strings(mut self, s: &[&str]) -> ProgressStyle {
         self.tick_strings = s.iter().map(|s| s.to_string().into()).collect();
+        // Format bar will panic with some potentially confusing message, better to panic here
+        // with a message explicitly informing of the problem
+        assert!(self.progress_chars.len() >= 2, "at least 2 tick strings required");
         self
     }
 
@@ -102,6 +108,9 @@ impl ProgressStyle {
     /// All passed grapheme clusters need to be of equal width.
     pub fn progress_chars(mut self, s: &str) -> ProgressStyle {
         self.progress_chars = segment(s);
+        // Format bar will panic with some potentially confusing message, better to panic here
+        // with a message explicitly informing of the problem
+        assert!(self.progress_chars.len() >= 2, "at least 2 progress chars required");
         self.char_width = width(&self.progress_chars);
         self
     }
