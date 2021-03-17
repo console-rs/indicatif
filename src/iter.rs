@@ -50,8 +50,8 @@ impl<S, T: Iterator<Item = S>> Iterator for ProgressBarIter<T> {
 
         if item.is_some() {
             self.progress.inc(1);
-        } else {
-            self.progress.finish();
+        } else if !self.progress.is_finished() {
+            self.progress.finish_using_style();
         }
 
         item
@@ -70,8 +70,8 @@ impl<T: DoubleEndedIterator> DoubleEndedIterator for ProgressBarIter<T> {
 
         if item.is_some() {
             self.progress.inc(1);
-        } else {
-            self.progress.finish();
+        } else if !self.progress.is_finished() {
+            self.progress.finish_using_style();
         }
 
         item

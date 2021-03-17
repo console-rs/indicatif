@@ -180,6 +180,9 @@ impl<T, C: Folder<T>> Folder<T> for ProgressFolder<C> {
     }
 
     fn complete(self) -> C::Result {
+        if !self.progress.is_finished() {
+            self.progress.finish_using_style();
+        }
         self.base.complete()
     }
 
