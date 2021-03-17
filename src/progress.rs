@@ -366,6 +366,84 @@ impl ProgressState {
             (1_000_000_000 / avg_time) as u64
         }
     }
+
+    /// Call the provided `FnOnce` to update the state.  Then redraw the
+    /// progress bar if the state has changed.
+    pub fn update_and_draw<F: FnOnce(&mut ProgressState)>(&mut self, f: F) {
+        let mut draw = false;
+        {
+            let old_pos = self.pos;
+            f(self);
+            let new_pos = self.pos;
+            if new_pos != old_pos {
+                self.est.record_step(new_pos);
+            }
+            if new_pos >= self.draw_next {
+                self.draw_next = new_pos.saturating_add(if self.draw_rate != 0 {
+                    self.per_sec() / self.draw_rate
+                } else {
+                    self.draw_delta
+                });
+                draw = true;
+            }
+        }
+        if draw {
+            draw_state(self).ok();
+        }
+    }
+
+    /// Finishes the progress bar and leaves the current message.
+    pub fn finish(&mut self) {
+        self.update_and_draw(|state| {
+            state.pos = state.len;
+            state.draw_next = state.pos;
+            state.status = Status::DoneVisible;
+        });
+    }
+
+    /// Finishes the progress bar at current position and leaves the current message.
+    pub fn finish_at_current_pos(&mut self) {
+        self.update_and_draw(|state| {
+            state.draw_next = state.pos;
+            state.status = Status::DoneVisible;
+        });
+    }
+
+    /// Finishes the progress bar and sets a message.
+    pub fn finish_with_message(&mut self, msg: &str) {
+        let msg = msg.to_string();
+        self.update_and_draw(|state| {
+            state.message = msg;
+            state.pos = state.len;
+            state.draw_next = state.pos;
+            state.status = Status::DoneVisible;
+        });
+    }
+
+    /// Finishes the progress bar and completely clears it.
+    pub fn finish_and_clear(&mut self) {
+        self.update_and_draw(|state| {
+            state.pos = state.len;
+            state.draw_next = state.pos;
+            state.status = Status::DoneHidden;
+        });
+    }
+
+    /// Finishes the progress bar and leaves the current message and progress.
+    pub fn abandon(&mut self) {
+        self.update_and_draw(|state| {
+            state.status = Status::DoneVisible;
+        });
+    }
+
+    /// Finishes the progress bar and sets a message, and leaves the current progress.
+    pub fn abandon_with_message(&mut self, msg: &str) {
+        let msg = msg.to_string();
+        self.update_and_draw(|state| {
+            state.message = msg;
+            state.status = Status::DoneVisible;
+        });
+    }
 }
 
 /// A progress bar or spinner.
@@ -712,19 +790,12 @@ impl ProgressBar {
 
     /// Finishes the progress bar and leaves the current message.
     pub fn finish(&self) {
-        self.update_and_draw(|state| {
-            state.pos = state.len;
-            state.draw_next = state.pos;
-            state.status = Status::DoneVisible;
-        });
+        self.state.lock().unwrap().finish();
     }
 
     /// Finishes the progress bar at current position and leaves the current message.
     pub fn finish_at_current_pos(&self) {
-        self.update_and_draw(|state| {
-            state.draw_next = state.pos;
-            state.status = Status::DoneVisible;
-        });
+        self.state.lock().unwrap().finish_at_current_pos();
     }
 
     /// Finishes the progress bar and sets a message.
@@ -732,29 +803,17 @@ impl ProgressBar {
     /// For the message to be visible, `{msg}` placeholder
     /// must be present in the template (see `ProgressStyle`).
     pub fn finish_with_message(&self, msg: &str) {
-        let msg = msg.to_string();
-        self.update_and_draw(|state| {
-            state.message = msg;
-            state.pos = state.len;
-            state.draw_next = state.pos;
-            state.status = Status::DoneVisible;
-        });
+        self.state.lock().unwrap().finish_with_message(msg);
     }
 
     /// Finishes the progress bar and completely clears it.
     pub fn finish_and_clear(&self) {
-        self.update_and_draw(|state| {
-            state.pos = state.len;
-            state.draw_next = state.pos;
-            state.status = Status::DoneHidden;
-        });
+        self.state.lock().unwrap().finish_and_clear();
     }
 
     /// Finishes the progress bar and leaves the current message and progress.
     pub fn abandon(&self) {
-        self.update_and_draw(|state| {
-            state.status = Status::DoneVisible;
-        });
+        self.state.lock().unwrap().abandon();
     }
 
     /// Finishes the progress bar and sets a message, and leaves the current progress.
@@ -762,11 +821,7 @@ impl ProgressBar {
     /// For the message to be visible, `{msg}` placeholder
     /// must be present in the template (see `ProgressStyle`).
     pub fn abandon_with_message(&self, msg: &str) {
-        let msg = msg.to_string();
-        self.update_and_draw(|state| {
-            state.message = msg;
-            state.status = Status::DoneVisible;
-        });
+        self.state.lock().unwrap().abandon_with_message(msg);
     }
 
     /// Sets a different draw target for the progress bar.
@@ -842,31 +897,9 @@ impl ProgressBar {
     }
 
     fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, f: F) {
-        let mut draw = false;
-        {
-            let mut state = self.state.lock().unwrap();
-            let old_pos = state.pos;
-            f(&mut state);
-            let new_pos = state.pos;
-            if new_pos != old_pos {
-                state.est.record_step(new_pos);
-            }
-            if new_pos >= state.draw_next {
-                state.draw_next = new_pos.saturating_add(if state.draw_rate != 0 {
-                    state.per_sec() / state.draw_rate
-                } else {
-                    state.draw_delta
-                });
-                draw = true;
-            }
-        }
-        if draw {
-            self.draw().ok();
-        }
-    }
-
-    fn draw(&self) -> io::Result<()> {
-        draw_state(&mut self.state.lock().unwrap())
+        // Delegate to the wrapped state.
+        let mut state = self.state.lock().unwrap();
+        state.update_and_draw(f);
     }
 
     pub fn position(&self) -> u64 {
