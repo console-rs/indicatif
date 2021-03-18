@@ -444,6 +444,33 @@ impl ProgressState {
             state.status = Status::DoneVisible;
         });
     }
+
+    /// Finishes the progress bar using the [`ProgressFinish`] behavior stored
+    /// in the [`ProgressStyle`].
+    pub fn finish_using_style(&mut self) {
+        if let Some(on_finish) = std::mem::take(&mut self.style.on_finish) {
+            match on_finish {
+                ProgressFinish::Default => {
+                    self.finish();
+                }
+                ProgressFinish::AtCurrentPos => {
+                    self.finish_at_current_pos();
+                }
+                ProgressFinish::WithMessage(msg) => {
+                    self.finish_with_message(&msg);
+                }
+                ProgressFinish::AndClear => {
+                    self.finish_and_clear();
+                }
+                ProgressFinish::Abandon => {
+                    self.abandon();
+                }
+                ProgressFinish::AbandonWithMessage(msg) => {
+                    self.abandon_with_message(&msg);
+                }
+            }
+        }
+    }
 }
 
 /// A progress bar or spinner.
@@ -827,28 +854,7 @@ impl ProgressBar {
     /// Finishes the progress bar using the [`ProgressFinish`] behavior stored
     /// in the [`ProgressStyle`].
     pub fn finish_using_style(&self) {
-        let on_finish = self.state.lock().unwrap().style.get_on_finish().clone();
-        match on_finish {
-            ProgressFinish::Default => {
-                self.finish();
-            }
-            ProgressFinish::AtCurrentPos => {
-                self.finish_at_current_pos();
-            }
-            ProgressFinish::WithMessage(msg) => {
-                self.finish_with_message(&msg);
-            }
-            ProgressFinish::AndClear => {
-                self.finish_and_clear();
-            }
-            ProgressFinish::Abandon => {
-                self.abandon();
-            }
-            ProgressFinish::AbandonWithMessage(msg) => {
-                self.abandon_with_message(&msg);
-            }
-            ProgressFinish::None => { /* do nothing */ }
-        }
+        self.state.lock().unwrap().finish_using_style();
     }
 
     /// Sets a different draw target for the progress bar.
@@ -985,26 +991,28 @@ impl Drop for ProgressState {
 
         // How should we finish the bar?
         match std::mem::take(&mut self.style.on_finish) {
-            ProgressFinish::Default => {
-                self.finish();
-            }
-            ProgressFinish::AtCurrentPos => {
-                self.finish_at_current_pos();
-            }
-            ProgressFinish::WithMessage(msg) => {
-                self.finish_with_message(&msg);
-            }
-            ProgressFinish::AndClear => {
-                self.finish_and_clear();
-            }
-            ProgressFinish::Abandon => {
-                self.abandon();
-            }
-            ProgressFinish::AbandonWithMessage(msg) => {
-                self.abandon_with_message(&msg);
-            }
+            Some(on_finish) => match on_finish {
+                ProgressFinish::Default => {
+                    self.finish();
+                }
+                ProgressFinish::AtCurrentPos => {
+                    self.finish_at_current_pos();
+                }
+                ProgressFinish::WithMessage(msg) => {
+                    self.finish_with_message(&msg);
+                }
+                ProgressFinish::AndClear => {
+                    self.finish_and_clear();
+                }
+                ProgressFinish::Abandon => {
+                    self.abandon();
+                }
+                ProgressFinish::AbandonWithMessage(msg) => {
+                    self.abandon_with_message(&msg);
+                }
+            },
             // Fallback to original drop behavior for bars that are not finished.
-            ProgressFinish::None => {
+            None => {
                 self.status = Status::DoneHidden;
                 draw_state(self).ok();
             }
