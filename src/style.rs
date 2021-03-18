@@ -31,8 +31,6 @@ pub enum ProgressFinish {
     /// Finishes the progress bar and sets a message, and leaves the current progress.
     /// Same behavior as calling [`ProgressBar::abandon_with_message()`].
     AbandonWithMessage(Cow<'static, str>),
-    /// Do nothing.  Leave the progres bar unfinished.
-    None,
 }
 
 impl Default for ProgressFinish {
@@ -47,7 +45,7 @@ pub struct ProgressStyle {
     tick_strings: Vec<Box<str>>,
     progress_chars: Vec<Box<str>>,
     template: Box<str>,
-    pub(super) on_finish: ProgressFinish,
+    pub(super) on_finish: Option<ProgressFinish>,
     // how unicode-big each char in progress_chars is
     char_width: usize,
 }
@@ -102,7 +100,7 @@ impl ProgressStyle {
             progress_chars,
             char_width,
             template: "{wide_bar} {pos}/{len}".into(),
-            on_finish: ProgressFinish::default(),
+            on_finish: Some(ProgressFinish::default()),
         }
     }
 
@@ -118,7 +116,7 @@ impl ProgressStyle {
             progress_chars,
             char_width,
             template: "{spinner} {msg}".into(),
-            on_finish: ProgressFinish::default(),
+            on_finish: Some(ProgressFinish::default()),
         }
     }
 
@@ -173,7 +171,9 @@ impl ProgressStyle {
     /// This behavior is invoked when [`ProgressBar`] or
     /// [`ProgresBarIter`](crate::ProgressBarIter) completes and
     /// [`ProgressBar::is_finished()`] is false.
-    pub fn on_finish(mut self, f: ProgressFinish) -> ProgressStyle {
+    /// If you don't want the progress bar to be automatically finished then
+    /// call `on_finish(None)`.
+    pub fn on_finish(mut self, f: Option<ProgressFinish>) -> ProgressStyle {
         self.on_finish = f;
         self
     }
@@ -201,7 +201,7 @@ impl ProgressStyle {
     }
 
     /// Returns the finish behavior.
-    pub fn get_on_finish(&self) -> &ProgressFinish {
+    pub fn get_on_finish(&self) -> &Option<ProgressFinish> {
         &self.on_finish
     }
 
