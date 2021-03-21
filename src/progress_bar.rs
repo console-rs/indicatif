@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex, RwLock, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::progress::{
+use crate::state::{
     MultiObject, MultiProgressState, ProgressDrawState, ProgressDrawTarget, ProgressDrawTargetKind,
     ProgressState, Status,
 };
