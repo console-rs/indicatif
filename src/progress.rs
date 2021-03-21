@@ -448,26 +448,29 @@ impl ProgressState {
     /// Finishes the progress bar using the [`ProgressFinish`] behavior stored
     /// in the [`ProgressStyle`].
     pub fn finish_using_style(&mut self) {
-        if let Some(on_finish) = std::mem::take(&mut self.style.on_finish) {
-            match on_finish {
-                ProgressFinish::Default => {
-                    self.finish();
-                }
-                ProgressFinish::AtCurrentPos => {
-                    self.finish_at_current_pos();
-                }
-                ProgressFinish::WithMessage(msg) => {
-                    self.finish_with_message(&msg);
-                }
-                ProgressFinish::AndClear => {
-                    self.finish_and_clear();
-                }
-                ProgressFinish::Abandon => {
-                    self.abandon();
-                }
-                ProgressFinish::AbandonWithMessage(msg) => {
-                    self.abandon_with_message(&msg);
-                }
+        let on_finish = match self.style.on_finish.take() {
+            Some(on_finish) => on_finish,
+            None => return,
+        };
+
+        match on_finish {
+            ProgressFinish::Default => {
+                self.finish();
+            }
+            ProgressFinish::AtCurrentPos => {
+                self.finish_at_current_pos();
+            }
+            ProgressFinish::WithMessage(msg) => {
+                self.finish_with_message(&msg);
+            }
+            ProgressFinish::AndClear => {
+                self.finish_and_clear();
+            }
+            ProgressFinish::Abandon => {
+                self.abandon();
+            }
+            ProgressFinish::AbandonWithMessage(msg) => {
+                self.abandon_with_message(&msg);
             }
         }
     }
