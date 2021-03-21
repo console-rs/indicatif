@@ -993,29 +993,10 @@ impl Drop for ProgressState {
         }
 
         // How should we finish the bar?
-        match std::mem::take(&mut self.style.on_finish) {
-            Some(on_finish) => match on_finish {
-                ProgressFinish::Default => {
-                    self.finish();
-                }
-                ProgressFinish::AtCurrentPos => {
-                    self.finish_at_current_pos();
-                }
-                ProgressFinish::WithMessage(msg) => {
-                    self.finish_with_message(&msg);
-                }
-                ProgressFinish::AndClear => {
-                    self.finish_and_clear();
-                }
-                ProgressFinish::Abandon => {
-                    self.abandon();
-                }
-                ProgressFinish::AbandonWithMessage(msg) => {
-                    self.abandon_with_message(&msg);
-                }
-            },
-            // Fallback to original drop behavior for bars that are not finished.
+        match self.style.on_finish {
+            Some(_) => self.finish_using_style(),
             None => {
+                // Fallback to original drop behavior for bars that are not finished.
                 self.status = Status::DoneHidden;
                 draw_state(self).ok();
             }
