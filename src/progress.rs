@@ -388,7 +388,7 @@ impl ProgressState {
             }
         }
         if draw {
-            draw_state(self).ok();
+            self.draw().ok();
         }
     }
 
@@ -473,6 +473,26 @@ impl ProgressState {
                 self.abandon_with_message(&msg);
             }
         }
+    }
+
+    fn draw(&mut self) -> io::Result<()> {
+        // we can bail early if the draw target is hidden.
+        if self.draw_target.is_hidden() {
+            return Ok(());
+        }
+
+        let draw_state = ProgressDrawState {
+            lines: if self.should_render() {
+                self.style.format_state(&*self)
+            } else {
+                vec![]
+            },
+            orphan_lines: 0,
+            finished: self.is_finished(),
+            force_draw: false,
+            move_cursor: false,
+        };
+        self.draw_target.apply_draw_state(draw_state)
     }
 }
 
@@ -613,7 +633,7 @@ impl ProgressBar {
                 }
                 ms = state.steady_tick;
 
-                draw_state(&mut state).ok();
+                state.draw().ok();
             } else {
                 break;
             }
@@ -947,26 +967,6 @@ impl ProgressBar {
     }
 }
 
-fn draw_state(state: &mut ProgressState) -> io::Result<()> {
-    // we can bail early if the draw target is hidden.
-    if state.draw_target.is_hidden() {
-        return Ok(());
-    }
-
-    let draw_state = ProgressDrawState {
-        lines: if state.should_render() {
-            state.style.format_state(&*state)
-        } else {
-            vec![]
-        },
-        orphan_lines: 0,
-        finished: state.is_finished(),
-        force_draw: false,
-        move_cursor: false,
-    };
-    state.draw_target.apply_draw_state(draw_state)
-}
-
 /// A weak reference to a `ProgressBar`.
 ///
 /// Useful for creating custom steady tick implementations
@@ -998,7 +998,7 @@ impl Drop for ProgressState {
             None => {
                 // Fallback to original drop behavior for bars that are not finished.
                 self.status = Status::DoneHidden;
-                draw_state(self).ok();
+                self.draw().ok();
             }
         }
     }
