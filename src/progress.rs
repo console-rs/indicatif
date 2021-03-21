@@ -1004,56 +1004,6 @@ impl Drop for ProgressState {
     }
 }
 
-#[allow(clippy::float_cmp)]
-#[test]
-fn test_pbar_zero() {
-    let pb = ProgressBar::new(0);
-    assert_eq!(pb.state.lock().unwrap().fraction(), 1.0);
-}
-
-#[allow(clippy::float_cmp)]
-#[test]
-fn test_pbar_maxu64() {
-    let pb = ProgressBar::new(!0);
-    assert_eq!(pb.state.lock().unwrap().fraction(), 0.0);
-}
-
-#[test]
-fn test_pbar_overflow() {
-    let pb = ProgressBar::new(1);
-    pb.set_draw_target(ProgressDrawTarget::hidden());
-    pb.inc(2);
-    pb.finish();
-}
-
-#[test]
-fn test_get_position() {
-    let pb = ProgressBar::new(1);
-    pb.set_draw_target(ProgressDrawTarget::hidden());
-    pb.inc(2);
-    let pos = pb.position();
-    assert_eq!(pos, 2);
-}
-
-#[test]
-fn test_weak_pb() {
-    let pb = ProgressBar::new(0);
-    let weak = pb.downgrade();
-    assert!(weak.upgrade().is_some());
-    ::std::mem::drop(pb);
-    assert!(weak.upgrade().is_none());
-}
-
-#[test]
-fn test_draw_delta_deadlock() {
-    // see issue #187
-    let mpb = MultiProgress::new();
-    let pb = mpb.add(ProgressBar::new(1));
-    pb.set_draw_delta(2);
-    drop(pb);
-    mpb.join().unwrap();
-}
-
 struct MultiObject {
     done: bool,
     draw_state: Option<ProgressDrawState>,
@@ -1324,6 +1274,56 @@ impl MultiProgress {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[allow(clippy::float_cmp)]
+    #[test]
+    fn test_pbar_zero() {
+        let pb = ProgressBar::new(0);
+        assert_eq!(pb.state.lock().unwrap().fraction(), 1.0);
+    }
+
+    #[allow(clippy::float_cmp)]
+    #[test]
+    fn test_pbar_maxu64() {
+        let pb = ProgressBar::new(!0);
+        assert_eq!(pb.state.lock().unwrap().fraction(), 0.0);
+    }
+
+    #[test]
+    fn test_pbar_overflow() {
+        let pb = ProgressBar::new(1);
+        pb.set_draw_target(ProgressDrawTarget::hidden());
+        pb.inc(2);
+        pb.finish();
+    }
+
+    #[test]
+    fn test_get_position() {
+        let pb = ProgressBar::new(1);
+        pb.set_draw_target(ProgressDrawTarget::hidden());
+        pb.inc(2);
+        let pos = pb.position();
+        assert_eq!(pos, 2);
+    }
+
+    #[test]
+    fn test_weak_pb() {
+        let pb = ProgressBar::new(0);
+        let weak = pb.downgrade();
+        assert!(weak.upgrade().is_some());
+        ::std::mem::drop(pb);
+        assert!(weak.upgrade().is_none());
+    }
+
+    #[test]
+    fn test_draw_delta_deadlock() {
+        // see issue #187
+        let mpb = MultiProgress::new();
+        let pb = mpb.add(ProgressBar::new(1));
+        pb.set_draw_delta(2);
+        drop(pb);
+        mpb.join().unwrap();
+    }
 
     #[test]
     fn late_pb_drop() {
