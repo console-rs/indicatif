@@ -1,4 +1,4 @@
-use crate::progress::ProgressBar;
+use crate::progress_bar::ProgressBar;
 use std::convert::TryFrom;
 use std::io::{self, IoSliceMut};
 use std::iter::FusedIterator;
@@ -165,7 +165,7 @@ impl<S, T: Iterator<Item = S>> ProgressIterator for T {
 #[cfg(test)]
 mod test {
     use crate::iter::{ProgressBarIter, ProgressIterator};
-    use crate::progress::ProgressBar;
+    use crate::progress_bar::ProgressBar;
 
     #[test]
     fn it_can_wrap_an_iterator() {
