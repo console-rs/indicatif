@@ -795,6 +795,16 @@ mod tests {
     }
 
     #[test]
+    fn test_abandon_deadlock() {
+        let mpb = MultiProgress::new();
+        let pb = mpb.add(ProgressBar::new(1));
+        pb.set_draw_delta(2);
+        pb.abandon();
+        drop(pb);
+        mpb.join().unwrap();
+    }
+
+    #[test]
     fn late_pb_drop() {
         let pb = ProgressBar::new(10);
         let mpb = MultiProgress::new();
