@@ -297,11 +297,9 @@ impl MultiProgressState {
         if self.objects.is_empty() {
             return true;
         }
-        for obj in self.objects.iter() {
-            if let Some(o) = obj {
-                if !o.done {
-                    return false;
-                }
+        for o in self.objects.iter().flatten() {
+            if !o.done {
+                return false;
             }
         }
         true

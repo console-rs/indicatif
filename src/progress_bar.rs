@@ -558,12 +558,12 @@ impl MultiProgress {
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
-        let object_idx = MultiProgress::extend_state(&mut state);
-        state.ordering.push(object_idx);
+        let idx = MultiProgress::extend_state(&mut state);
+        state.ordering.push(idx);
         pb.set_draw_target(ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Remote {
                 state: self.state.clone(),
-                idx: object_idx,
+                idx,
                 chan: Mutex::new(self.tx.clone()),
             },
         });
@@ -580,16 +580,16 @@ impl MultiProgress {
     /// is added to the end of the list.
     pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
-        let object_idx = MultiProgress::extend_state(&mut state);
+        let idx = MultiProgress::extend_state(&mut state);
         if index > state.ordering.len() {
-            state.ordering.push(object_idx);
+            state.ordering.push(idx);
         } else {
-            state.ordering.insert(index, object_idx);
+            state.ordering.insert(index, idx);
         }
         pb.set_draw_target(ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Remote {
                 state: self.state.clone(),
-                idx: object_idx,
+                idx,
                 chan: Mutex::new(self.tx.clone()),
             },
         });
@@ -607,10 +607,12 @@ impl MultiProgress {
         match &pb.state.lock().unwrap().draw_target.kind {
             ProgressDrawTargetKind::Term { .. } => {}
             ProgressDrawTargetKind::Remote { idx, .. } => {
-                state.objects[*idx] = None;
-                state.free_set.insert(*idx);
-                if let Some(idx) = state.ordering.iter().position(|x| *x == *idx) {
-                    state.ordering.remove(idx);
+                if state.objects[*idx].is_some() {
+                    state.objects[*idx] = None;
+                    state.free_set.insert(*idx);
+                    if let Some(idx) = state.ordering.iter().position(|x| *x == *idx) {
+                        state.ordering.remove(idx);
+                    }
                 }
             }
             ProgressDrawTargetKind::Hidden => {}
@@ -638,22 +640,18 @@ impl MultiProgress {
 
     /// Modify the state on inserting/adding a progress bar
     fn extend_state(state: &mut MultiProgressState) -> usize {
-        let object_idx;
+        let new_obj = Some(MultiObject {
+            done: false,
+            draw_state: None,
+        });
         if let Some(i) = state.free_set.iter().next().cloned() {
-            state.objects[i] = Some(MultiObject {
-                done: false,
-                draw_state: None,
-            });
+            state.objects[i] = new_obj;
             state.free_set.remove(&i);
-            object_idx = i;
+            i
         } else {
-            state.objects.push(Some(MultiObject {
-                done: false,
-                draw_state: None,
-            }));
-            object_idx = state.objects.len() - 1;
+            state.objects.push(new_obj);
+            state.objects.len() - 1
         }
-        object_idx
     }
 
     fn join_impl(&self, clear: bool) -> io::Result<()> {
@@ -903,14 +901,7 @@ mod tests {
         let state = mp.state.read().unwrap();
         // the removed place for p1 is reused
         assert_eq!(state.objects.len(), 4);
-        assert_eq!(
-            state
-                .objects
-                .iter()
-                .map(|o| if o.is_some() { 1 } else { 0 })
-                .sum::<usize>(),
-            3
-        );
+        assert_eq!(state.objects.iter().map(some_as_1).sum::<usize>(), 3);
         // free_set may contain 1 or 2
         let set_1 = vec![1_usize].into_iter().collect();
         let set_2 = vec![2_usize].into_iter().collect();
@@ -927,6 +918,35 @@ mod tests {
         assert_eq!(extract_index(&p1), 1);
         assert_eq!(extract_index(&p2), 2);
         assert_eq!(extract_index(&p3), 3);
+    }
+
+    #[test]
+    fn multi_progress_multiple_remove() {
+        let mp = MultiProgress::new();
+        let p0 = mp.add(ProgressBar::new(1));
+        let p1 = mp.add(ProgressBar::new(1));
+        // double remove beyond the first one have no effect
+        mp.remove(&p0);
+        mp.remove(&p0);
+        mp.remove(&p0);
+
+        let state = mp.state.read().unwrap();
+        // the removed place for p1 is reused
+        assert_eq!(state.objects.len(), 2);
+        assert_eq!(state.objects.iter().map(some_as_1).sum::<usize>(), 1);
+        assert_eq!(state.free_set, vec![0_usize].into_iter().collect());
+
+        assert_eq!(state.ordering, vec![1]);
+        assert_eq!(extract_index(&p0), 0);
+        assert_eq!(extract_index(&p1), 1);
+    }
+
+    fn some_as_1<T>(t: &Option<T>) -> usize {
+        if t.is_some() {
+            1
+        } else {
+            0
+        }
     }
 
     fn extract_index(pb: &ProgressBar) -> usize {
