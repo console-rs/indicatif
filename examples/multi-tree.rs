@@ -109,7 +109,7 @@ fn main() {
                 Some(Action::AddProgressBar(el_idx)) => {
                     let elem = &ELEMENTS[el_idx];
                     let pb = mp2.insert(elem.index + 1, elem.progress_bar.clone());
-                    pb.set_message(&format!("{}  {}", "  ".repeat(elem.indent), elem.key));
+                    pb.set_message(format!("{}  {}", "  ".repeat(elem.indent), elem.key));
                     tree.lock().unwrap().insert(elem.index, &elem);
                 }
                 Some(Action::IncProgressBar(el_idx)) => {
@@ -118,7 +118,7 @@ fn main() {
                     let pos = elem.progress_bar.position();
                     let len = elem.progress_bar.length();
                     if pos >= len {
-                        elem.progress_bar.finish_with_message(&format!(
+                        elem.progress_bar.finish_with_message(format!(
                             "{}{} {}",
                             "  ".repeat(elem.indent),
                             "✔",

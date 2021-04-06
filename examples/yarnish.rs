@@ -73,13 +73,13 @@ pub fn main() {
         let count = rng.gen_range(30..80);
         let pb = m.add(ProgressBar::new(count));
         pb.set_style(spinner_style.clone());
-        pb.set_prefix(&format!("[{}/?]", i + 1));
+        pb.set_prefix(format!("[{}/?]", i + 1));
         let _ = thread::spawn(move || {
             let mut rng = rand::thread_rng();
             let pkg = PACKAGES.choose(&mut rng).unwrap();
             for _ in 0..count {
                 let cmd = COMMANDS.choose(&mut rng).unwrap();
-                pb.set_message(&format!("{}: {}", pkg, cmd));
+                pb.set_message(format!("{}: {}", pkg, cmd));
                 pb.inc(1);
                 thread::sleep(Duration::from_millis(rng.gen_range(25..200)));
             }

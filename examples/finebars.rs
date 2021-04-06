@@ -27,7 +27,7 @@ fn main() {
         thread::spawn(move || {
             for i in 0..512 {
                 pb.inc(1);
-                pb.set_message(&format!("{:3}%", 100 * i / 512));
+                pb.set_message(format!("{:3}%", 100 * i / 512));
                 thread::sleep(wait);
             }
             pb.finish_with_message("100%");

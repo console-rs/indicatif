@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt;
 use std::io;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -78,14 +79,14 @@ impl ProgressBar {
     }
 
     /// A convenience builder-like function for a progress bar with a given prefix.
-    pub fn with_prefix(self, prefix: &str) -> ProgressBar {
-        self.state.lock().unwrap().prefix = prefix.to_string();
+    pub fn with_prefix(self, prefix: impl Into<Cow<'static, str>>) -> ProgressBar {
+        self.state.lock().unwrap().prefix = prefix.into();
         self
     }
 
     /// A convenience builder-like function for a progress bar with a given message.
-    pub fn with_message(self, message: &str) -> ProgressBar {
-        self.state.lock().unwrap().message = message.to_string();
+    pub fn with_message(self, message: impl Into<Cow<'static, str>>) -> ProgressBar {
+        self.state.lock().unwrap().message = message.into();
         self
     }
 
@@ -298,8 +299,8 @@ impl ProgressBar {
     ///
     /// For the prefix to be visible, `{prefix}` placeholder
     /// must be present in the template (see `ProgressStyle`).
-    pub fn set_prefix(&self, prefix: &str) {
-        let prefix = prefix.to_string();
+    pub fn set_prefix(&self, prefix: impl Into<Cow<'static, str>>) {
+        let prefix = prefix.into();
         self.update_and_draw(|state| {
             state.prefix = prefix;
             if state.steady_tick == 0 || state.tick == 0 {
@@ -312,8 +313,8 @@ impl ProgressBar {
     ///
     /// For the message to be visible, `{msg}` placeholder
     /// must be present in the template (see `ProgressStyle`).
-    pub fn set_message(&self, msg: &str) {
-        let msg = msg.to_string();
+    pub fn set_message(&self, msg: impl Into<Cow<'static, str>>) {
+        let msg = msg.into();
         self.update_and_draw(|state| {
             state.message = msg;
             if state.steady_tick == 0 || state.tick == 0 {
@@ -370,7 +371,7 @@ impl ProgressBar {
     ///
     /// For the message to be visible, `{msg}` placeholder
     /// must be present in the template (see `ProgressStyle`).
-    pub fn finish_with_message(&self, msg: &str) {
+    pub fn finish_with_message(&self, msg: impl Into<Cow<'static, str>>) {
         self.state.lock().unwrap().finish_with_message(msg);
     }
 
@@ -388,7 +389,7 @@ impl ProgressBar {
     ///
     /// For the message to be visible, `{msg}` placeholder
     /// must be present in the template (see `ProgressStyle`).
-    pub fn abandon_with_message(&self, msg: &str) {
+    pub fn abandon_with_message(&self, msg: impl Into<Cow<'static, str>>) {
         self.state.lock().unwrap().abandon_with_message(msg);
     }
 

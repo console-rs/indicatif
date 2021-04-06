@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::io;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex, RwLock};
@@ -16,8 +17,8 @@ pub(crate) struct ProgressState {
     pub(crate) tick: u64,
     pub(crate) started: Instant,
     pub(crate) draw_target: ProgressDrawTarget,
-    pub(crate) message: String,
-    pub(crate) prefix: String,
+    pub(crate) message: Cow<'static, str>,
+    pub(crate) prefix: Cow<'static, str>,
     pub(crate) draw_delta: u64,
     pub(crate) draw_rate: u64,
     pub(crate) draw_next: u64,
@@ -170,8 +171,8 @@ impl ProgressState {
     }
 
     /// Finishes the progress bar and sets a message.
-    pub fn finish_with_message(&mut self, msg: &str) {
-        let msg = msg.to_string();
+    pub fn finish_with_message(&mut self, msg: impl Into<Cow<'static, str>>) {
+        let msg = msg.into();
         self.update_and_force_draw(|state| {
             state.message = msg;
             state.pos = state.len;
@@ -195,8 +196,8 @@ impl ProgressState {
     }
 
     /// Finishes the progress bar and sets a message, and leaves the current progress.
-    pub fn abandon_with_message(&mut self, msg: &str) {
-        let msg = msg.to_string();
+    pub fn abandon_with_message(&mut self, msg: impl Into<Cow<'static, str>>) {
+        let msg = msg.into();
         self.update_and_force_draw(|state| {
             state.message = msg;
             state.status = Status::DoneVisible;
@@ -219,7 +220,7 @@ impl ProgressState {
                 self.finish_at_current_pos();
             }
             ProgressFinish::WithMessage(msg) => {
-                self.finish_with_message(&msg);
+                self.finish_with_message(msg);
             }
             ProgressFinish::AndClear => {
                 self.finish_and_clear();
@@ -228,7 +229,7 @@ impl ProgressState {
                 self.abandon();
             }
             ProgressFinish::AbandonWithMessage(msg) => {
-                self.abandon_with_message(&msg);
+                self.abandon_with_message(msg);
             }
         }
     }
