@@ -14,7 +14,7 @@ use crate::state::{
 use crate::style::ProgressStyle;
 use crate::utils::Estimate;
 use crate::{ProgressBarIter, ProgressIterator};
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 /// A progress bar or spinner.
 ///
@@ -525,7 +525,7 @@ impl MultiProgress {
         MultiProgress {
             state: Arc::new(RwLock::new(MultiProgressState {
                 objects: Vec::new(),
-                free_set: HashSet::new(),
+                free_set: BTreeSet::new(),
                 ordering: vec![],
                 draw_target,
                 move_cursor: false,

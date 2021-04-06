@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use crate::style::{ProgressFinish, ProgressStyle};
 use crate::utils::{duration_to_secs, secs_to_duration, Estimate};
 use console::Term;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 /// The state of a progress bar at a moment in time.
 pub(crate) struct ProgressState {
@@ -279,7 +279,7 @@ pub(crate) struct MultiProgressState {
     /// The collection of states corresponding to progress bars
     pub(crate) objects: Vec<Option<MultiObject>>,
     /// Set of `None` elements in the `objects` vector
-    pub(crate) free_set: HashSet<usize>,
+    pub(crate) free_set: BTreeSet<usize>,
     /// Indices to the `objects` to maintain correct visual order
     pub(crate) ordering: Vec<usize>,
     /// Target for draw operation for MultiProgress
