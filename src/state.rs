@@ -291,15 +291,7 @@ impl MultiProgressState {
     }
 
     pub(crate) fn is_done(&self) -> bool {
-        if self.objects.is_empty() {
-            return true;
-        }
-        for obj in &self.objects {
-            if !obj.done {
-                return false;
-            }
-        }
-        true
+        self.objects.iter().all(|obj| obj.done)
     }
 }
 
