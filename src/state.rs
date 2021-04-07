@@ -275,9 +275,13 @@ impl Drop for ProgressState {
 }
 
 pub(crate) struct MultiProgressState {
+    /// The collection of states corresponding to progress bars
     pub(crate) objects: Vec<MultiObject>,
+    /// Indices to the `objects` to maintain correct visual order
     pub(crate) ordering: Vec<usize>,
+    /// Target for draw operation for MultiProgress
     pub(crate) draw_target: ProgressDrawTarget,
+    /// Whether or not to just move cursor instead of clearing lines
     pub(crate) move_cursor: bool,
 }
 
