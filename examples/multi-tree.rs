@@ -79,6 +79,11 @@ lazy_static! {
     ];
 }
 
+/// The example implements the tree-like collection of progress bars, where elements are
+/// added on the fly and progress bars get incremented until all elements is added and
+/// all progress bars finished.
+/// On each iteration `get_action` function returns some action, and when the tree gets
+/// complete, the function returns `None`, which finishes the loop.
 fn main() {
     let mp = Arc::new(MultiProgress::new());
     let sty_main = ProgressStyle::default_bar().template("{bar:40.green/yellow} {pos:>4}/{len:4}");
@@ -141,6 +146,7 @@ fn main() {
     }
 }
 
+/// The function guarantees to return the action, that is valid for the current tree.
 fn get_action<'a>(rng: &'a mut dyn RngCore, tree: &Mutex<Vec<&Elem>>) -> Option<Action> {
     let elem_len = ELEMENTS.len() as u64;
     let list_len = tree.lock().unwrap().len() as u64;
