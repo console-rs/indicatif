@@ -1,6 +1,4 @@
 use std::borrow::Cow;
-use std::cmp::Reverse;
-use std::collections::BinaryHeap;
 use std::fmt;
 use std::io;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -526,7 +524,7 @@ impl MultiProgress {
         MultiProgress {
             state: Arc::new(RwLock::new(MultiProgressState {
                 objects: Vec::new(),
-                free_set: BinaryHeap::new(),
+                free_set: Vec::new(),
                 ordering: vec![],
                 draw_target,
                 move_cursor: false,
@@ -581,7 +579,7 @@ impl MultiProgress {
 
         let mut state = self.state.write().unwrap();
         let idx = match state.free_set.pop() {
-            Some(Reverse(idx)) => {
+            Some(idx) => {
                 state.objects[idx] = Some(new);
                 idx
             }
@@ -623,7 +621,7 @@ impl MultiProgress {
             return;
         }
 
-        state.free_set.push(Reverse(idx));
+        state.free_set.push(idx);
         state.ordering.retain(|&x| x != idx);
     }
 
@@ -891,12 +889,12 @@ mod tests {
         assert_eq!(state.objects.iter().filter(|o| o.is_some()).count(), 3);
 
         // free_set may contain 1 or 2
-        match state.free_set.peek() {
-            Some(Reverse(1)) => {
+        match state.free_set.last() {
+            Some(1) => {
                 assert_eq!(state.ordering, vec![0, 2, 3]);
                 assert_eq!(extract_index(&p4), 2);
             }
-            Some(Reverse(2)) => {
+            Some(2) => {
                 assert_eq!(state.ordering, vec![0, 1, 3]);
                 assert_eq!(extract_index(&p4), 1);
             }
@@ -923,7 +921,7 @@ mod tests {
         // the removed place for p1 is reused
         assert_eq!(state.objects.len(), 2);
         assert_eq!(state.objects.iter().filter(|obj| obj.is_some()).count(), 1);
-        assert_eq!(state.free_set.peek(), Some(&Reverse(0)));
+        assert_eq!(state.free_set.last(), Some(&0));
 
         assert_eq!(state.ordering, vec![1]);
         assert_eq!(extract_index(&p0), 0);
