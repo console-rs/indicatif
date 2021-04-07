@@ -555,21 +555,7 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
-        let mut state = self.state.write().unwrap();
-        let idx = state.objects.len();
-        state.objects.push(MultiObject {
-            done: false,
-            draw_state: None,
-        });
-        state.ordering.push(idx);
-        pb.set_draw_target(ProgressDrawTarget {
-            kind: ProgressDrawTargetKind::Remote {
-                state: self.state.clone(),
-                idx,
-                chan: Mutex::new(self.tx.clone()),
-            },
-        });
-        pb
+        self.push(None, pb)
     }
 
     /// Inserts a progress bar.
@@ -581,21 +567,26 @@ impl MultiProgress {
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the end of the list.
     pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
+        self.push(Some(index), pb)
+    }
+
+    fn push(&self, pos: Option<usize>, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
-        let object_idx = state.objects.len();
+        let idx = state.objects.len();
         state.objects.push(MultiObject {
             done: false,
             draw_state: None,
         });
-        if index > state.ordering.len() {
-            state.ordering.push(object_idx);
-        } else {
-            state.ordering.insert(index, object_idx);
+
+        match pos {
+            Some(pos) if pos < state.ordering.len() => state.ordering.insert(pos, idx),
+            _ => state.ordering.push(idx),
         }
+
         pb.set_draw_target(ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Remote {
                 state: self.state.clone(),
-                idx: object_idx,
+                idx,
                 chan: Mutex::new(self.tx.clone()),
             },
         });
