@@ -614,18 +614,17 @@ impl MultiProgress {
     /// the `remove` method does nothing.
     pub fn remove(&self, pb: &ProgressBar) {
         let mut state = self.state.write().unwrap();
-        match &pb.state.lock().unwrap().draw_target.kind {
-            ProgressDrawTargetKind::Term { .. } => {}
-            ProgressDrawTargetKind::Remote { idx, .. } => {
-                if let Some(_) = state.objects[*idx].take() {
-                    state.free_set.push(Reverse(*idx));
-                    if let Some(idx) = state.ordering.iter().position(|x| *x == *idx) {
-                        state.ordering.remove(idx);
-                    }
-                }
-            }
-            ProgressDrawTargetKind::Hidden => {}
+        let idx = match &pb.state.lock().unwrap().draw_target.kind {
+            ProgressDrawTargetKind::Remote { idx, .. } => *idx,
+            _ => return,
+        };
+
+        if state.objects[idx].take().is_none() {
+            return;
         }
+
+        state.free_set.push(Reverse(idx));
+        state.ordering.retain(|&x| x != idx);
     }
 
     /// Waits for all progress bars to report that they are finished.
