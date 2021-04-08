@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::io;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex, RwLock};
@@ -16,8 +17,8 @@ pub(crate) struct ProgressState {
     pub(crate) tick: u64,
     pub(crate) started: Instant,
     pub(crate) draw_target: ProgressDrawTarget,
-    pub(crate) message: String,
-    pub(crate) prefix: String,
+    pub(crate) message: Cow<'static, str>,
+    pub(crate) prefix: Cow<'static, str>,
     pub(crate) draw_delta: u64,
     pub(crate) draw_rate: u64,
     pub(crate) draw_next: u64,
@@ -116,79 +117,88 @@ impl ProgressState {
         }
     }
 
-    /// Call the provided `FnOnce` to update the state.  Then redraw the
+    /// Call the provided `FnOnce` to update the state. Then redraw the
     /// progress bar if the state has changed.
     pub fn update_and_draw<F: FnOnce(&mut ProgressState)>(&mut self, f: F) {
-        let mut draw = false;
-        {
-            let old_pos = self.pos;
-            f(self);
-            let new_pos = self.pos;
-            if new_pos != old_pos {
-                self.est.record_step(new_pos);
-            }
-            if new_pos >= self.draw_next {
-                self.draw_next = new_pos.saturating_add(if self.draw_rate != 0 {
-                    self.per_sec() / self.draw_rate
-                } else {
-                    self.draw_delta
-                });
-                draw = true;
-            }
-        }
-        if draw {
+        if self.update(f) {
             self.draw().ok();
+        }
+    }
+
+    /// Call the provided `FnOnce` to update the state. Then unconditionally redraw the
+    /// progress bar.
+    pub fn update_and_force_draw<F: FnOnce(&mut ProgressState)>(&mut self, f: F) {
+        self.update(|state| {
+            state.draw_next = state.pos;
+            f(state);
+        });
+        self.draw().ok();
+    }
+
+    /// Call the provided `FnOnce` to update the state. If a draw should be run, returns `true`.
+    pub fn update<F: FnOnce(&mut ProgressState)>(&mut self, f: F) -> bool {
+        let old_pos = self.pos;
+        f(self);
+        let new_pos = self.pos;
+        if new_pos != old_pos {
+            self.est.record_step(new_pos);
+        }
+        if new_pos >= self.draw_next {
+            self.draw_next = new_pos.saturating_add(if self.draw_rate != 0 {
+                self.per_sec() / self.draw_rate
+            } else {
+                self.draw_delta
+            });
+            true
+        } else {
+            false
         }
     }
 
     /// Finishes the progress bar and leaves the current message.
     pub fn finish(&mut self) {
-        self.update_and_draw(|state| {
+        self.update_and_force_draw(|state| {
             state.pos = state.len;
-            state.draw_next = state.pos;
             state.status = Status::DoneVisible;
         });
     }
 
     /// Finishes the progress bar at current position and leaves the current message.
     pub fn finish_at_current_pos(&mut self) {
-        self.update_and_draw(|state| {
-            state.draw_next = state.pos;
+        self.update_and_force_draw(|state| {
             state.status = Status::DoneVisible;
         });
     }
 
     /// Finishes the progress bar and sets a message.
-    pub fn finish_with_message(&mut self, msg: &str) {
-        let msg = msg.to_string();
-        self.update_and_draw(|state| {
+    pub fn finish_with_message(&mut self, msg: impl Into<Cow<'static, str>>) {
+        let msg = msg.into();
+        self.update_and_force_draw(|state| {
             state.message = msg;
             state.pos = state.len;
-            state.draw_next = state.pos;
             state.status = Status::DoneVisible;
         });
     }
 
     /// Finishes the progress bar and completely clears it.
     pub fn finish_and_clear(&mut self) {
-        self.update_and_draw(|state| {
+        self.update_and_force_draw(|state| {
             state.pos = state.len;
-            state.draw_next = state.pos;
             state.status = Status::DoneHidden;
         });
     }
 
     /// Finishes the progress bar and leaves the current message and progress.
     pub fn abandon(&mut self) {
-        self.update_and_draw(|state| {
+        self.update_and_force_draw(|state| {
             state.status = Status::DoneVisible;
         });
     }
 
     /// Finishes the progress bar and sets a message, and leaves the current progress.
-    pub fn abandon_with_message(&mut self, msg: &str) {
-        let msg = msg.to_string();
-        self.update_and_draw(|state| {
+    pub fn abandon_with_message(&mut self, msg: impl Into<Cow<'static, str>>) {
+        let msg = msg.into();
+        self.update_and_force_draw(|state| {
             state.message = msg;
             state.status = Status::DoneVisible;
         });
@@ -210,7 +220,7 @@ impl ProgressState {
                 self.finish_at_current_pos();
             }
             ProgressFinish::WithMessage(msg) => {
-                self.finish_with_message(&msg);
+                self.finish_with_message(msg);
             }
             ProgressFinish::AndClear => {
                 self.finish_and_clear();
@@ -219,7 +229,7 @@ impl ProgressState {
                 self.abandon();
             }
             ProgressFinish::AbandonWithMessage(msg) => {
-                self.abandon_with_message(&msg);
+                self.abandon_with_message(msg);
             }
         }
     }
@@ -265,9 +275,15 @@ impl Drop for ProgressState {
 }
 
 pub(crate) struct MultiProgressState {
-    pub(crate) objects: Vec<MultiObject>,
+    /// The collection of states corresponding to progress bars
+    pub(crate) objects: Vec<Option<MultiObject>>,
+    /// Set of `None` elements in the `objects` vector
+    pub(crate) free_set: Vec<usize>,
+    /// Indices to the `objects` to maintain correct visual order
     pub(crate) ordering: Vec<usize>,
+    /// Target for draw operation for MultiProgress
     pub(crate) draw_target: ProgressDrawTarget,
+    /// Whether or not to just move cursor instead of clearing lines
     pub(crate) move_cursor: bool,
 }
 
@@ -277,15 +293,10 @@ impl MultiProgressState {
     }
 
     pub(crate) fn is_done(&self) -> bool {
-        if self.objects.is_empty() {
-            return true;
-        }
-        for obj in &self.objects {
-            if !obj.done {
-                return false;
-            }
-        }
-        true
+        self.objects.iter().all(|o| match o {
+            Some(obj) => obj.done,
+            None => true,
+        })
     }
 }
 

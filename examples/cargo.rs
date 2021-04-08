@@ -90,7 +90,7 @@ fn main() {
     while let Ok((n, krate)) = rx.recv() {
         processing[n] = krate;
         let crates: Vec<&str> = processing.iter().filter_map(|t| t.copied()).collect();
-        pb.set_message(&crates.join(", "));
+        pb.set_message(crates.join(", "));
         if krate.is_some() {
             // crate is built
             pb.inc(1);

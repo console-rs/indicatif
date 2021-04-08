@@ -13,7 +13,7 @@ fn main() {
     pb.set_style(sty.clone());
     let _ = thread::spawn(move || {
         for i in 0..128 {
-            pb.set_message(&format!("item #{}", i + 1));
+            pb.set_message(format!("item #{}", i + 1));
             pb.inc(1);
             thread::sleep(Duration::from_millis(15));
         }
@@ -26,7 +26,7 @@ fn main() {
         for _ in 0..3 {
             pb.set_position(0);
             for i in 0..128 {
-                pb.set_message(&format!("item #{}", i + 1));
+                pb.set_message(format!("item #{}", i + 1));
                 pb.inc(1);
                 thread::sleep(Duration::from_millis(8));
             }
@@ -38,7 +38,7 @@ fn main() {
     pb.set_style(sty);
     let _ = thread::spawn(move || {
         for i in 0..1024 {
-            pb.set_message(&format!("item #{}", i + 1));
+            pb.set_message(format!("item #{}", i + 1));
             pb.inc(1);
             thread::sleep(Duration::from_millis(2));
         }

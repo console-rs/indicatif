@@ -28,7 +28,7 @@ pub fn main() {
         let line = line.unwrap();
         let stripped_line = line.trim();
         if !stripped_line.is_empty() {
-            pb.set_message(stripped_line);
+            pb.set_message(stripped_line.to_owned());
         }
         pb.tick();
     }
