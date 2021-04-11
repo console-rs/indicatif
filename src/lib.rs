@@ -195,7 +195,7 @@
 //! # use std::time::Duration;
 //! use indicatif::{HumanDuration, HumanBytes};
 //!
-//! assert_eq!("3.00MB", HumanBytes(3*1024*1024).to_string());
+//! assert_eq!("3.00MiB", HumanBytes(3*1024*1024).to_string());
 //! assert_eq!("8 seconds", HumanDuration(Duration::from_secs(8)).to_string());
 //! ```
 //!
