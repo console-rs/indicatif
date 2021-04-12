@@ -409,6 +409,10 @@ impl ProgressBar {
     /// let pb = ProgressBar::new(100);
     /// pb.set_draw_target(ProgressDrawTarget::stderr());
     /// ```
+    ///
+    /// **Note:** Calling this method on a `ProgressBar` linked with a `MultiProgress` (i.e. after
+    /// running `MultiProgress::add`) will unlink this progress bar. If you don't want this behavior,
+    /// call `MultiProgress::set_draw_target` instead.
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
         let mut state = self.state.lock().unwrap();
         state.draw_target.disconnect();
