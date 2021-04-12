@@ -485,14 +485,21 @@ impl ProgressBar {
         self.state.lock().unwrap().len
     }
 
-    pub fn eta(&self) -> Duration { self.state.lock().unwrap().eta() }
+    pub fn eta(&self) -> Duration {
+        self.state.lock().unwrap().eta()
+    }
 
-    pub fn per_sec(&self) -> u64 { self.state.lock().unwrap().per_sec() }
+    pub fn per_sec(&self) -> u64 {
+        self.state.lock().unwrap().per_sec()
+    }
 
-    pub fn duration(&self) -> Duration { self.state.lock().unwrap().duration() }
+    pub fn duration(&self) -> Duration {
+        self.state.lock().unwrap().duration()
+    }
 
-    pub fn elapsed(&self) -> Duration { self.state.lock().unwrap().started.elapsed() }
-
+    pub fn elapsed(&self) -> Duration {
+        self.state.lock().unwrap().started.elapsed()
+    }
 }
 
 /// Manages multiple progress bars from different threads.
@@ -849,7 +856,7 @@ mod tests {
         // This clone call is required to trigger a now fixed bug.
         // See <https://github.com/mitsuhiko/indicatif/pull/141> for context
         #[allow(clippy::redundant_clone)]
-            mpb.add(pb.clone());
+        mpb.add(pb.clone());
     }
 
     #[test]
