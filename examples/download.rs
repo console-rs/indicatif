@@ -10,7 +10,7 @@ fn main() {
 
     let pb = ProgressBar::new(total_size);
     pb.set_style(ProgressStyle::default_bar()
-        .template("{spinner:.green} [{elapsed_precise}] [{wide_bar.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+        .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
         .progress_chars("#>-"));
 
     while downloaded < total_size {
