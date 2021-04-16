@@ -45,7 +45,7 @@ pub struct ProgressStyle {
     tick_strings: Vec<Box<str>>,
     progress_chars: Vec<Box<str>>,
     template: Box<str>,
-    pub(super) on_finish: Option<ProgressFinish>,
+    on_finish: ProgressFinish,
     // how unicode-big each char in progress_chars is
     char_width: usize,
 }
@@ -100,7 +100,7 @@ impl ProgressStyle {
             progress_chars,
             char_width,
             template: "{wide_bar} {pos}/{len}".into(),
-            on_finish: Some(ProgressFinish::default()),
+            on_finish: ProgressFinish::default(),
         }
     }
 
@@ -116,7 +116,7 @@ impl ProgressStyle {
             progress_chars,
             char_width,
             template: "{spinner} {msg}".into(),
-            on_finish: Some(ProgressFinish::default()),
+            on_finish: ProgressFinish::default(),
         }
     }
 
@@ -173,8 +173,8 @@ impl ProgressStyle {
     /// [`ProgressBar::is_finished()`] is false.
     /// If you don't want the progress bar to be automatically finished then
     /// call `on_finish(None)`.
-    pub fn on_finish(mut self, f: Option<ProgressFinish>) -> ProgressStyle {
-        self.on_finish = f;
+    pub fn on_finish(mut self, finish: ProgressFinish) -> ProgressStyle {
+        self.on_finish = finish;
         self
     }
 
@@ -201,7 +201,7 @@ impl ProgressStyle {
     }
 
     /// Returns the finish behavior.
-    pub fn get_on_finish(&self) -> &Option<ProgressFinish> {
+    pub fn get_on_finish(&self) -> &ProgressFinish {
         &self.on_finish
     }
 
