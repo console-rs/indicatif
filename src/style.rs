@@ -15,7 +15,7 @@ use unicode_segmentation::UnicodeSegmentation;
 pub enum ProgressFinish {
     /// Finishes the progress bar and leaves the current message.
     /// Same behavior as calling [`ProgressBar::finish()`].
-    Finish,
+    AndLeave,
     /// Finishes the progress bar at current position and leaves the current message.
     /// Same behavior as calling [`ProgressBar::finish_at_current_pos()`].
     AtCurrentPos,

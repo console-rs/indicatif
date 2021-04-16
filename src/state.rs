@@ -208,7 +208,7 @@ impl ProgressState {
     /// in the [`ProgressStyle`].
     pub fn finish_using_style(&mut self) {
         match self.style.get_on_finish() {
-            ProgressFinish::Finish => self.finish(),
+            ProgressFinish::AndLeave => self.finish(),
             ProgressFinish::AtCurrentPos => self.finish_at_current_pos(),
             ProgressFinish::WithMessage(msg) => {
                 // Equivalent to `self.finish_with_message` but avoids borrow checker error
