@@ -633,7 +633,11 @@ impl MultiProgress {
     pub fn remove(&self, pb: &ProgressBar) {
         let mut state = self.state.write().unwrap();
         let idx = match &pb.state.lock().unwrap().draw_target.kind {
-            ProgressDrawTargetKind::Remote { idx, .. } => *idx,
+            ProgressDrawTargetKind::Remote { state, idx, .. } => {
+                // Check that this progress bar is owned by the current MultiProgress.
+                assert!(Arc::ptr_eq(&self.state, state));
+                *idx
+            }
             _ => return,
         };
 
