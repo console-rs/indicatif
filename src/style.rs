@@ -15,14 +15,14 @@ use unicode_segmentation::UnicodeSegmentation;
 pub enum ProgressFinish {
     /// Finishes the progress bar and leaves the current message.
     /// Same behavior as calling [`ProgressBar::finish()`].
-    Default,
+    Finish,
     /// Finishes the progress bar at current position and leaves the current message.
     /// Same behavior as calling [`ProgressBar::finish_at_current_pos()`].
     AtCurrentPos,
     /// Finishes the progress bar and sets a message.
     /// Same behavior as calling [`ProgressBar::finish_with_message()`].
     WithMessage(Cow<'static, str>),
-    /// Finishes the progress bar and completely clears it.
+    /// Finishes the progress bar and completely clears it. This is the default behavior.
     /// Same behavior as calling [`ProgressBar::finish_and_clear()`].
     AndClear,
     /// Finishes the progress bar and leaves the current message and progress.
@@ -35,7 +35,7 @@ pub enum ProgressFinish {
 
 impl Default for ProgressFinish {
     fn default() -> Self {
-        Self::Default
+        Self::AndClear
     }
 }
 
