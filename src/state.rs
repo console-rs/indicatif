@@ -313,14 +313,6 @@ pub(crate) struct ProgressDrawState {
 }
 
 impl ProgressDrawState {
-    pub fn clear_term(&self, term: &Term) -> io::Result<()> {
-        term.clear_last_lines(self.lines.len() - self.orphan_lines)
-    }
-
-    pub fn move_cursor(&self, term: &Term) -> io::Result<()> {
-        term.move_cursor_up(self.lines.len() - self.orphan_lines)
-    }
-
     pub fn draw_to_term(&self, term: &Term) -> io::Result<()> {
         for line in &self.lines {
             term.write_line(line)?;
@@ -428,7 +420,7 @@ impl ProgressDrawTarget {
         ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Term {
                 term,
-                last_state: None,
+                last_line_count: 0,
                 rate,
                 last_draw: Instant::now() - rate,
             },
@@ -474,7 +466,7 @@ impl ProgressDrawTarget {
         match self.kind {
             ProgressDrawTargetKind::Term {
                 ref term,
-                ref mut last_state,
+                ref mut last_line_count,
                 rate,
                 ref mut last_draw,
             } => {
@@ -483,16 +475,14 @@ impl ProgressDrawTarget {
                     || rate == Duration::from_secs(0)
                     || last_draw.elapsed() > rate
                 {
-                    if let Some(ref last_state) = *last_state {
-                        if !draw_state.lines.is_empty() && draw_state.move_cursor {
-                            last_state.move_cursor(term)?;
-                        } else {
-                            last_state.clear_term(term)?;
-                        }
+                    if !draw_state.lines.is_empty() && draw_state.move_cursor {
+                        term.move_cursor_up(*last_line_count)?;
+                    } else {
+                        term.clear_last_lines(*last_line_count)?;
                     }
                     draw_state.draw_to_term(term)?;
                     term.flush()?;
-                    *last_state = Some(draw_state);
+                    *last_line_count = draw_state.lines.len() - draw_state.orphan_lines;
                     *last_draw = Instant::now();
                 }
             }
@@ -534,7 +524,7 @@ impl ProgressDrawTarget {
 pub(crate) enum ProgressDrawTargetKind {
     Term {
         term: Term,
-        last_state: Option<ProgressDrawState>,
+        last_line_count: usize,
         rate: Duration,
         last_draw: Instant,
     },
