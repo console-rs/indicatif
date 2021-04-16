@@ -327,6 +327,15 @@ impl ProgressDrawState {
         }
         Ok(())
     }
+
+    pub fn split_off_orphan_lines(&mut self) -> Vec<String> {
+        let mut orphan_lines = self.lines.split_off(self.orphan_lines);
+        // `split_off` makes it so that `self.lines` contains orphan lines and `orphan_lines`
+        // contains progress lines, so we must swap them
+        std::mem::swap(&mut orphan_lines, &mut self.lines);
+        self.orphan_lines = 0;
+        orphan_lines
+    }
 }
 
 #[derive(Debug)]

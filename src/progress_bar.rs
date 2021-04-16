@@ -673,7 +673,7 @@ impl MultiProgress {
         let mut orphan_lines: Vec<String> = Vec::new();
         let mut force_draw = false;
         while !self.state.read().unwrap().is_done() {
-            let (idx, draw_state) = if let Some(peeked) = recv_peek.take() {
+            let (idx, mut draw_state) = if let Some(peeked) = recv_peek.take() {
                 peeked
             } else {
                 self.rx.recv().unwrap()
@@ -691,20 +691,8 @@ impl MultiProgress {
                 }
             }
 
-            // Split orphan lines out of the draw state, if any
-            let lines = if draw_state.orphan_lines > 0 {
-                let split = draw_state.lines.split_at(draw_state.orphan_lines);
-                orphan_lines.extend_from_slice(split.0);
-                split.1.to_vec()
-            } else {
-                draw_state.lines
-            };
-
-            let draw_state = ProgressDrawState {
-                lines,
-                orphan_lines: 0,
-                ..draw_state
-            };
+            let orpan = draw_state.split_off_orphan_lines();
+            orphan_lines.extend(orpan);
 
             if let Some(ref mut obj) = &mut state.objects[idx] {
                 obj.draw_state = Some(draw_state);
