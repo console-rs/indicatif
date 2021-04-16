@@ -412,13 +412,16 @@ impl ProgressDrawTarget {
     ///
     /// Will panic if refresh_rate is `Some(0)`. To disable rate limiting use `None` instead.
     pub fn term(term: Term, refresh_rate: impl Into<Option<u64>>) -> ProgressDrawTarget {
-        let rate = refresh_rate.into().map(|x| Duration::from_millis(1000 / x));
+        let rate = refresh_rate
+            .into()
+            .map(|x| Duration::from_millis(1000 / x))
+            .unwrap_or_else(|| Duration::from_secs(0));
         ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Term {
                 term,
                 last_state: None,
                 rate,
-                last_draw: None,
+                last_draw: Instant::now() - rate,
             },
         }
     }
@@ -468,9 +471,8 @@ impl ProgressDrawTarget {
             } => {
                 if draw_state.finished
                     || draw_state.force_draw
-                    || rate.is_none()
-                    || last_draw.is_none()
-                    || last_draw.unwrap().elapsed() > rate.unwrap()
+                    || rate == Duration::from_secs(0)
+                    || last_draw.elapsed() > rate
                 {
                     if let Some(ref last_state) = *last_state {
                         if !draw_state.lines.is_empty() && draw_state.move_cursor {
@@ -482,7 +484,7 @@ impl ProgressDrawTarget {
                     draw_state.draw_to_term(term)?;
                     term.flush()?;
                     *last_state = Some(draw_state);
-                    *last_draw = Some(Instant::now());
+                    *last_draw = Instant::now();
                 }
             }
             ProgressDrawTargetKind::Remote { idx, ref chan, .. } => {
@@ -524,8 +526,8 @@ pub(crate) enum ProgressDrawTargetKind {
     Term {
         term: Term,
         last_state: Option<ProgressDrawState>,
-        rate: Option<Duration>,
-        last_draw: Option<Instant>,
+        rate: Duration,
+        last_draw: Instant,
     },
     Remote {
         state: Arc<RwLock<MultiProgressState>>,
