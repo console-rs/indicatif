@@ -207,29 +207,20 @@ impl ProgressState {
     /// Finishes the progress bar using the [`ProgressFinish`] behavior stored
     /// in the [`ProgressStyle`].
     pub fn finish_using_style(&mut self) {
-        let on_finish = match self.style.on_finish.take() {
-            Some(on_finish) => on_finish,
-            None => return,
-        };
-
-        match on_finish {
-            ProgressFinish::Default => {
+        match self.style.get_on_finish() {
+            ProgressFinish::AndLeave => self.finish(),
+            ProgressFinish::AtCurrentPos => self.finish_at_current_pos(),
+            ProgressFinish::WithMessage(msg) => {
+                // Equivalent to `self.finish_with_message` but avoids borrow checker error
+                self.message.clone_from(msg);
                 self.finish();
             }
-            ProgressFinish::AtCurrentPos => {
-                self.finish_at_current_pos();
-            }
-            ProgressFinish::WithMessage(msg) => {
-                self.finish_with_message(msg);
-            }
-            ProgressFinish::AndClear => {
-                self.finish_and_clear();
-            }
-            ProgressFinish::Abandon => {
-                self.abandon();
-            }
+            ProgressFinish::AndClear => self.finish_and_clear(),
+            ProgressFinish::Abandon => self.abandon(),
             ProgressFinish::AbandonWithMessage(msg) => {
-                self.abandon_with_message(msg);
+                // Equivalent to `self.abandon_with_message` but avoids borrow checker error
+                self.message.clone_from(msg);
+                self.abandon();
             }
         }
     }
@@ -262,15 +253,7 @@ impl Drop for ProgressState {
             return;
         }
 
-        // How should we finish the bar?
-        match self.style.on_finish {
-            Some(_) => self.finish_using_style(),
-            None => {
-                // Fallback to original drop behavior for bars that are not finished.
-                self.status = Status::DoneHidden;
-                self.draw().ok();
-            }
-        }
+        self.finish_using_style();
     }
 }
 
