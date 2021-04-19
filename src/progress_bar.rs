@@ -680,21 +680,17 @@ impl MultiProgress {
             };
             force_draw |= draw_state.finished || draw_state.force_draw;
 
-            let mut state = self.state.write().unwrap();
-            if draw_state.finished {
-                if let Some(ref mut obj) = &mut state.objects[idx] {
-                    obj.done = true;
-                }
-                if draw_state.lines.is_empty() {
-                    // `finish_and_clear` was called
-                    state.remove_idx(idx);
-                }
-            }
-
             let orpan = draw_state.split_off_orphan_lines();
             orphan_lines.extend(orpan);
 
-            if let Some(ref mut obj) = &mut state.objects[idx] {
+            let mut state = self.state.write().unwrap();
+            if draw_state.finished {
+                if draw_state.lines.is_empty() {
+                    // `finish_and_clear` was called
+                    state.remove_idx(idx);
+                } else if let Some(ref mut obj) = &mut state.objects[idx] {
+                    obj.done = true;
+                }
                 obj.draw_state = Some(draw_state);
             }
 
