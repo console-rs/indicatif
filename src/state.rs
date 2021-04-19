@@ -281,6 +281,15 @@ impl MultiProgressState {
             None => true,
         })
     }
+
+    pub(crate) fn remove_idx(&mut self, idx: usize) {
+        if self.objects[idx].take().is_none() {
+            return;
+        }
+
+        self.free_set.push(idx);
+        self.ordering.retain(|&x| x != idx);
+    }
 }
 
 pub(crate) struct MultiObject {

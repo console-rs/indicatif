@@ -631,7 +631,6 @@ impl MultiProgress {
     /// If the passed progress bar does not satisfy the condition above,
     /// the `remove` method does nothing.
     pub fn remove(&self, pb: &ProgressBar) {
-        let mut state = self.state.write().unwrap();
         let idx = match &pb.state.lock().unwrap().draw_target.kind {
             ProgressDrawTargetKind::Remote { state, idx, .. } => {
                 // Check that this progress bar is owned by the current MultiProgress.
@@ -641,12 +640,7 @@ impl MultiProgress {
             _ => return,
         };
 
-        if state.objects[idx].take().is_none() {
-            return;
-        }
-
-        state.free_set.push(idx);
-        state.ordering.retain(|&x| x != idx);
+        self.state.write().unwrap().remove_idx(idx);
     }
 
     /// Waits for all progress bars to report that they are finished.
@@ -693,8 +687,7 @@ impl MultiProgress {
                 }
                 if draw_state.lines.is_empty() {
                     // `finish_and_clear` was called
-                    state.free_set.push(idx);
-                    state.ordering.retain(|&x| x != idx);
+                    state.remove_idx(idx);
                 }
             }
 
