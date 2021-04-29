@@ -470,17 +470,20 @@ impl ProgressDrawTarget {
                 rate,
                 ref mut last_draw,
             } => {
-                if draw_state.finished || draw_state.force_draw || last_draw.elapsed() > rate {
-                    if !draw_state.lines.is_empty() && draw_state.move_cursor {
-                        term.move_cursor_up(*last_line_count)?;
-                    } else {
-                        term.clear_last_lines(*last_line_count)?;
-                    }
-                    draw_state.draw_to_term(term)?;
-                    term.flush()?;
-                    *last_line_count = draw_state.lines.len() - draw_state.orphan_lines;
-                    *last_draw = Instant::now();
+                if !draw_state.finished && !draw_state.force_draw && last_draw.elapsed() < rate {
+                    return Ok(());
                 }
+
+                if !draw_state.lines.is_empty() && draw_state.move_cursor {
+                    term.move_cursor_up(*last_line_count)?;
+                } else {
+                    term.clear_last_lines(*last_line_count)?;
+                }
+
+                draw_state.draw_to_term(term)?;
+                term.flush()?;
+                *last_line_count = draw_state.lines.len() - draw_state.orphan_lines;
+                *last_draw = Instant::now();
             }
             ProgressDrawTargetKind::Remote { idx, ref chan, .. } => {
                 return chan
