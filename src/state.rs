@@ -459,10 +459,6 @@ impl ProgressDrawTarget {
 
     /// Apply the given draw state (draws it).
     pub(crate) fn apply_draw_state(&mut self, draw_state: ProgressDrawState) -> io::Result<()> {
-        // no need to apply anything to hidden draw targets.
-        if self.is_hidden() {
-            return Ok(());
-        }
         match self.kind {
             ProgressDrawTargetKind::Term {
                 ref term,
