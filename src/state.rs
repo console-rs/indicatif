@@ -470,11 +470,7 @@ impl ProgressDrawTarget {
                 rate,
                 ref mut last_draw,
             } => {
-                if draw_state.finished
-                    || draw_state.force_draw
-                    || rate == Duration::from_secs(0)
-                    || last_draw.elapsed() > rate
-                {
+                if draw_state.finished || draw_state.force_draw || last_draw.elapsed() > rate {
                     if !draw_state.lines.is_empty() && draw_state.move_cursor {
                         term.move_cursor_up(*last_line_count)?;
                     } else {
