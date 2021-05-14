@@ -167,7 +167,7 @@ pub fn expand_template<F: FnMut(&TemplateVar<'_>) -> String>(s: &str, mut f: F) 
                     ([<^>])?
                     ([0-9]+)?
                     (!)?
-                    (?:\.([a-z_]+(?:\.[a-z_]+)*))?
+                    (?:\.([0-9a-z_]+(?:\.[0-9a-z_]+)*))?
                     (?:/([a-z_]+(?:\.[a-z_]+)*))?
                 )?
             "
