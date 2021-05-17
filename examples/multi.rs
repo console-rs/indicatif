@@ -11,7 +11,7 @@ fn main() {
 
     let pb = m.add(ProgressBar::new(128));
     pb.set_style(sty.clone());
-    let _ = thread::spawn(move || {
+    let h1 = thread::spawn(move || {
         for i in 0..128 {
             pb.set_message(format!("item #{}", i + 1));
             pb.inc(1);
@@ -22,7 +22,7 @@ fn main() {
 
     let pb = m.add(ProgressBar::new(128));
     pb.set_style(sty.clone());
-    let _ = thread::spawn(move || {
+    let h2 = thread::spawn(move || {
         for _ in 0..3 {
             pb.set_position(0);
             for i in 0..128 {
@@ -45,5 +45,7 @@ fn main() {
         pb.finish_with_message("done");
     });
 
-    m.join_and_clear().unwrap();
+    let _ = h1.join();
+    let _ = h2.join();
+    m.clear().unwrap();
 }
