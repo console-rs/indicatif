@@ -444,7 +444,9 @@ impl ProgressDrawTarget {
         match self.kind {
             ProgressDrawTargetKind::Hidden => true,
             ProgressDrawTargetKind::Term { ref term, .. } => !term.is_term(),
-            _ => false,
+            ProgressDrawTargetKind::Remote { ref state, .. } => {
+                state.read().unwrap().draw_target.is_hidden()
+            }
         }
     }
 
