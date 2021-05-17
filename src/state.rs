@@ -467,16 +467,15 @@ impl ProgressDrawTarget {
     ///
     /// Will panic if refresh_rate is `Some(0)`. To disable rate limiting use `None` instead.
     pub fn term(term: Term, refresh_rate: impl Into<Option<u64>>) -> ProgressDrawTarget {
-        let rate = refresh_rate
-            .into()
-            .map(|x| Duration::from_millis(1000 / x))
-            .unwrap_or_else(|| Duration::from_secs(0));
         ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Term {
                 term,
                 last_line_count: 0,
-                rate,
-                last_draw: Instant::now() - rate,
+                leaky_bucket: refresh_rate.into().map(|rate| LeakyBucket {
+                    bucket: MAX_GROUP_SIZE,
+                    leak_rate: rate as f64,
+                    last_update: Instant::now(),
+                }),
             },
         }
     }
@@ -513,14 +512,23 @@ impl ProgressDrawTarget {
 
     /// Apply the given draw state (draws it).
     pub(crate) fn apply_draw_state(&mut self, draw_state: ProgressDrawState) -> io::Result<()> {
-        let (term, last_line_count, last_draw) = match self.kind {
+        let (term, last_line_count) = match self.kind {
             ProgressDrawTargetKind::Term {
                 ref term,
                 ref mut last_line_count,
-                rate,
-                ref mut last_draw,
-            } if draw_state.finished || draw_state.force_draw || last_draw.elapsed() > rate => {
-                (term, last_line_count, last_draw)
+                leaky_bucket: None,
+            } => (term, last_line_count),
+            ProgressDrawTargetKind::Term {
+                ref term,
+                ref mut last_line_count,
+                leaky_bucket: Some(ref mut leaky_bucket),
+            } => {
+                if draw_state.finished || draw_state.force_draw || leaky_bucket.try_add_work() {
+                    (term, last_line_count)
+                } else {
+                    // rate limited
+                    return Ok(());
+                }
             }
             ProgressDrawTargetKind::Remote { idx, ref state, .. } => {
                 return state
@@ -542,7 +550,6 @@ impl ProgressDrawTarget {
         draw_state.draw_to_term(term)?;
         term.flush()?;
         *last_line_count = draw_state.lines.len() - draw_state.orphan_lines;
-        *last_draw = Instant::now();
         Ok(())
     }
 
@@ -570,13 +577,46 @@ impl ProgressDrawTarget {
         };
     }
 }
+
+const MAX_GROUP_SIZE: f64 = 32.0;
+
+#[derive(Debug)]
+pub(crate) struct LeakyBucket {
+    leak_rate: f64,
+    last_update: Instant,
+    bucket: f64,
+}
+
+/// Rate limit but allow occasional bursts above desired rate
+impl LeakyBucket {
+    /// try to add some work to the bucket
+    /// return false if the bucket is already full and the work should be skipped
+    fn try_add_work(&mut self) -> bool {
+        self.leak();
+        if self.bucket < MAX_GROUP_SIZE {
+            self.bucket += 1.0;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn leak(&mut self) {
+        let ticks = self.last_update.elapsed().as_secs_f64() * self.leak_rate;
+        self.bucket -= ticks;
+        if self.bucket < 0.0 {
+            self.bucket = 0.0;
+        }
+        self.last_update = Instant::now();
+    }
+}
+
 #[derive(Debug)]
 pub(crate) enum ProgressDrawTargetKind {
     Term {
         term: Term,
         last_line_count: usize,
-        rate: Duration,
-        last_draw: Instant,
+        leaky_bucket: Option<LeakyBucket>,
     },
     Remote {
         state: Arc<RwLock<MultiProgressState>>,
