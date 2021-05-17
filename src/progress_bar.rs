@@ -1,14 +1,13 @@
 use std::borrow::Cow;
 use std::fmt;
 use std::io;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc, Mutex, RwLock, Weak};
+use std::sync::RwLock;
+use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::state::{
-    MultiObject, MultiProgressState, ProgressDrawState, ProgressDrawTarget, ProgressDrawTargetKind,
+    MultiProgressState, ProgressDrawState, ProgressDrawTarget, ProgressDrawTargetKind,
     ProgressState, Status,
 };
 use crate::style::ProgressStyle;
@@ -507,20 +506,10 @@ impl ProgressBar {
 }
 
 /// Manages multiple progress bars from different threads.
+#[derive(Debug)]
 pub struct MultiProgress {
     state: Arc<RwLock<MultiProgressState>>,
-    joining: AtomicBool,
-    tx: Sender<(usize, ProgressDrawState)>,
-    rx: Receiver<(usize, ProgressDrawState)>,
 }
-
-impl fmt::Debug for MultiProgress {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("MultiProgress").finish()
-    }
-}
-
-unsafe impl Sync for MultiProgress {}
 
 impl Default for MultiProgress {
     fn default() -> MultiProgress {
@@ -540,18 +529,14 @@ impl MultiProgress {
 
     /// Creates a new multi progress object with the given draw target.
     pub fn with_draw_target(draw_target: ProgressDrawTarget) -> MultiProgress {
-        let (tx, rx) = channel();
         MultiProgress {
             state: Arc::new(RwLock::new(MultiProgressState {
-                objects: Vec::new(),
+                draw_states: Vec::new(),
                 free_set: Vec::new(),
                 ordering: vec![],
                 draw_target,
                 move_cursor: false,
             })),
-            joining: AtomicBool::new(false),
-            tx,
-            rx,
         }
     }
 
@@ -592,20 +577,15 @@ impl MultiProgress {
     }
 
     fn push(&self, pos: Option<usize>, pb: ProgressBar) -> ProgressBar {
-        let new = MultiObject {
-            done: false,
-            draw_state: None,
-        };
-
         let mut state = self.state.write().unwrap();
         let idx = match state.free_set.pop() {
             Some(idx) => {
-                state.objects[idx] = Some(new);
+                state.draw_states[idx] = None;
                 idx
             }
             None => {
-                state.objects.push(Some(new));
-                state.objects.len() - 1
+                state.draw_states.push(None);
+                state.draw_states.len() - 1
             }
         };
 
@@ -614,11 +594,15 @@ impl MultiProgress {
             _ => state.ordering.push(idx),
         }
 
+        assert!(
+            state.len() == state.ordering.len(),
+            "Draw state is inconsistent"
+        );
+
         pb.set_draw_target(ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Remote {
                 state: self.state.clone(),
                 idx,
-                chan: Mutex::new(self.tx.clone()),
             },
         });
         pb
@@ -641,128 +625,6 @@ impl MultiProgress {
         };
 
         self.state.write().unwrap().remove_idx(idx);
-    }
-
-    /// Waits for all progress bars to report that they are finished.
-    ///
-    /// You need to call this as this will request the draw instructions
-    /// from the remote progress bars.  Not calling this will deadlock
-    /// your program.
-    pub fn join(&self) -> io::Result<()> {
-        self.join_impl(false)
-    }
-
-    /// Works like `join` but clears the progress bar in the end.
-    pub fn join_and_clear(&self) -> io::Result<()> {
-        self.join_impl(true)
-    }
-
-    fn join_impl(&self, clear: bool) -> io::Result<()> {
-        if self.joining.load(Ordering::Acquire) {
-            panic!("Already joining!");
-        }
-        self.joining.store(true, Ordering::Release);
-
-        let move_cursor = self.state.read().unwrap().move_cursor;
-        // Max amount of grouped together updates at once. This is meant
-        // to ensure there isn't a situation where continuous updates prevent
-        // any actual draws happening.
-        const MAX_GROUP_SIZE: usize = 32;
-        let mut recv_peek = None;
-        let mut grouped = 0usize;
-        let mut orphan_lines: Vec<String> = Vec::new();
-        let mut force_draw = false;
-        while !self.state.read().unwrap().is_done() {
-            let (idx, draw_state) = if let Some(peeked) = recv_peek.take() {
-                peeked
-            } else {
-                self.rx.recv().unwrap()
-            };
-            force_draw |= draw_state.finished || draw_state.force_draw;
-
-            let mut state = self.state.write().unwrap();
-            if draw_state.finished {
-                if let Some(ref mut obj) = &mut state.objects[idx] {
-                    obj.done = true;
-                }
-                if draw_state.lines.is_empty() {
-                    // `finish_and_clear` was called
-                    state.remove_idx(idx);
-                }
-            }
-
-            // Split orphan lines out of the draw state, if any
-            let lines = if draw_state.orphan_lines > 0 {
-                let split = draw_state.lines.split_at(draw_state.orphan_lines);
-                orphan_lines.extend_from_slice(split.0);
-                split.1.to_vec()
-            } else {
-                draw_state.lines
-            };
-
-            let draw_state = ProgressDrawState {
-                lines,
-                orphan_lines: 0,
-                ..draw_state
-            };
-
-            if let Some(ref mut obj) = &mut state.objects[idx] {
-                obj.draw_state = Some(draw_state);
-            }
-
-            // the rest from here is only drawing, we can skip it.
-            if state.draw_target.is_hidden() {
-                continue;
-            }
-
-            debug_assert!(recv_peek.is_none());
-            if grouped >= MAX_GROUP_SIZE {
-                // Can't group any more draw calls, proceed to just draw
-                grouped = 0;
-            } else if let Ok(state) = self.rx.try_recv() {
-                // Only group draw calls if there is another draw already queued
-                recv_peek = Some(state);
-                grouped += 1;
-                continue;
-            } else {
-                // No more draws queued, proceed to just draw
-                grouped = 0;
-            }
-
-            let mut lines = vec![];
-
-            // Make orphaned lines appear at the top, so they can be properly
-            // forgotten.
-            let orphan_lines_count = orphan_lines.len();
-            lines.append(&mut orphan_lines);
-
-            for index in state.ordering.iter() {
-                if let Some(obj) = &state.objects[*index] {
-                    if let Some(ref draw_state) = obj.draw_state {
-                        lines.extend_from_slice(&draw_state.lines[..]);
-                    }
-                }
-            }
-
-            let finished = state.is_done();
-            state.draw_target.apply_draw_state(ProgressDrawState {
-                lines,
-                orphan_lines: orphan_lines_count,
-                force_draw: force_draw || orphan_lines_count > 0,
-                move_cursor,
-                finished,
-            })?;
-
-            force_draw = false;
-        }
-
-        if clear {
-            self.clear()?;
-        }
-
-        self.joining.store(false, Ordering::Release);
-
-        Ok(())
     }
 
     pub fn clear(&self) -> io::Result<()> {
@@ -849,7 +711,6 @@ mod tests {
         let pb = mpb.add(ProgressBar::new(1));
         pb.set_draw_delta(2);
         drop(pb);
-        mpb.join().unwrap();
     }
 
     #[test]
@@ -859,7 +720,6 @@ mod tests {
         pb.set_draw_delta(2);
         pb.abandon();
         drop(pb);
-        mpb.join().unwrap();
     }
 
     #[test]
@@ -914,17 +774,19 @@ mod tests {
 
         let state = mp.state.read().unwrap();
         // the removed place for p1 is reused
-        assert_eq!(state.objects.len(), 4);
-        assert_eq!(state.objects.iter().filter(|o| o.is_some()).count(), 3);
+        assert_eq!(state.draw_states.len(), 4);
+        assert_eq!(state.len(), 3);
 
         // free_set may contain 1 or 2
         match state.free_set.last() {
             Some(1) => {
                 assert_eq!(state.ordering, vec![0, 2, 3]);
+                assert!(state.draw_states[1].is_none());
                 assert_eq!(extract_index(&p4), 2);
             }
             Some(2) => {
                 assert_eq!(state.ordering, vec![0, 1, 3]);
+                assert!(state.draw_states[2].is_none());
                 assert_eq!(extract_index(&p4), 1);
             }
             _ => unreachable!(),
@@ -948,8 +810,10 @@ mod tests {
 
         let state = mp.state.read().unwrap();
         // the removed place for p1 is reused
-        assert_eq!(state.objects.len(), 2);
-        assert_eq!(state.objects.iter().filter(|obj| obj.is_some()).count(), 1);
+        assert_eq!(state.draw_states.len(), 2);
+        assert_eq!(state.free_set.len(), 1);
+        assert_eq!(state.len(), 1);
+        assert!(state.draw_states[0].is_none());
         assert_eq!(state.free_set.last(), Some(&0));
 
         assert_eq!(state.ordering, vec![1]);
@@ -969,6 +833,5 @@ mod tests {
         let mpb = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
         let pb = mpb.add(ProgressBar::new(123));
         pb.finish();
-        mpb.join().unwrap();
     }
 }

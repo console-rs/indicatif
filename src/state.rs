@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::io;
-use std::sync::mpsc::Sender;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -257,12 +256,14 @@ impl Drop for ProgressState {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct MultiProgressState {
     /// The collection of states corresponding to progress bars
-    pub(crate) objects: Vec<Option<MultiObject>>,
-    /// Set of `None` elements in the `objects` vector
+    /// the state is None for bars that have not yet been drawn or have been removed
+    pub(crate) draw_states: Vec<Option<ProgressDrawState>>,
+    /// Set of removed bars, should have corresponding `None` elements in the `draw_states` vector
     pub(crate) free_set: Vec<usize>,
-    /// Indices to the `objects` to maintain correct visual order
+    /// Indices to the `draw_states` to maintain correct visual order
     pub(crate) ordering: Vec<usize>,
     /// Target for draw operation for MultiProgress
     pub(crate) draw_target: ProgressDrawTarget,
@@ -275,26 +276,78 @@ impl MultiProgressState {
         self.draw_target.width()
     }
 
-    pub(crate) fn is_done(&self) -> bool {
-        self.objects.iter().all(|o| match o {
-            Some(obj) => obj.done,
-            None => true,
+    pub(crate) fn draw(&mut self, idx: usize, draw_state: ProgressDrawState) -> io::Result<()> {
+        let force_draw = draw_state.finished || draw_state.force_draw;
+        let mut orphan_lines = vec![];
+
+        // Split orphan lines out of the draw state, if any
+        let lines = if draw_state.orphan_lines > 0 {
+            let split = draw_state.lines.split_at(draw_state.orphan_lines);
+            orphan_lines.extend_from_slice(split.0);
+            split.1.to_vec()
+        } else {
+            draw_state.lines
+        };
+
+        let draw_state = ProgressDrawState {
+            lines,
+            orphan_lines: 0,
+            ..draw_state
+        };
+
+        self.draw_states[idx] = Some(draw_state);
+
+        // the rest from here is only drawing, we can skip it.
+        if self.draw_target.is_hidden() {
+            return Ok(());
+        }
+
+        let mut lines = vec![];
+
+        // Make orphaned lines appear at the top, so they can be properly
+        // forgotten.
+        let orphan_lines_count = orphan_lines.len();
+        lines.append(&mut orphan_lines);
+
+        for index in self.ordering.iter() {
+            let draw_state = &self.draw_states[*index];
+            if let Some(ref draw_state) = draw_state {
+                lines.extend_from_slice(&draw_state.lines[..]);
+            }
+        }
+
+        // !any(!done) is also true when iter() is empty, contrary to all(done)
+        let finished = !self
+            .draw_states
+            .iter()
+            .any(|ref x| !x.as_ref().map(|s| s.finished).unwrap_or(false));
+        self.draw_target.apply_draw_state(ProgressDrawState {
+            lines,
+            orphan_lines: orphan_lines_count,
+            force_draw: force_draw || orphan_lines_count > 0,
+            move_cursor: self.move_cursor,
+            finished,
         })
     }
 
+    pub(crate) fn len(&self) -> usize {
+        self.draw_states.len() - self.free_set.len()
+    }
+
     pub(crate) fn remove_idx(&mut self, idx: usize) {
-        if self.objects[idx].take().is_none() {
+        if self.free_set.contains(&idx) {
             return;
         }
 
+        self.draw_states[idx].take();
         self.free_set.push(idx);
         self.ordering.retain(|&x| x != idx);
-    }
-}
 
-pub(crate) struct MultiObject {
-    pub(crate) done: bool,
-    pub(crate) draw_state: Option<ProgressDrawState>,
+        assert!(
+            self.len() == self.ordering.len(),
+            "Draw state is inconsistent"
+        );
+    }
 }
 
 /// The drawn state of an element.
@@ -334,6 +387,7 @@ pub(crate) enum Status {
 /// The draw target is a stateful wrapper over a drawing destination and
 /// internally optimizes how often the state is painted to the output
 /// device.
+#[derive(Debug)]
 pub struct ProgressDrawTarget {
     pub(crate) kind: ProgressDrawTargetKind,
 }
@@ -468,11 +522,11 @@ impl ProgressDrawTarget {
             } if draw_state.finished || draw_state.force_draw || last_draw.elapsed() > rate => {
                 (term, last_line_count, last_draw)
             }
-            ProgressDrawTargetKind::Remote { idx, ref chan, .. } => {
-                return chan
-                    .lock()
+            ProgressDrawTargetKind::Remote { idx, ref state, .. } => {
+                return state
+                    .write()
                     .unwrap()
-                    .send((idx, draw_state))
+                    .draw(idx, draw_state)
                     .map_err(|e| io::Error::new(io::ErrorKind::Other, e));
             }
             // Hidden, finished, or no need to refresh yet
@@ -496,10 +550,11 @@ impl ProgressDrawTarget {
     pub(crate) fn disconnect(&self) {
         match self.kind {
             ProgressDrawTargetKind::Term { .. } => {}
-            ProgressDrawTargetKind::Remote { idx, ref chan, .. } => {
-                chan.lock()
+            ProgressDrawTargetKind::Remote { idx, ref state, .. } => {
+                state
+                    .write()
                     .unwrap()
-                    .send((
+                    .draw(
                         idx,
                         ProgressDrawState {
                             lines: vec![],
@@ -508,13 +563,14 @@ impl ProgressDrawTarget {
                             force_draw: false,
                             move_cursor: false,
                         },
-                    ))
+                    )
                     .ok();
             }
             ProgressDrawTargetKind::Hidden => {}
         };
     }
 }
+#[derive(Debug)]
 pub(crate) enum ProgressDrawTargetKind {
     Term {
         term: Term,
@@ -525,7 +581,6 @@ pub(crate) enum ProgressDrawTargetKind {
     Remote {
         state: Arc<RwLock<MultiProgressState>>,
         idx: usize,
-        chan: Mutex<Sender<(usize, ProgressDrawState)>>,
     },
     Hidden,
 }

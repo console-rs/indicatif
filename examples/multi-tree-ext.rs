@@ -189,51 +189,47 @@ pub fn main() {
     let mut items: Vec<&Item> = Vec::with_capacity(ELEMENTS.len());
 
     let mp2 = Arc::clone(&mp);
-    let _ = thread::spawn(move || {
-        let mut rng = ThreadRng::default();
-        pb_main.tick();
-        loop {
-            match get_action(&mut rng, &items) {
-                Action::Stop => {
-                    // all elements were exhausted
-                    pb_main.finish();
-                    return;
-                }
-                Action::ModifyTree(elem_idx) => match &ELEMENTS[elem_idx] {
-                    Elem::AddItem(item) => {
-                        let pb = mp2.insert(item.index + 1, item.progress_bar.clone());
-                        pb.set_prefix("  ".repeat(item.indent));
-                        pb.set_message(&item.key);
-                        items.insert(item.index, &item);
-                    }
-                    Elem::RemoveItem(Index(index)) => {
-                        let item = items.remove(*index);
-                        let pb = &item.progress_bar;
-                        mp2.remove(pb);
-                        pb_main.inc(pb.length() - pb.position());
-                    }
-                },
-                Action::IncProgressBar(item_idx) => {
-                    let item = &items[item_idx];
-                    item.progress_bar.inc(1);
-                    let pos = item.progress_bar.position();
-                    let len = item.progress_bar.length();
-                    if pos >= len {
-                        item.progress_bar.set_style(sty_fin.clone());
-                        item.progress_bar.finish_with_message(format!(
-                            "{} {}",
-                            style("✔").green(),
-                            item.key
-                        ));
-                    }
-                    pb_main.inc(1);
-                }
+    let mut rng = ThreadRng::default();
+    pb_main.tick();
+    loop {
+        match get_action(&mut rng, &items) {
+            Action::Stop => {
+                // all elements were exhausted
+                pb_main.finish();
+                return;
             }
-            thread::sleep(Duration::from_millis(20));
+            Action::ModifyTree(elem_idx) => match &ELEMENTS[elem_idx] {
+                Elem::AddItem(item) => {
+                    let pb = mp2.insert(item.index + 1, item.progress_bar.clone());
+                    pb.set_prefix("  ".repeat(item.indent));
+                    pb.set_message(&item.key);
+                    items.insert(item.index, &item);
+                }
+                Elem::RemoveItem(Index(index)) => {
+                    let item = items.remove(*index);
+                    let pb = &item.progress_bar;
+                    mp2.remove(pb);
+                    pb_main.inc(pb.length() - pb.position());
+                }
+            },
+            Action::IncProgressBar(item_idx) => {
+                let item = &items[item_idx];
+                item.progress_bar.inc(1);
+                let pos = item.progress_bar.position();
+                let len = item.progress_bar.length();
+                if pos >= len {
+                    item.progress_bar.set_style(sty_fin.clone());
+                    item.progress_bar.finish_with_message(format!(
+                        "{} {}",
+                        style("✔").green(),
+                        item.key
+                    ));
+                }
+                pb_main.inc(1);
+            }
         }
-    });
-
-    mp.join().unwrap();
+        thread::sleep(Duration::from_millis(20));
+    }
 }
 
 /// The function guarantees to return the action, that is valid for the current tree.
