@@ -453,7 +453,7 @@ impl ProgressDrawTarget {
         match self.kind {
             ProgressDrawTargetKind::Term { ref term, .. } => term.size().1 as usize,
             ProgressDrawTargetKind::Remote { ref state, .. } => state.read().unwrap().width(),
-            ProgressDrawTargetKind::Hidden => unreachable!(),
+            ProgressDrawTargetKind::Hidden => 0,
         }
     }
 
