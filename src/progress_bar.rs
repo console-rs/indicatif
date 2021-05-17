@@ -757,17 +757,24 @@ impl MultiProgress {
         }
 
         if clear {
-            let mut state = self.state.write().unwrap();
-            state.draw_target.apply_draw_state(ProgressDrawState {
-                lines: vec![],
-                orphan_lines: 0,
-                finished: true,
-                force_draw: true,
-                move_cursor,
-            })?;
+            self.clear()?;
         }
 
         self.joining.store(false, Ordering::Release);
+
+        Ok(())
+    }
+
+    pub fn clear(&self) -> io::Result<()> {
+        let mut state = self.state.write().unwrap();
+        let move_cursor = state.move_cursor;
+        state.draw_target.apply_draw_state(ProgressDrawState {
+            lines: vec![],
+            orphan_lines: 0,
+            finished: true,
+            force_draw: true,
+            move_cursor,
+        })?;
 
         Ok(())
     }
