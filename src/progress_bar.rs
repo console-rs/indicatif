@@ -956,4 +956,12 @@ mod tests {
             _ => unreachable!(),
         }
     }
+
+    #[test]
+    fn multi_progress_hidden() {
+        let mpb = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
+        let pb = mpb.add(ProgressBar::new(123));
+        pb.finish();
+        mpb.join().unwrap();
+    }
 }
