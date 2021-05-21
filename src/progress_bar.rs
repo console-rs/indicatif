@@ -395,6 +395,8 @@ impl ProgressBar {
 
     /// Finishes the progress bar using the [`ProgressFinish`] behavior stored
     /// in the [`ProgressStyle`].
+    ///
+    /// [`ProgressFinish`]: crate::ProgressFinish
     pub fn finish_using_style(&self) {
         self.state.lock().unwrap().finish_using_style();
     }

@@ -10,26 +10,29 @@ use unicode_segmentation::UnicodeSegmentation;
 
 /// Behavior of a progress bar when it is finished.  This is invoked when a
 /// [`ProgressBar`] or [`ProgresBarIter`](crate::ProgressBarIter) completes and
-/// [`ProgressBar::is_finished()`] is false.
+/// [`ProgressBar::is_finished`] is false.
+///
+/// [`ProgressBar`]: crate::ProgressBar
+/// [`ProgressBar::is_finished`]: crate::ProgressBar::is_finished
 #[derive(Clone, Debug)]
 pub enum ProgressFinish {
     /// Finishes the progress bar and leaves the current message.
-    /// Same behavior as calling [`ProgressBar::finish()`].
+    /// Same behavior as calling [`ProgressBar::finish()`](crate::ProgressBar::finish).
     AndLeave,
     /// Finishes the progress bar at current position and leaves the current message.
-    /// Same behavior as calling [`ProgressBar::finish_at_current_pos()`].
+    /// Same behavior as calling [`ProgressBar::finish_at_current_pos()`](crate::ProgressBar::finish_at_current_pos).
     AtCurrentPos,
     /// Finishes the progress bar and sets a message.
-    /// Same behavior as calling [`ProgressBar::finish_with_message()`].
+    /// Same behavior as calling [`ProgressBar::finish_with_message()`](crate::ProgressBar::finish_with_message).
     WithMessage(Cow<'static, str>),
     /// Finishes the progress bar and completely clears it. This is the default behavior.
-    /// Same behavior as calling [`ProgressBar::finish_and_clear()`].
+    /// Same behavior as calling [`ProgressBar::finish_and_clear()`](crate::ProgressBar::finish_and_clear).
     AndClear,
     /// Finishes the progress bar and leaves the current message and progress.
-    /// Same behavior as calling [`ProgressBar::abandon()`].
+    /// Same behavior as calling [`ProgressBar::abandon()`](crate::ProgressBar::abandon).
     Abandon,
     /// Finishes the progress bar and sets a message, and leaves the current progress.
-    /// Same behavior as calling [`ProgressBar::abandon_with_message()`].
+    /// Same behavior as calling [`ProgressBar::abandon_with_message()`](crate::ProgressBar::abandon_with_message).
     AbandonWithMessage(Cow<'static, str>),
 }
 
@@ -168,9 +171,9 @@ impl ProgressStyle {
     }
 
     /// Sets the finish behavior for the progress bar.
-    /// This behavior is invoked when [`ProgressBar`] or
+    /// This behavior is invoked when [`ProgressBar`](crate::ProgressBar) or
     /// [`ProgresBarIter`](crate::ProgressBarIter) completes and
-    /// [`ProgressBar::is_finished()`] is false.
+    /// [`ProgressBar::is_finished()`](crate::ProgressBar::is_finished) is false.
     /// If you don't want the progress bar to be automatically finished then
     /// call `on_finish(None)`.
     pub fn on_finish(mut self, finish: ProgressFinish) -> ProgressStyle {
