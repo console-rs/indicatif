@@ -8,28 +8,39 @@ use std::borrow::Cow;
 #[cfg(feature = "improved_unicode")]
 use unicode_segmentation::UnicodeSegmentation;
 
-/// Behavior of a progress bar when it is finished.  This is invoked when a
-/// [`ProgressBar`] or [`ProgresBarIter`](crate::ProgressBarIter) completes and
-/// [`ProgressBar::is_finished()`] is false.
+/// Behavior of a progress bar when it is finished
+///
+/// This is invoked when a [`ProgressBar`] or [`ProgressBarIter`] completes and
+/// [`ProgressBar::is_finished`] is false.
+///
+/// [`ProgressBar`]: crate::ProgressBar
+/// [`ProgressBarIter`]: crate::ProgressBarIter
+/// [`ProgressBar::is_finished`]: crate::ProgressBar::is_finished
 #[derive(Clone, Debug)]
 pub enum ProgressFinish {
-    /// Finishes the progress bar and leaves the current message.
-    /// Same behavior as calling [`ProgressBar::finish()`].
+    /// Finishes the progress bar and leaves the current message
+    ///
+    /// Same behavior as calling [`ProgressBar::finish()`](crate::ProgressBar::finish).
     AndLeave,
-    /// Finishes the progress bar at current position and leaves the current message.
-    /// Same behavior as calling [`ProgressBar::finish_at_current_pos()`].
+    /// Finishes the progress bar at current position and leaves the current message
+    ///
+    /// Same behavior as calling [`ProgressBar::finish_at_current_pos()`](crate::ProgressBar::finish_at_current_pos).
     AtCurrentPos,
-    /// Finishes the progress bar and sets a message.
-    /// Same behavior as calling [`ProgressBar::finish_with_message()`].
+    /// Finishes the progress bar and sets a message
+    ///
+    /// Same behavior as calling [`ProgressBar::finish_with_message()`](crate::ProgressBar::finish_with_message).
     WithMessage(Cow<'static, str>),
-    /// Finishes the progress bar and completely clears it. This is the default behavior.
-    /// Same behavior as calling [`ProgressBar::finish_and_clear()`].
+    /// Finishes the progress bar and completely clears it (this is the default)
+    ///
+    /// Same behavior as calling [`ProgressBar::finish_and_clear()`](crate::ProgressBar::finish_and_clear).
     AndClear,
-    /// Finishes the progress bar and leaves the current message and progress.
-    /// Same behavior as calling [`ProgressBar::abandon()`].
+    /// Finishes the progress bar and leaves the current message and progress
+    ///
+    /// Same behavior as calling [`ProgressBar::abandon()`](crate::ProgressBar::abandon).
     Abandon,
-    /// Finishes the progress bar and sets a message, and leaves the current progress.
-    /// Same behavior as calling [`ProgressBar::abandon_with_message()`].
+    /// Finishes the progress bar and sets a message, and leaves the current progress
+    ///
+    /// Same behavior as calling [`ProgressBar::abandon_with_message()`](crate::ProgressBar::abandon_with_message).
     AbandonWithMessage(Cow<'static, str>),
 }
 
@@ -39,7 +50,7 @@ impl Default for ProgressFinish {
     }
 }
 
-/// Controls the rendering style of progress bars.
+/// Controls the rendering style of progress bars
 #[derive(Clone, Debug)]
 pub struct ProgressStyle {
     tick_strings: Vec<Box<str>>,
@@ -88,7 +99,7 @@ fn width(c: &[Box<str>]) -> usize {
 }
 
 impl ProgressStyle {
-    /// Returns the default progress bar style for bars.
+    /// Returns the default progress bar style for bars
     pub fn default_bar() -> ProgressStyle {
         let progress_chars = segment("█░");
         let char_width = width(&progress_chars);
@@ -104,7 +115,7 @@ impl ProgressStyle {
         }
     }
 
-    /// Returns the default progress bar style for spinners.
+    /// Returns the default progress bar style for spinners
     pub fn default_spinner() -> ProgressStyle {
         let progress_chars = segment("█░");
         let char_width = width(&progress_chars);
@@ -120,7 +131,7 @@ impl ProgressStyle {
         }
     }
 
-    /// Sets the tick character sequence for spinners.
+    /// Sets the tick character sequence for spinners
     pub fn tick_chars(mut self, s: &str) -> ProgressStyle {
         self.tick_strings = s.chars().map(|c| c.to_string().into()).collect();
         // Format bar will panic with some potentially confusing message, better to panic here
@@ -132,7 +143,7 @@ impl ProgressStyle {
         self
     }
 
-    /// Sets the tick string sequence for spinners.
+    /// Sets the tick string sequence for spinners
     pub fn tick_strings(mut self, s: &[&str]) -> ProgressStyle {
         self.tick_strings = s.iter().map(|s| s.to_string().into()).collect();
         // Format bar will panic with some potentially confusing message, better to panic here
@@ -144,7 +155,8 @@ impl ProgressStyle {
         self
     }
 
-    /// Sets the progress characters `(filled, current, to do)`.
+    /// Sets the progress characters `(filled, current, to do)`
+    ///
     /// You can pass more then three for a more detailed display.
     /// All passed grapheme clusters need to be of equal width.
     pub fn progress_chars(mut self, s: &str) -> ProgressStyle {
@@ -159,48 +171,53 @@ impl ProgressStyle {
         self
     }
 
-    /// Sets the template string for the progress bar.
+    /// Sets the template string for the progress bar
     ///
-    /// List of keys is available at crate root docs.
+    /// Review the [list of template keys](./index.html#templates) for more information.
     pub fn template(mut self, s: &str) -> ProgressStyle {
         self.template = s.into();
         self
     }
 
-    /// Sets the finish behavior for the progress bar.
+    /// Sets the finish behavior for the progress bar
+    ///
     /// This behavior is invoked when [`ProgressBar`] or
-    /// [`ProgresBarIter`](crate::ProgressBarIter) completes and
+    /// [`ProgressBarIter`] completes and
     /// [`ProgressBar::is_finished()`] is false.
     /// If you don't want the progress bar to be automatically finished then
     /// call `on_finish(None)`.
+    ///
+    /// [`ProgressBar`]: crate::ProgressBar
+    /// [`ProgressBarIter`]: crate::ProgressBarIter
+    /// [`ProgressBar::is_finished()`]: crate::ProgressBar::is_finished
     pub fn on_finish(mut self, finish: ProgressFinish) -> ProgressStyle {
         self.on_finish = finish;
         self
     }
 
-    /// Returns the tick char for a given number.
+    /// Returns the tick char for a given number
     #[deprecated(since = "0.13.0", note = "Deprecated in favor of get_tick_str")]
     pub fn get_tick_char(&self, idx: u64) -> char {
         self.get_tick_str(idx).chars().next().unwrap_or(' ')
     }
 
-    /// Returns the tick string for a given number.
+    /// Returns the tick string for a given number
     pub fn get_tick_str(&self, idx: u64) -> &str {
         &self.tick_strings[(idx as usize) % (self.tick_strings.len() - 1)]
     }
 
-    /// Returns the tick char for the finished state.
+    /// Returns the tick char for the finished state
     #[deprecated(since = "0.13.0", note = "Deprecated in favor of get_final_tick_str")]
     pub fn get_final_tick_char(&self) -> char {
         self.get_final_tick_str().chars().next().unwrap_or(' ')
     }
 
-    /// Returns the tick string for the finished state.
+    /// Returns the tick string for the finished state
     pub fn get_final_tick_str(&self) -> &str {
         &self.tick_strings[self.tick_strings.len() - 1]
     }
 
-    /// Returns the finish behavior.
+    /// Returns the finish behavior
     pub fn get_on_finish(&self) -> &ProgressFinish {
         &self.on_finish
     }
