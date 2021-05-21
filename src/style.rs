@@ -9,7 +9,7 @@ use std::borrow::Cow;
 use unicode_segmentation::UnicodeSegmentation;
 
 /// Behavior of a progress bar when it is finished.  This is invoked when a
-/// [`ProgressBar`] or [`ProgresBarIter`](crate::ProgressBarIter) completes and
+/// [`ProgressBar`] or [`ProgressBarIter`](crate::ProgressBarIter) completes and
 /// [`ProgressBar::is_finished`] is false.
 ///
 /// [`ProgressBar`]: crate::ProgressBar
@@ -172,7 +172,7 @@ impl ProgressStyle {
 
     /// Sets the finish behavior for the progress bar.
     /// This behavior is invoked when [`ProgressBar`](crate::ProgressBar) or
-    /// [`ProgresBarIter`](crate::ProgressBarIter) completes and
+    /// [`ProgressBarIter`](crate::ProgressBarIter) completes and
     /// [`ProgressBar::is_finished()`](crate::ProgressBar::is_finished) is false.
     /// If you don't want the progress bar to be automatically finished then
     /// call `on_finish(None)`.
