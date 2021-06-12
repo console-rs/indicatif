@@ -5,7 +5,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::style::{ProgressFinish, ProgressStyle};
-use crate::utils::{duration_to_secs, secs_to_duration, Estimate};
+use crate::utils::{secs_to_duration, Estimate};
 use console::Term;
 
 /// The state of a progress bar at a moment in time.
@@ -83,9 +83,15 @@ impl ProgressState {
         self.draw_target.width()
     }
 
-    /// Return the current average time per step
+    /// Return the current average time per step with nanosecond precision
+    #[allow(dead_code)]
     pub fn avg_time_per_step(&self) -> Duration {
-        self.est.time_per_step()
+        secs_to_duration(self.est.seconds_per_step())
+    }
+
+    /// Return the current average time in seconds per step with sub-nanosecond precision
+    pub fn avg_seconds_per_step(&self) -> f64 {
+        self.est.seconds_per_step()
     }
 
     /// The expected ETA
@@ -93,7 +99,7 @@ impl ProgressState {
         if self.len == !0 || self.is_finished() {
             return Duration::new(0, 0);
         }
-        let t = duration_to_secs(self.avg_time_per_step());
+        let t = self.avg_seconds_per_step();
         // add 0.75 to leave 0.25 sec of 0s for the user
         secs_to_duration(t * self.len.saturating_sub(self.pos) as f64 + 0.75)
     }
@@ -108,11 +114,11 @@ impl ProgressState {
 
     /// The number of steps per second
     pub fn per_sec(&self) -> u64 {
-        let avg_time = self.avg_time_per_step().as_nanos();
-        if avg_time == 0 {
+        let avg_time = self.avg_seconds_per_step();
+        if avg_time == 0.0 {
             0
         } else {
-            (1_000_000_000 / avg_time) as u64
+            (1.0 / avg_time) as u64
         }
     }
 
@@ -140,7 +146,7 @@ impl ProgressState {
         f(self);
         let new_pos = self.pos;
         if new_pos != old_pos {
-            self.est.record_step(new_pos);
+            self.est.record_step(new_pos, Instant::now());
         }
         if new_pos >= self.draw_next {
             self.draw_next = new_pos.saturating_add(if self.draw_rate != 0 {

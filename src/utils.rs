@@ -74,13 +74,8 @@ impl Estimate {
         self.data = 0;
     }
 
-    pub fn record_step(&mut self, value: u64) {
-        self.record_step_with_elapsed_time(value, self.start_time.elapsed())
-    }
-
-    /// This helper function takes an explicit elapsed duration so that it could also be used in
-    /// test code, which must be deterministic.
-    fn record_step_with_elapsed_time(&mut self, value: u64, elapsed: Duration) {
+    pub fn record_step(&mut self, value: u64, current_time: Instant) {
+        let elapsed = current_time - self.start_time;
         let item = {
             let divisor = value.saturating_sub(self.start_value) as f64;
             if divisor == 0.0 {
@@ -112,9 +107,15 @@ impl Estimate {
         self.set_last_idx(last_idx + 1);
     }
 
+    #[allow(dead_code)]
     pub fn time_per_step(&self) -> Duration {
+        secs_to_duration(self.seconds_per_step())
+    }
+
+    /// Average time per step in seconds, using rolling buffer of last 15 steps
+    pub fn seconds_per_step(&self) -> f64 {
         let len = self.len();
-        secs_to_duration(self.buf[0..usize::from(len)].iter().sum::<f64>() / f64::from(len))
+        self.buf[0..usize::from(len)].iter().sum::<f64>() / f64::from(len)
     }
 }
 
@@ -323,14 +324,26 @@ fn test_duration_stuff() {
 fn test_time_per_step() {
     let test_rate = |items_per_second| {
         let mut est = Estimate::new();
+        let mut current_time = est.start_time;
+        let mut current_value = 0;
         for _ in 0..est.buf.len() {
-            est.record_step_with_elapsed_time(items_per_second, Duration::from_secs(1))
+            current_value += items_per_second;
+            current_time += Duration::from_secs(1);
+            est.record_step(current_value, current_time);
         }
-        let avg_time_per_step = est.time_per_step();
-        assert_ne!(avg_time_per_step, Duration::new(0, 0));
-        assert_eq!(
-            avg_time_per_step,
-            Duration::from_secs_f64(1.0 / items_per_second as f64)
+        let avg_seconds_per_step = est.seconds_per_step();
+
+        assert!(avg_seconds_per_step > 0.0);
+        assert!(avg_seconds_per_step.is_finite());
+
+        let expected_rate = 1.0 / items_per_second as f64;
+        let absolute_error = (avg_seconds_per_step - expected_rate).abs();
+        assert!(
+            absolute_error < f64::EPSILON,
+            "Expected rate: {}, actual: {}, absolute error: {}",
+            expected_rate,
+            avg_seconds_per_step,
+            absolute_error
         );
     };
 
@@ -338,6 +351,9 @@ fn test_time_per_step() {
     test_rate(1_000);
     test_rate(1_000_000);
     test_rate(1_000_000_000);
-    test_rate(1_000_000_001); // fails due to Duration precision 
-    test_rate(100_000_000_000);  // ... being to 1ns
+    test_rate(1_000_000_001);
+    test_rate(100_000_000_000);
+    test_rate(1_000_000_000_000);
+    test_rate(100_000_000_000_000);
+    test_rate(1_000_000_000_000_000);
 }
