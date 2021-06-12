@@ -75,12 +75,18 @@ impl Estimate {
     }
 
     pub fn record_step(&mut self, value: u64) {
+        self.record_step_with_elapsed_time(value, self.start_time.elapsed())
+    }
+
+    /// This helper function takes an explicit elapsed duration so that it could also be used in
+    /// test code, which must be deterministic.
+    fn record_step_with_elapsed_time(&mut self, value: u64, elapsed: Duration) {
         let item = {
             let divisor = value.saturating_sub(self.start_value) as f64;
             if divisor == 0.0 {
                 0.0
             } else {
-                duration_to_secs(self.start_time.elapsed()) / divisor
+                duration_to_secs(elapsed) / divisor
             }
         };
 
@@ -311,4 +317,27 @@ fn test_duration_stuff() {
     let duration = Duration::new(42, 100_000_000);
     let secs = duration_to_secs(duration);
     assert_eq!(secs_to_duration(secs), duration);
+}
+
+#[test]
+fn test_time_per_step() {
+    let test_rate = |items_per_second| {
+        let mut est = Estimate::new();
+        for _ in 0..est.buf.len() {
+            est.record_step_with_elapsed_time(items_per_second, Duration::from_secs(1))
+        }
+        let avg_time_per_step = est.time_per_step();
+        assert_ne!(avg_time_per_step, Duration::new(0, 0));
+        assert_eq!(
+            avg_time_per_step,
+            Duration::from_secs_f64(1.0 / items_per_second as f64)
+        );
+    };
+
+    test_rate(1);
+    test_rate(1_000);
+    test_rate(1_000_000);
+    test_rate(1_000_000_000);
+    test_rate(1_000_000_001); // fails due to Duration precision 
+    test_rate(100_000_000_000);  // ... being to 1ns
 }
