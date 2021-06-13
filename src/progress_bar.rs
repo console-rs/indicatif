@@ -241,6 +241,7 @@ impl ProgressBar {
             finished: state.is_finished(),
             force_draw: true,
             move_cursor: false,
+            alignment: Default::default(),
         };
 
         state.draw_target.apply_draw_state(draw_state).ok();
@@ -489,6 +490,34 @@ impl ProgressBar {
     }
 }
 
+/// The alignment value for `MultiProgress`, the alignment controls how the multi progress
+/// is aligned if some its progress bars get removed.
+///
+/// E.g. `Top` alignment (default), when _progress bar 2_ is removed:
+/// ```ignore
+/// [0/100] progress bar 1        [0/100] progress bar 1
+/// [0/100] progress bar 2   =>   [0/100] progress bar 3
+/// [0/100] progress bar 3
+/// ```
+///
+/// `Bottom` alignment
+/// ```ignore
+/// [0/100] progress bar 1
+/// [0/100] progress bar 2   =>   [0/100] progress bar 1
+/// [0/100] progress bar 3        [0/100] progress bar 3
+/// ```
+#[derive(Debug, Copy, Clone)]
+pub enum MultiProgressAlignment {
+    Top,
+    Bottom,
+}
+
+impl Default for MultiProgressAlignment {
+    fn default() -> Self {
+        Self::Top
+    }
+}
+
 /// Manages multiple progress bars from different threads
 #[derive(Debug)]
 pub struct MultiProgress {
@@ -520,6 +549,7 @@ impl MultiProgress {
                 ordering: vec![],
                 draw_target,
                 move_cursor: false,
+                alignment: MultiProgressAlignment::Top,
             })),
         }
     }
@@ -537,6 +567,11 @@ impl MultiProgress {
     /// progress bars.
     pub fn set_move_cursor(&self, move_cursor: bool) {
         self.state.write().unwrap().move_cursor = move_cursor;
+    }
+
+    /// Set alignment flag:
+    pub fn set_alignment(&self, alignment: MultiProgressAlignment) {
+        self.state.write().unwrap().alignment = alignment;
     }
 
     /// Adds a progress bar.
@@ -609,12 +644,14 @@ impl MultiProgress {
     pub fn clear(&self) -> io::Result<()> {
         let mut state = self.state.write().unwrap();
         let move_cursor = state.move_cursor;
+        let alignment = state.alignment;
         state.draw_target.apply_draw_state(ProgressDrawState {
             lines: vec![],
             orphan_lines: 0,
             finished: true,
             force_draw: true,
             move_cursor,
+            alignment,
         })?;
 
         Ok(())

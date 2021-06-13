@@ -2,6 +2,7 @@ use std::io;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
+use crate::progress_bar::MultiProgressAlignment;
 use console::Term;
 
 /// Target for draw operations
@@ -176,9 +177,19 @@ impl ProgressDrawTarget {
             term.clear_last_lines(*last_line_count)?;
         }
 
+        let shift = match draw_state.alignment {
+            MultiProgressAlignment::Bottom if draw_state.lines.len() < *last_line_count => {
+                let shift = *last_line_count - draw_state.lines.len();
+                for _ in 0..shift {
+                    term.write_line("")?;
+                }
+                shift
+            }
+            _ => 0,
+        };
         draw_state.draw_to_term(term)?;
         term.flush()?;
-        *last_line_count = draw_state.lines.len() - draw_state.orphan_lines;
+        *last_line_count = draw_state.lines.len() - draw_state.orphan_lines + shift;
         Ok(())
     }
 
@@ -198,6 +209,7 @@ impl ProgressDrawTarget {
                             finished: true,
                             force_draw: false,
                             move_cursor: false,
+                            alignment: Default::default(),
                         },
                     )
                     .ok();
@@ -241,6 +253,8 @@ pub(crate) struct MultiProgressState {
     pub(crate) draw_target: ProgressDrawTarget,
     /// Whether or not to just move cursor instead of clearing lines
     pub(crate) move_cursor: bool,
+    /// Controls how the multi progress is aligned if some its progress bars get removed, default is `Top`
+    pub(crate) alignment: MultiProgressAlignment,
 }
 
 impl MultiProgressState {
@@ -298,6 +312,7 @@ impl MultiProgressState {
             orphan_lines: orphan_lines_count,
             force_draw: force_draw || orphan_lines_count > 0,
             move_cursor: self.move_cursor,
+            alignment: self.alignment,
             finished,
         })
     }
@@ -368,6 +383,8 @@ pub(crate) struct ProgressDrawState {
     pub force_draw: bool,
     /// True if we should move the cursor up when possible instead of clearing lines.
     pub move_cursor: bool,
+    /// Controls how the multi progress is aligned if some its progress bars get removed, default is `Top`
+    pub alignment: MultiProgressAlignment,
 }
 
 impl ProgressDrawState {
@@ -378,6 +395,7 @@ impl ProgressDrawState {
             finished,
             force_draw: false,
             move_cursor: false,
+            alignment: Default::default(),
         }
     }
 
