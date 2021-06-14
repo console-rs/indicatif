@@ -83,23 +83,12 @@ impl ProgressState {
         self.draw_target.width()
     }
 
-    /// Return the current average time per step with nanosecond precision
-    #[allow(dead_code)]
-    pub fn avg_time_per_step(&self) -> Duration {
-        secs_to_duration(self.est.seconds_per_step())
-    }
-
-    /// Return the current average time in seconds per step with sub-nanosecond precision
-    pub fn avg_seconds_per_step(&self) -> f64 {
-        self.est.seconds_per_step()
-    }
-
     /// The expected ETA
     pub fn eta(&self) -> Duration {
         if self.len == !0 || self.is_finished() {
             return Duration::new(0, 0);
         }
-        let t = self.avg_seconds_per_step();
+        let t = self.est.seconds_per_step();
         // add 0.75 to leave 0.25 sec of 0s for the user
         secs_to_duration(t * self.len.saturating_sub(self.pos) as f64 + 0.75)
     }
@@ -114,7 +103,7 @@ impl ProgressState {
 
     /// The number of steps per second
     pub fn per_sec(&self) -> u64 {
-        let avg_time = self.avg_seconds_per_step();
+        let avg_time = self.est.seconds_per_step();
         if avg_time == 0.0 {
             0
         } else {

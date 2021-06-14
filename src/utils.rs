@@ -107,11 +107,6 @@ impl Estimate {
         self.set_last_idx(last_idx + 1);
     }
 
-    #[allow(dead_code)]
-    pub fn time_per_step(&self) -> Duration {
-        secs_to_duration(self.seconds_per_step())
-    }
-
     /// Average time per step in seconds, using rolling buffer of last 15 steps
     pub fn seconds_per_step(&self) -> f64 {
         let len = self.len();
