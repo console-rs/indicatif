@@ -4,7 +4,7 @@ use std::io;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::draw_target::{ProgressDrawTarget, ProgressDrawState};
+use crate::draw_target::{ProgressDrawState, ProgressDrawTarget};
 use crate::style::{ProgressFinish, ProgressStyle};
 
 /// The state of a progress bar at a moment in time.
@@ -264,7 +264,6 @@ impl Drop for ProgressState {
         self.finish_using_style();
     }
 }
-
 
 /// Ring buffer with constant capacity. Used by `ProgressBar`s to display `{eta}`, `{eta_precise}`,
 /// and `{*_per_sec}`.

@@ -204,20 +204,20 @@
 //! * `rayon`: adds rayon support
 //! * `improved_unicode`: adds improved unicode support (graphemes, better width calculation)
 
+mod draw_target;
 mod format;
 mod iter;
 mod progress_bar;
 #[cfg(feature = "rayon")]
 mod rayon;
 mod state;
-mod draw_target;
 mod style;
 mod utils;
 
+pub use crate::draw_target::ProgressDrawTarget;
 pub use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
 pub use crate::iter::{ProgressBarIter, ProgressIterator};
 pub use crate::progress_bar::{MultiProgress, ProgressBar, WeakProgressBar};
-pub use crate::draw_target::ProgressDrawTarget;
 pub use crate::style::{ProgressFinish, ProgressStyle};
 
 #[cfg(feature = "rayon")]
