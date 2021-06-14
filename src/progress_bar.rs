@@ -6,10 +6,10 @@ use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::state::{
+use crate::draw_target::{
     MultiProgressState, ProgressDrawState, ProgressDrawTarget, ProgressDrawTargetKind,
-    ProgressState, Status,
 };
+use crate::state::{ProgressState, Status};
 use crate::style::ProgressStyle;
 use crate::{ProgressBarIter, ProgressIterator};
 
