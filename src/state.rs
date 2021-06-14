@@ -28,6 +28,26 @@ pub(crate) struct ProgressState {
 }
 
 impl ProgressState {
+    pub(crate) fn new(len: u64, draw_target: ProgressDrawTarget) -> Self {
+        ProgressState {
+            style: ProgressStyle::default_bar(),
+            draw_target,
+            message: "".into(),
+            prefix: "".into(),
+            pos: 0,
+            len,
+            tick: 0,
+            draw_delta: 0,
+            draw_rate: 0,
+            draw_next: 0,
+            status: Status::InProgress,
+            started: Instant::now(),
+            est: Estimate::new(),
+            tick_thread: None,
+            steady_tick: 0,
+        }
+    }
+
     /// Returns the string that should be drawn for the
     /// current spinner string.
     pub fn current_tick_str(&self) -> &str {

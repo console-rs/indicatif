@@ -11,7 +11,6 @@ use crate::state::{
     ProgressState, Status,
 };
 use crate::style::ProgressStyle;
-use crate::utils::Estimate;
 use crate::{ProgressBarIter, ProgressIterator};
 
 /// A progress bar or spinner
@@ -50,23 +49,7 @@ impl ProgressBar {
     /// Creates a new progress bar with a given length and draw target
     pub fn with_draw_target(len: u64, target: ProgressDrawTarget) -> ProgressBar {
         ProgressBar {
-            state: Arc::new(Mutex::new(ProgressState {
-                style: ProgressStyle::default_bar(),
-                draw_target: target,
-                message: "".into(),
-                prefix: "".into(),
-                pos: 0,
-                len,
-                tick: 0,
-                draw_delta: 0,
-                draw_rate: 0,
-                draw_next: 0,
-                status: Status::InProgress,
-                started: Instant::now(),
-                est: Estimate::new(),
-                tick_thread: None,
-                steady_tick: 0,
-            })),
+            state: Arc::new(Mutex::new(ProgressState::new(len, target))),
         }
     }
 
