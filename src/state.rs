@@ -271,131 +271,6 @@ impl Drop for ProgressState {
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct MultiProgressState {
-    /// The collection of states corresponding to progress bars
-    /// the state is None for bars that have not yet been drawn or have been removed
-    pub(crate) draw_states: Vec<Option<ProgressDrawState>>,
-    /// Set of removed bars, should have corresponding `None` elements in the `draw_states` vector
-    pub(crate) free_set: Vec<usize>,
-    /// Indices to the `draw_states` to maintain correct visual order
-    pub(crate) ordering: Vec<usize>,
-    /// Target for draw operation for MultiProgress
-    pub(crate) draw_target: ProgressDrawTarget,
-    /// Whether or not to just move cursor instead of clearing lines
-    pub(crate) move_cursor: bool,
-}
-
-impl MultiProgressState {
-    fn width(&self) -> usize {
-        self.draw_target.width()
-    }
-
-    pub(crate) fn draw(&mut self, idx: usize, draw_state: ProgressDrawState) -> io::Result<()> {
-        let force_draw = draw_state.finished || draw_state.force_draw;
-        let mut orphan_lines = vec![];
-
-        // Split orphan lines out of the draw state, if any
-        let lines = if draw_state.orphan_lines > 0 {
-            let split = draw_state.lines.split_at(draw_state.orphan_lines);
-            orphan_lines.extend_from_slice(split.0);
-            split.1.to_vec()
-        } else {
-            draw_state.lines
-        };
-
-        let draw_state = ProgressDrawState {
-            lines,
-            orphan_lines: 0,
-            ..draw_state
-        };
-
-        self.draw_states[idx] = Some(draw_state);
-
-        // the rest from here is only drawing, we can skip it.
-        if self.draw_target.is_hidden() {
-            return Ok(());
-        }
-
-        let mut lines = vec![];
-
-        // Make orphaned lines appear at the top, so they can be properly
-        // forgotten.
-        let orphan_lines_count = orphan_lines.len();
-        lines.append(&mut orphan_lines);
-
-        for index in self.ordering.iter() {
-            let draw_state = &self.draw_states[*index];
-            if let Some(ref draw_state) = draw_state {
-                lines.extend_from_slice(&draw_state.lines[..]);
-            }
-        }
-
-        // !any(!done) is also true when iter() is empty, contrary to all(done)
-        let finished = !self
-            .draw_states
-            .iter()
-            .any(|ref x| !x.as_ref().map(|s| s.finished).unwrap_or(false));
-        self.draw_target.apply_draw_state(ProgressDrawState {
-            lines,
-            orphan_lines: orphan_lines_count,
-            force_draw: force_draw || orphan_lines_count > 0,
-            move_cursor: self.move_cursor,
-            finished,
-        })
-    }
-
-    pub(crate) fn len(&self) -> usize {
-        self.draw_states.len() - self.free_set.len()
-    }
-
-    pub(crate) fn remove_idx(&mut self, idx: usize) {
-        if self.free_set.contains(&idx) {
-            return;
-        }
-
-        self.draw_states[idx].take();
-        self.free_set.push(idx);
-        self.ordering.retain(|&x| x != idx);
-
-        assert!(
-            self.len() == self.ordering.len(),
-            "Draw state is inconsistent"
-        );
-    }
-}
-
-/// The drawn state of an element.
-#[derive(Clone, Debug)]
-pub(crate) struct ProgressDrawState {
-    /// The lines to print (can contain ANSI codes)
-    pub lines: Vec<String>,
-    /// The number of lines that shouldn't be reaped by the next tick.
-    pub orphan_lines: usize,
-    /// True if the bar no longer needs drawing.
-    pub finished: bool,
-    /// True if drawing should be forced.
-    pub force_draw: bool,
-    /// True if we should move the cursor up when possible instead of clearing lines.
-    pub move_cursor: bool,
-}
-
-impl ProgressDrawState {
-    pub fn draw_to_term(&self, term: &Term) -> io::Result<()> {
-        for line in &self.lines {
-            term.write_line(line)?;
-        }
-        Ok(())
-    }
-}
-
-#[derive(Debug)]
-pub(crate) enum Status {
-    InProgress,
-    DoneVisible,
-    DoneHidden,
-}
-
 /// Target for draw operations
 ///
 /// This tells a progress bar or a multi progress object where to paint to.
@@ -593,39 +468,6 @@ impl ProgressDrawTarget {
     }
 }
 
-const MAX_GROUP_SIZE: f64 = 32.0;
-
-#[derive(Debug)]
-pub(crate) struct LeakyBucket {
-    leak_rate: f64,
-    last_update: Instant,
-    bucket: f64,
-}
-
-/// Rate limit but allow occasional bursts above desired rate
-impl LeakyBucket {
-    /// try to add some work to the bucket
-    /// return false if the bucket is already full and the work should be skipped
-    fn try_add_work(&mut self) -> bool {
-        self.leak();
-        if self.bucket < MAX_GROUP_SIZE {
-            self.bucket += 1.0;
-            true
-        } else {
-            false
-        }
-    }
-
-    fn leak(&mut self) {
-        let ticks = self.last_update.elapsed().as_secs_f64() * self.leak_rate;
-        self.bucket -= ticks;
-        if self.bucket < 0.0 {
-            self.bucket = 0.0;
-        }
-        self.last_update = Instant::now();
-    }
-}
-
 #[derive(Debug)]
 pub(crate) enum ProgressDrawTargetKind {
     Term {
@@ -638,6 +480,124 @@ pub(crate) enum ProgressDrawTargetKind {
         idx: usize,
     },
     Hidden,
+}
+
+#[derive(Debug)]
+pub(crate) struct MultiProgressState {
+    /// The collection of states corresponding to progress bars
+    /// the state is None for bars that have not yet been drawn or have been removed
+    pub(crate) draw_states: Vec<Option<ProgressDrawState>>,
+    /// Set of removed bars, should have corresponding `None` elements in the `draw_states` vector
+    pub(crate) free_set: Vec<usize>,
+    /// Indices to the `draw_states` to maintain correct visual order
+    pub(crate) ordering: Vec<usize>,
+    /// Target for draw operation for MultiProgress
+    pub(crate) draw_target: ProgressDrawTarget,
+    /// Whether or not to just move cursor instead of clearing lines
+    pub(crate) move_cursor: bool,
+}
+
+impl MultiProgressState {
+    fn width(&self) -> usize {
+        self.draw_target.width()
+    }
+
+    pub(crate) fn draw(&mut self, idx: usize, draw_state: ProgressDrawState) -> io::Result<()> {
+        let force_draw = draw_state.finished || draw_state.force_draw;
+        let mut orphan_lines = vec![];
+
+        // Split orphan lines out of the draw state, if any
+        let lines = if draw_state.orphan_lines > 0 {
+            let split = draw_state.lines.split_at(draw_state.orphan_lines);
+            orphan_lines.extend_from_slice(split.0);
+            split.1.to_vec()
+        } else {
+            draw_state.lines
+        };
+
+        let draw_state = ProgressDrawState {
+            lines,
+            orphan_lines: 0,
+            ..draw_state
+        };
+
+        self.draw_states[idx] = Some(draw_state);
+
+        // the rest from here is only drawing, we can skip it.
+        if self.draw_target.is_hidden() {
+            return Ok(());
+        }
+
+        let mut lines = vec![];
+
+        // Make orphaned lines appear at the top, so they can be properly
+        // forgotten.
+        let orphan_lines_count = orphan_lines.len();
+        lines.append(&mut orphan_lines);
+
+        for index in self.ordering.iter() {
+            let draw_state = &self.draw_states[*index];
+            if let Some(ref draw_state) = draw_state {
+                lines.extend_from_slice(&draw_state.lines[..]);
+            }
+        }
+
+        // !any(!done) is also true when iter() is empty, contrary to all(done)
+        let finished = !self
+            .draw_states
+            .iter()
+            .any(|ref x| !x.as_ref().map(|s| s.finished).unwrap_or(false));
+        self.draw_target.apply_draw_state(ProgressDrawState {
+            lines,
+            orphan_lines: orphan_lines_count,
+            force_draw: force_draw || orphan_lines_count > 0,
+            move_cursor: self.move_cursor,
+            finished,
+        })
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.draw_states.len() - self.free_set.len()
+    }
+
+    pub(crate) fn remove_idx(&mut self, idx: usize) {
+        if self.free_set.contains(&idx) {
+            return;
+        }
+
+        self.draw_states[idx].take();
+        self.free_set.push(idx);
+        self.ordering.retain(|&x| x != idx);
+
+        assert!(
+            self.len() == self.ordering.len(),
+            "Draw state is inconsistent"
+        );
+    }
+}
+
+/// The drawn state of an element.
+#[derive(Clone, Debug)]
+pub(crate) struct ProgressDrawState {
+    /// The lines to print (can contain ANSI codes)
+    pub lines: Vec<String>,
+    /// The number of lines that shouldn't be reaped by the next tick.
+    pub orphan_lines: usize,
+    /// True if the bar no longer needs drawing.
+    pub finished: bool,
+    /// True if drawing should be forced.
+    pub force_draw: bool,
+    /// True if we should move the cursor up when possible instead of clearing lines.
+    pub move_cursor: bool,
+}
+
+impl ProgressDrawState {
+    pub fn draw_to_term(&self, term: &Term) -> io::Result<()> {
+        for line in &self.lines {
+            term.write_line(line)?;
+        }
+        Ok(())
+    }
 }
 
 /// Ring buffer with constant capacity. Used by `ProgressBar`s to display `{eta}`, `{eta_precise}`,
@@ -750,6 +710,39 @@ impl fmt::Debug for Estimate {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct LeakyBucket {
+    leak_rate: f64,
+    last_update: Instant,
+    bucket: f64,
+}
+
+/// Rate limit but allow occasional bursts above desired rate
+impl LeakyBucket {
+    /// try to add some work to the bucket
+    /// return false if the bucket is already full and the work should be skipped
+    fn try_add_work(&mut self) -> bool {
+        self.leak();
+        if self.bucket < MAX_GROUP_SIZE {
+            self.bucket += 1.0;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn leak(&mut self) {
+        let ticks = self.last_update.elapsed().as_secs_f64() * self.leak_rate;
+        self.bucket -= ticks;
+        if self.bucket < 0.0 {
+            self.bucket = 0.0;
+        }
+        self.last_update = Instant::now();
+    }
+}
+
+const MAX_GROUP_SIZE: f64 = 32.0;
+
 pub fn duration_to_secs(d: Duration) -> f64 {
     d.as_secs() as f64 + f64::from(d.subsec_nanos()) / 1_000_000_000f64
 }
@@ -758,6 +751,13 @@ pub fn secs_to_duration(s: f64) -> Duration {
     let secs = s.trunc() as u64;
     let nanos = (s.fract() * 1_000_000_000f64) as u32;
     Duration::new(secs, nanos)
+}
+
+#[derive(Debug)]
+pub(crate) enum Status {
+    InProgress,
+    DoneVisible,
+    DoneHidden,
 }
 
 #[cfg(test)]
