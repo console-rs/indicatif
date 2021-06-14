@@ -6,9 +6,7 @@ use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::draw_target::{
-    MultiProgressState, ProgressDrawState, ProgressDrawTarget, ProgressDrawTargetKind,
-};
+use crate::draw_target::{MultiProgressState, ProgressDrawState, ProgressDrawTarget};
 use crate::state::{ProgressState, Status};
 use crate::style::ProgressStyle;
 use crate::{ProgressBarIter, ProgressIterator};
@@ -585,12 +583,7 @@ impl MultiProgress {
             "Draw state is inconsistent"
         );
 
-        pb.set_draw_target(ProgressDrawTarget {
-            kind: ProgressDrawTargetKind::Remote {
-                state: self.state.clone(),
-                idx,
-            },
-        });
+        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
         pb
     }
 
@@ -601,8 +594,8 @@ impl MultiProgress {
     /// If the passed progress bar does not satisfy the condition above,
     /// the `remove` method does nothing.
     pub fn remove(&self, pb: &ProgressBar) {
-        let idx = match &pb.state.lock().unwrap().draw_target.kind {
-            ProgressDrawTargetKind::Remote { state, idx, .. } => {
+        let idx = match &pb.state.lock().unwrap().draw_target.remote() {
+            Some((state, idx)) => {
                 // Check that this progress bar is owned by the current MultiProgress.
                 assert!(Arc::ptr_eq(&self.state, state));
                 *idx
@@ -808,10 +801,7 @@ mod tests {
     }
 
     fn extract_index(pb: &ProgressBar) -> usize {
-        match pb.state.lock().unwrap().draw_target.kind {
-            ProgressDrawTargetKind::Remote { idx, .. } => idx,
-            _ => unreachable!(),
-        }
+        pb.state.lock().unwrap().draw_target.remote().unwrap().1
     }
 
     #[test]

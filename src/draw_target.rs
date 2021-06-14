@@ -12,7 +12,7 @@ use console::Term;
 /// device.
 #[derive(Debug)]
 pub struct ProgressDrawTarget {
-    pub(crate) kind: ProgressDrawTargetKind,
+    kind: ProgressDrawTargetKind,
 }
 
 impl ProgressDrawTarget {
@@ -65,6 +65,12 @@ impl ProgressDrawTarget {
     /// For more information see `ProgressDrawTarget::to_term`.
     pub fn stderr_nohz() -> ProgressDrawTarget {
         ProgressDrawTarget::term(Term::buffered_stderr(), None)
+    }
+
+    pub(crate) fn new_remote(state: Arc<RwLock<MultiProgressState>>, idx: usize) -> Self {
+        Self {
+            kind: ProgressDrawTargetKind::Remote { state, idx },
+        }
     }
 
     /// Draw to a terminal, optionally with a specific refresh rate.
@@ -199,10 +205,17 @@ impl ProgressDrawTarget {
             ProgressDrawTargetKind::Hidden => {}
         };
     }
+
+    pub(crate) fn remote(&self) -> Option<(&Arc<RwLock<MultiProgressState>>, usize)> {
+        match &self.kind {
+            ProgressDrawTargetKind::Remote { state, idx } => Some((state, *idx)),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug)]
-pub(crate) enum ProgressDrawTargetKind {
+enum ProgressDrawTargetKind {
     Term {
         term: Term,
         last_line_count: usize,
