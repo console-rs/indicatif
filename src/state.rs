@@ -108,8 +108,7 @@ impl ProgressState {
             return Duration::new(0, 0);
         }
         let t = self.est.seconds_per_step();
-        // add 0.75 to leave 0.25 sec of 0s for the user
-        secs_to_duration(t * self.len.saturating_sub(self.pos) as f64 + 0.75)
+        secs_to_duration(t * self.len.saturating_sub(self.pos) as f64)
     }
 
     /// The expected total duration (that is, elapsed time + expected ETA)
