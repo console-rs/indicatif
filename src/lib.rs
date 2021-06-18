@@ -214,12 +214,10 @@ mod state;
 mod style;
 mod utils;
 
-pub use crate::draw_target::ProgressDrawTarget;
+pub use crate::draw_target::{MultiProgressAlignment, ProgressDrawTarget};
 pub use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
 pub use crate::iter::{ProgressBarIter, ProgressIterator};
-pub use crate::progress_bar::{
-    MultiProgress, MultiProgressAlignment, ProgressBar, WeakProgressBar,
-};
+pub use crate::progress_bar::{MultiProgress, ProgressBar, WeakProgressBar};
 pub use crate::style::{ProgressFinish, ProgressStyle};
 
 #[cfg(feature = "rayon")]

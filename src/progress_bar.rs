@@ -6,7 +6,9 @@ use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::draw_target::{MultiProgressState, ProgressDrawState, ProgressDrawTarget};
+use crate::draw_target::{
+    MultiProgressAlignment, MultiProgressState, ProgressDrawState, ProgressDrawTarget,
+};
 use crate::state::{ProgressState, Status};
 use crate::style::ProgressStyle;
 use crate::{ProgressBarIter, ProgressIterator};
@@ -490,34 +492,6 @@ impl ProgressBar {
     }
 }
 
-/// The alignment value for `MultiProgress`, the alignment controls how the multi progress
-/// is aligned if some its progress bars get removed.
-///
-/// E.g. `Top` alignment (default), when _progress bar 2_ is removed:
-/// ```ignore
-/// [0/100] progress bar 1        [0/100] progress bar 1
-/// [0/100] progress bar 2   =>   [0/100] progress bar 3
-/// [0/100] progress bar 3
-/// ```
-///
-/// `Bottom` alignment
-/// ```ignore
-/// [0/100] progress bar 1
-/// [0/100] progress bar 2   =>   [0/100] progress bar 1
-/// [0/100] progress bar 3        [0/100] progress bar 3
-/// ```
-#[derive(Debug, Copy, Clone)]
-pub enum MultiProgressAlignment {
-    Top,
-    Bottom,
-}
-
-impl Default for MultiProgressAlignment {
-    fn default() -> Self {
-        Self::Top
-    }
-}
-
 /// Manages multiple progress bars from different threads
 #[derive(Debug)]
 pub struct MultiProgress {
@@ -549,7 +523,7 @@ impl MultiProgress {
                 ordering: vec![],
                 draw_target,
                 move_cursor: false,
-                alignment: MultiProgressAlignment::Top,
+                alignment: Default::default(),
             })),
         }
     }
@@ -569,7 +543,7 @@ impl MultiProgress {
         self.state.write().unwrap().move_cursor = move_cursor;
     }
 
-    /// Set alignment flag:
+    /// Set alignment flag
     pub fn set_alignment(&self, alignment: MultiProgressAlignment) {
         self.state.write().unwrap().alignment = alignment;
     }
