@@ -8,14 +8,14 @@ use rand::Rng;
 
 static CRATES: &[(&str, &str)] = &[
     ("console", "v0.14.1"),
-    ("lazy_static", "v1.4.0"),
+    ("once_cell", "1"),
     ("libc", "v0.2.93"),
     ("regex", "v1.4.6"),
     ("regex-syntax", "v0.6.23"),
     ("terminal_size", "v0.1.16"),
     ("libc", "v0.2.93"),
     ("unicode-width", "v0.1.8"),
-    ("lazy_static", "v1.4.0"),
+    ("once_cell", "1"),
     ("number_prefix", "v0.4.0"),
     ("regex", "v1.4.6"),
     ("rand", "v0.8.3"),
