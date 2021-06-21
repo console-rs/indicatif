@@ -1,5 +1,5 @@
 use console::style;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, MultiProgressAlignment, ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
 use rand::{rngs::ThreadRng, Rng, RngCore};
 use std::fmt::Debug;
@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+use structopt::StructOpt;
 
 #[derive(Debug, Clone)]
 enum Action {
@@ -157,12 +158,32 @@ lazy_static! {
     ];
 }
 
+#[derive(Debug, StructOpt)]
+#[structopt(setting = structopt::clap::AppSettings::ColoredHelp)]
+pub struct Config {
+    #[structopt(long)]
+    bottom_alignment: bool,
+}
+
 /// The example demonstrates the usage of `MultiProgress` and further extends `multi-tree` example.
 /// Now the example has 3 different actions implemented, and the item tree can be modified
 /// by inserting or removing progress bars. The progress bars to be removed eventually
 /// have messages with pattern `"temp_*"`.
+///
+/// Also the command option `--bottom-alignment` is used to control the vertical alignment of the
+/// `MultiProgress`. To enable this run it with
+/// ```ignore
+/// cargo run --example multi-tree-ext -- --bottom-alignment
+/// ```
 pub fn main() {
+    let conf: Config = Config::from_args();
     let mp = Arc::new(MultiProgress::new());
+    let alignment = if conf.bottom_alignment {
+        MultiProgressAlignment::Bottom
+    } else {
+        MultiProgressAlignment::Top
+    };
+    mp.set_alignment(alignment);
     let sty_main = ProgressStyle::default_bar().template("{bar:40.green/yellow} {pos:>4}/{len:4}");
     let sty_aux =
         ProgressStyle::default_bar().template("[{pos:>2}/{len:2}] {prefix}{spinner:.green} {msg}");
@@ -200,7 +221,7 @@ pub fn main() {
             }
             Action::ModifyTree(elem_idx) => match &ELEMENTS[elem_idx] {
                 Elem::AddItem(item) => {
-                    let pb = mp2.insert(item.index + 1, item.progress_bar.clone());
+                    let pb = mp2.insert(item.index, item.progress_bar.clone());
                     pb.set_prefix("  ".repeat(item.indent));
                     pb.set_message(&item.key);
                     items.insert(item.index, &item);
