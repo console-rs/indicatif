@@ -63,7 +63,33 @@ impl fmt::Display for FormattedDuration {
 // * for n >= 2, we go from "n+1 units" to "n units" exactly at (n + 1/2) units
 // * we switch from "2 units" to the next smaller unit at (1.5 unit minus half of the next smaller unit)
 
-const UNITS_NAMES_ALTS: &[(Duration, &str, &str)] = &[
+impl fmt::Display for HumanDuration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut idx = 0;
+        for (i, &(cur, _, _)) in UNITS.iter().enumerate() {
+            idx = i;
+            match UNITS.get(i + 1) {
+                Some(&next) if self.0 + next.0 / 2 >= cur + cur / 2 => break,
+                _ => continue,
+            }
+        }
+
+        let (unit, name, alt) = UNITS[idx];
+        // FIXME when `div_duration_f64` is stable
+        let mut t = (self.0.as_secs_f64() / unit.as_secs_f64()).round() as usize;
+        if idx < UNITS.len() - 1 {
+            t = Ord::max(t, 2);
+        }
+
+        match (f.alternate(), t) {
+            (true, _) => write!(f, "{}{}", t, alt),
+            (false, 1) => write!(f, "{} {}", t, name),
+            (false, _) => write!(f, "{} {}s", t, name),
+        }
+    }
+}
+
+const UNITS: &[(Duration, &str, &str)] = &[
     (YEAR, "year", "y"),
     (WEEK, "week", "w"),
     (DAY, "day", "d"),
@@ -71,34 +97,6 @@ const UNITS_NAMES_ALTS: &[(Duration, &str, &str)] = &[
     (MINUTE, "minute", "m"),
     (SECOND, "second", "s"),
 ];
-
-impl fmt::Display for HumanDuration {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // FIXME when `div_duration_f64` is stable
-        let t = self.0.as_secs_f64();
-        for ((unit, name, alt), (nextunit, _, _)) in
-            UNITS_NAMES_ALTS.iter().zip(UNITS_NAMES_ALTS[1..].iter())
-        {
-            if self.0 + *nextunit / 2 >= *unit + *unit / 2 {
-                let x = (t / unit.as_secs_f64()).round() as usize;
-                return if f.alternate() {
-                    write!(f, "{}{}", x.max(2), alt)
-                } else {
-                    write!(f, "{} {}s", x.max(2), name)
-                };
-            }
-        }
-        // unwrap is safe because it doesn't make sense to call
-        // this function with an empty table of units
-        let (unit, name, alt) = UNITS_NAMES_ALTS.last().unwrap();
-        let x = (t / unit.as_secs_f64()).round() as usize;
-        if f.alternate() {
-            write!(f, "{}{}", x, alt)
-        } else {
-            write!(f, "{} {}{}", x, name, if x == 1 { "" } else { "s" })
-        }
-    }
-}
 
 impl fmt::Display for HumanBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -135,7 +133,7 @@ mod tests {
 
     #[test]
     fn human_duration_alternate() {
-        for (unit, _, alt) in UNITS_NAMES_ALTS {
+        for (unit, _, alt) in UNITS {
             assert_eq!(
                 format!("2{}", alt),
                 format!("{:#}", HumanDuration(2 * *unit))
