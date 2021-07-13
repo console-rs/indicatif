@@ -4,12 +4,24 @@ use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, Hu
 use crate::state::ProgressState;
 use crate::utils::{expand_template, pad_str};
 use std::borrow::Cow;
+use std::collections::HashMap;
 
 #[cfg(feature = "improved_unicode")]
 use unicode_segmentation::UnicodeSegmentation;
 
+pub type Format = fn(&ProgressState) -> String;
+
+#[derive(Clone)]
+pub(crate) struct FormatMap(HashMap<&'static str, Format>);
+
+impl Default for FormatMap {
+    fn default() -> Self {
+        FormatMap(HashMap::new())
+    }
+}
+
 /// Controls the rendering style of progress bars
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ProgressStyle {
     tick_strings: Vec<Box<str>>,
     progress_chars: Vec<Box<str>>,
@@ -17,6 +29,7 @@ pub struct ProgressStyle {
     on_finish: ProgressFinish,
     // how unicode-big each char in progress_chars is
     char_width: usize,
+    format_map: FormatMap,
 }
 
 #[cfg(feature = "improved_unicode")]
@@ -70,6 +83,7 @@ impl ProgressStyle {
             char_width,
             template: "{wide_bar} {pos}/{len}".into(),
             on_finish: ProgressFinish::default(),
+            format_map: FormatMap::default(),
         }
     }
 
@@ -86,6 +100,7 @@ impl ProgressStyle {
             char_width,
             template: "{spinner} {msg}".into(),
             on_finish: ProgressFinish::default(),
+            format_map: FormatMap::default(),
         }
     }
 
@@ -126,6 +141,12 @@ impl ProgressStyle {
             "at least 2 progress chars required"
         );
         self.char_width = width(&self.progress_chars);
+        self
+    }
+
+    /// Adds a custom key that references a `&ProgressState` to the template
+    pub fn with_key(mut self, key: &'static str, f: Format) -> ProgressStyle {
+        self.format_map.0.insert(key, f);
         self
     }
 
@@ -226,48 +247,57 @@ impl ProgressStyle {
     }
 
     pub(crate) fn format_state(&self, state: &ProgressState) -> Vec<String> {
-        let (pos, len) = state.position();
         let mut rv = vec![];
 
         for line in self.template.lines() {
             let mut wide_element = None;
 
-            let s = expand_template(line, |var| match var.key {
-                "wide_bar" => {
-                    wide_element = Some(var.duplicate_for_key("bar"));
-                    "\x00".into()
+            let s = expand_template(line, |var| {
+                if let Some(formatter) = self.format_map.0.get(var.key) {
+                    formatter(state)
+                } else {
+                    match var.key {
+                        "wide_bar" => {
+                            wide_element = Some(var.duplicate_for_key("bar"));
+                            "\x00".into()
+                        }
+                        "bar" => self.format_bar(
+                            state.fraction(),
+                            var.width.unwrap_or(20),
+                            var.alt_style.as_ref(),
+                        ),
+                        "spinner" => state.current_tick_str().to_string(),
+                        "wide_msg" => {
+                            wide_element = Some(var.duplicate_for_key("msg"));
+                            "\x00".into()
+                        }
+                        "msg" => state.message().to_string(),
+                        "prefix" => state.prefix().to_string(),
+                        "pos" => state.pos.to_string(),
+                        "len" => state.len.to_string(),
+                        "percent" => format!("{:.*}", 0, state.fraction() * 100f32),
+                        "bytes" => format!("{}", HumanBytes(state.pos)),
+                        "total_bytes" => format!("{}", HumanBytes(state.len)),
+                        "decimal_bytes" => format!("{}", DecimalBytes(state.pos)),
+                        "decimal_total_bytes" => format!("{}", DecimalBytes(state.len)),
+                        "binary_bytes" => format!("{}", BinaryBytes(state.pos)),
+                        "binary_total_bytes" => format!("{}", BinaryBytes(state.len)),
+                        "elapsed_precise" => {
+                            format!("{}", FormattedDuration(state.started.elapsed()))
+                        }
+                        "elapsed" => format!("{:#}", HumanDuration(state.started.elapsed())),
+                        "per_sec" => format!("{}/s", state.per_sec()),
+                        "bytes_per_sec" => format!("{}/s", HumanBytes(state.per_sec() as u64)),
+                        "binary_bytes_per_sec" => {
+                            format!("{}/s", BinaryBytes(state.per_sec() as u64))
+                        }
+                        "eta_precise" => format!("{}", FormattedDuration(state.eta())),
+                        "eta" => format!("{:#}", HumanDuration(state.eta())),
+                        "duration_precise" => format!("{}", FormattedDuration(state.duration())),
+                        "duration" => format!("{:#}", HumanDuration(state.duration())),
+                        _ => "".into(),
+                    }
                 }
-                "bar" => self.format_bar(
-                    state.fraction(),
-                    var.width.unwrap_or(20),
-                    var.alt_style.as_ref(),
-                ),
-                "spinner" => state.current_tick_str().to_string(),
-                "wide_msg" => {
-                    wide_element = Some(var.duplicate_for_key("msg"));
-                    "\x00".into()
-                }
-                "msg" => state.message().to_string(),
-                "prefix" => state.prefix().to_string(),
-                "pos" => pos.to_string(),
-                "len" => len.to_string(),
-                "percent" => format!("{:.*}", 0, state.fraction() * 100f32),
-                "bytes" => format!("{}", HumanBytes(state.pos)),
-                "total_bytes" => format!("{}", HumanBytes(state.len)),
-                "decimal_bytes" => format!("{}", DecimalBytes(state.pos)),
-                "decimal_total_bytes" => format!("{}", DecimalBytes(state.len)),
-                "binary_bytes" => format!("{}", BinaryBytes(state.pos)),
-                "binary_total_bytes" => format!("{}", BinaryBytes(state.len)),
-                "elapsed_precise" => format!("{}", FormattedDuration(state.started.elapsed())),
-                "elapsed" => format!("{:#}", HumanDuration(state.started.elapsed())),
-                "per_sec" => format!("{}/s", state.per_sec()),
-                "bytes_per_sec" => format!("{}/s", HumanBytes(state.per_sec())),
-                "binary_bytes_per_sec" => format!("{}/s", BinaryBytes(state.per_sec())),
-                "eta_precise" => format!("{}", FormattedDuration(state.eta())),
-                "eta" => format!("{:#}", HumanDuration(state.eta())),
-                "duration_precise" => format!("{}", FormattedDuration(state.duration())),
-                "duration" => format!("{:#}", HumanDuration(state.duration())),
-                _ => "".into(),
             });
 
             rv.push(if let Some(ref var) = wide_element {
