@@ -8,10 +8,10 @@ use crate::draw_target::{ProgressDrawState, ProgressDrawTarget};
 use crate::style::{ProgressFinish, ProgressStyle};
 
 /// The state of a progress bar at a moment in time.
-pub(crate) struct ProgressState {
+pub struct ProgressState {
     pub(crate) style: ProgressStyle,
-    pub(crate) pos: u64,
-    pub(crate) len: u64,
+    pub pos: u64,
+    pub len: u64,
     pub(crate) tick: u64,
     pub(crate) started: Instant,
     pub(crate) draw_target: ProgressDrawTarget,
@@ -82,11 +82,6 @@ impl ProgressState {
         pct.max(0.0).min(1.0)
     }
 
-    /// Returns the position of the status bar as `(pos, len)` tuple.
-    pub fn position(&self) -> (u64, u64) {
-        (self.pos, self.len)
-    }
-
     /// Returns the current message of the progress bar.
     pub fn message(&self) -> &str {
         &self.message
@@ -120,12 +115,12 @@ impl ProgressState {
     }
 
     /// The number of steps per second
-    pub fn per_sec(&self) -> u64 {
-        let avg_time = self.est.seconds_per_step();
-        if avg_time == 0.0 {
-            0
+    pub fn per_sec(&self) -> f64 {
+        let per_sec = 1.0 / self.est.seconds_per_step();
+        if per_sec.is_nan() {
+            0.0
         } else {
-            (1.0 / avg_time) as u64
+            per_sec
         }
     }
 
@@ -157,7 +152,7 @@ impl ProgressState {
         }
         if new_pos >= self.draw_next {
             self.draw_next = new_pos.saturating_add(if self.draw_rate != 0 {
-                self.per_sec() / self.draw_rate
+                (self.per_sec() / self.draw_rate as f64) as u64
             } else {
                 self.draw_delta
             });

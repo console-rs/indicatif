@@ -187,7 +187,9 @@ impl ProgressBar {
     pub fn set_draw_rate(&self, n: u64) {
         let mut state = self.state.lock().unwrap();
         state.draw_rate = n;
-        state.draw_next = state.pos.saturating_add(state.per_sec() / n);
+        state.draw_next = state
+            .pos
+            .saturating_add((state.per_sec() / n as f64) as u64);
     }
 
     /// Manually ticks the spinner or progress bar
@@ -477,7 +479,7 @@ impl ProgressBar {
     }
 
     /// Returns the current rate of progress
-    pub fn per_sec(&self) -> u64 {
+    pub fn per_sec(&self) -> f64 {
         self.state.lock().unwrap().per_sec()
     }
 
