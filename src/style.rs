@@ -243,49 +243,49 @@ impl ProgressStyle {
 
             let s = expand_template(line, |var| {
                 if let Some(formatter) = self.format_map.0.get(var.key) {
-                    formatter(state)
-                } else {
-                    match var.key {
-                        "wide_bar" => {
-                            wide_element = Some(var.duplicate_for_key("bar"));
-                            "\x00".into()
-                        }
-                        "bar" => self.format_bar(
-                            state.fraction(),
-                            var.width.unwrap_or(20),
-                            var.alt_style.as_ref(),
-                        ),
-                        "spinner" => state.current_tick_str().to_string(),
-                        "wide_msg" => {
-                            wide_element = Some(var.duplicate_for_key("msg"));
-                            "\x00".into()
-                        }
-                        "msg" => state.message().to_string(),
-                        "prefix" => state.prefix().to_string(),
-                        "pos" => state.pos.to_string(),
-                        "len" => state.len.to_string(),
-                        "percent" => format!("{:.*}", 0, state.fraction() * 100f32),
-                        "bytes" => format!("{}", HumanBytes(state.pos)),
-                        "total_bytes" => format!("{}", HumanBytes(state.len)),
-                        "decimal_bytes" => format!("{}", DecimalBytes(state.pos)),
-                        "decimal_total_bytes" => format!("{}", DecimalBytes(state.len)),
-                        "binary_bytes" => format!("{}", BinaryBytes(state.pos)),
-                        "binary_total_bytes" => format!("{}", BinaryBytes(state.len)),
-                        "elapsed_precise" => {
-                            format!("{}", FormattedDuration(state.started.elapsed()))
-                        }
-                        "elapsed" => format!("{:#}", HumanDuration(state.started.elapsed())),
-                        "per_sec" => format!("{}/s", state.per_sec()),
-                        "bytes_per_sec" => format!("{}/s", HumanBytes(state.per_sec() as u64)),
-                        "binary_bytes_per_sec" => {
-                            format!("{}/s", BinaryBytes(state.per_sec() as u64))
-                        }
-                        "eta_precise" => format!("{}", FormattedDuration(state.eta())),
-                        "eta" => format!("{:#}", HumanDuration(state.eta())),
-                        "duration_precise" => format!("{}", FormattedDuration(state.duration())),
-                        "duration" => format!("{:#}", HumanDuration(state.duration())),
-                        _ => "".into(),
+                    return formatter(state);
+                }
+
+                match var.key {
+                    "wide_bar" => {
+                        wide_element = Some(var.duplicate_for_key("bar"));
+                        "\x00".into()
                     }
+                    "bar" => self.format_bar(
+                        state.fraction(),
+                        var.width.unwrap_or(20),
+                        var.alt_style.as_ref(),
+                    ),
+                    "spinner" => state.current_tick_str().to_string(),
+                    "wide_msg" => {
+                        wide_element = Some(var.duplicate_for_key("msg"));
+                        "\x00".into()
+                    }
+                    "msg" => state.message().to_string(),
+                    "prefix" => state.prefix().to_string(),
+                    "pos" => state.pos.to_string(),
+                    "len" => state.len.to_string(),
+                    "percent" => format!("{:.*}", 0, state.fraction() * 100f32),
+                    "bytes" => format!("{}", HumanBytes(state.pos)),
+                    "total_bytes" => format!("{}", HumanBytes(state.len)),
+                    "decimal_bytes" => format!("{}", DecimalBytes(state.pos)),
+                    "decimal_total_bytes" => format!("{}", DecimalBytes(state.len)),
+                    "binary_bytes" => format!("{}", BinaryBytes(state.pos)),
+                    "binary_total_bytes" => format!("{}", BinaryBytes(state.len)),
+                    "elapsed_precise" => {
+                        format!("{}", FormattedDuration(state.started.elapsed()))
+                    }
+                    "elapsed" => format!("{:#}", HumanDuration(state.started.elapsed())),
+                    "per_sec" => format!("{}/s", state.per_sec()),
+                    "bytes_per_sec" => format!("{}/s", HumanBytes(state.per_sec() as u64)),
+                    "binary_bytes_per_sec" => {
+                        format!("{}/s", BinaryBytes(state.per_sec() as u64))
+                    }
+                    "eta_precise" => format!("{}", FormattedDuration(state.eta())),
+                    "eta" => format!("{:#}", HumanDuration(state.eta())),
+                    "duration_precise" => format!("{}", FormattedDuration(state.duration())),
+                    "duration" => format!("{:#}", HumanDuration(state.duration())),
+                    _ => "".into(),
                 }
             });
 
