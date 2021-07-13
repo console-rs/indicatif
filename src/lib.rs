@@ -212,7 +212,6 @@ mod progress_bar;
 mod rayon;
 mod state;
 mod style;
-mod utils;
 
 pub use crate::draw_target::{MultiProgressAlignment, ProgressDrawTarget};
 pub use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
