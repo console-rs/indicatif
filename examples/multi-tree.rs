@@ -115,7 +115,7 @@ fn main() {
                     let elem = &ELEMENTS[el_idx];
                     let pb = mp2.insert(elem.index + 1, elem.progress_bar.clone());
                     pb.set_message(format!("{}  {}", "  ".repeat(elem.indent), elem.key));
-                    tree.lock().unwrap().insert(elem.index, &elem);
+                    tree.lock().unwrap().insert(elem.index, elem);
                 }
                 Some(Action::IncProgressBar(el_idx)) => {
                     let elem = &tree.lock().unwrap()[el_idx];

@@ -224,7 +224,7 @@ pub fn main() {
                     let pb = mp2.insert(item.index, item.progress_bar.clone());
                     pb.set_prefix("  ".repeat(item.indent));
                     pb.set_message(&item.key);
-                    items.insert(item.index, &item);
+                    items.insert(item.index, item);
                 }
                 Elem::RemoveItem(Index(index)) => {
                     let item = items.remove(*index);

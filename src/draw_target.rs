@@ -305,7 +305,7 @@ impl MultiProgressState {
         let finished = !self
             .draw_states
             .iter()
-            .any(|ref x| !x.as_ref().map(|s| s.finished).unwrap_or(false));
+            .any(|x| !x.as_ref().map(|s| s.finished).unwrap_or(false));
         self.draw_target.apply_draw_state(ProgressDrawState {
             lines,
             orphan_lines: orphan_lines_count,
