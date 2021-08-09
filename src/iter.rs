@@ -33,6 +33,16 @@ where
 
     /// Wrap an iterator with a custom progress bar.
     fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self>;
+
+    /// Wrap an iterator with a progress bar and style it.
+    fn progress_with_style(self, style: crate::ProgressStyle) -> ProgressBarIter<Self>
+    where
+        Self: ExactSizeIterator,
+    {
+        let len = u64::try_from(self.len()).unwrap();
+        let bar = ProgressBar::new(len).with_style(style);
+        self.progress_with(bar)
+    }
 }
 
 /// Wraps an iterator to display its progress.
@@ -166,6 +176,7 @@ impl<S, T: Iterator<Item = S>> ProgressIterator for T {
 mod test {
     use crate::iter::{ProgressBarIter, ProgressIterator};
     use crate::progress_bar::ProgressBar;
+    use crate::ProgressStyle;
 
     #[test]
     fn it_can_wrap_an_iterator() {
@@ -179,6 +190,10 @@ mod test {
         wrap({
             let pb = ProgressBar::new(v.len() as u64);
             v.iter().progress_with(pb)
+        });
+        wrap({
+            let style = ProgressStyle::default_bar().template("{wide_bar:.red} {percent}/100%");
+            v.iter().progress_with_style(style)
         });
     }
 }
