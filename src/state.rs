@@ -239,7 +239,7 @@ impl ProgressState {
         }
 
         let lines = match self.should_render() {
-            true => self.style.format_state(&self),
+            true => self.style.format_state(self),
             false => Vec::new(),
         };
 
