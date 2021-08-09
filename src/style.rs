@@ -119,7 +119,7 @@ impl ProgressStyle {
 
     /// Sets the progress characters `(filled, current, to do)`
     ///
-    /// You can pass more then three for a more detailed display.
+    /// You can pass more than three for a more detailed display.
     /// All passed grapheme clusters need to be of equal width.
     pub fn progress_chars(mut self, s: &str) -> ProgressStyle {
         self.progress_chars = segment(s);
