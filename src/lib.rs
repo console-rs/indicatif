@@ -110,7 +110,7 @@
 //! use indicatif::{ProgressBar, ParallelProgressIterator, ProgressStyle};
 //! use rayon::iter::{ParallelIterator, IntoParallelRefIterator};
 //!
-//! // Alternatively, use `ProgressBar::new().with_style()` 
+//! // Alternatively, use `ProgressBar::new().with_style()`
 //! let style = ProgressStyle::default_bar();
 //! let v: Vec<_> = (0..100000).collect();
 //! let v2: Vec<_> = v.par_iter().progress_with_style(style).map(|i| i + 1).collect();

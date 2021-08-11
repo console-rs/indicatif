@@ -36,7 +36,7 @@ where
 
     /// Wrap an iterator with a progress bar and style it.
     fn progress_with_style(self, style: crate::ProgressStyle) -> ProgressBarIter<Self>
-    where 
+    where
         Self: ExactSizeIterator,
     {
         let len = u64::try_from(self.len()).unwrap();
@@ -174,9 +174,9 @@ impl<S, T: Iterator<Item = S>> ProgressIterator for T {
 
 #[cfg(test)]
 mod test {
-    use crate::ProgressStyle;
     use crate::iter::{ProgressBarIter, ProgressIterator};
     use crate::progress_bar::ProgressBar;
+    use crate::ProgressStyle;
 
     #[test]
     fn it_can_wrap_an_iterator() {
