@@ -134,6 +134,11 @@ impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
             pos
         })
     }
+    // Pass this through to preserve optimizations that the inner I/O object may use here
+    // Also avoid sending a set_position update when the position hasn't changed
+    fn stream_position(&mut self) -> io::Result<u64> {
+        self.it.stream_position()
+    }
 }
 
 impl<W: io::Write> io::Write for ProgressBarIter<W> {
