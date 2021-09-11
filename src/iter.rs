@@ -1,7 +1,11 @@
 use crate::progress_bar::ProgressBar;
 use std::convert::TryFrom;
-use std::io::{self, IoSliceMut};
+use std::io::{self, IoSliceMut, Error, SeekFrom};
 use std::iter::FusedIterator;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+#[cfg(feature = "tokio")]
+use tokio::io::ReadBuf;
 
 /// Wraps an iterator to display its progress.
 pub trait ProgressIterator
@@ -133,6 +137,52 @@ impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
             self.progress.set_position(pos);
             pos
         })
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl <W: tokio::io::AsyncWrite + Unpin> tokio::io::AsyncWrite for ProgressBarIter<W> {
+    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<Result<usize, Error>> {
+        Pin::new(&mut self.it).poll_write(cx, buf).map(|poll| {
+            poll.map(|inc| {
+                self.progress.inc(inc as u64);
+                inc
+            })
+        })
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
+        Pin::new(&mut self.it).poll_flush(cx)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
+        Pin::new(&mut self.it).poll_shutdown(cx)
+    }
+}
+
+
+#[cfg(feature = "tokio")]
+impl <W: tokio::io::AsyncRead + Unpin> tokio::io::AsyncRead for ProgressBarIter<W> {
+    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+        let prev_len = buf.filled().len() as u64;
+        if let Poll::Ready(e) = Pin::new(&mut self.it).poll_read(cx, buf) {
+             self.progress.inc(buf.filled().len() as u64 - prev_len);
+             Poll::Ready(e)
+        }
+        else {
+            Poll::Pending
+        }
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl <W: tokio::io::AsyncSeek + Unpin> tokio::io::AsyncSeek for ProgressBarIter<W> {
+    fn start_seek(mut self: Pin<&mut Self>, position: SeekFrom) -> io::Result<()> {
+        Pin::new(&mut self.it).start_seek(position)
+    }
+
+    fn poll_complete(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<u64>> {
+        Pin::new(&mut self.it).poll_complete(cx)
     }
 }
 

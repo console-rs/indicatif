@@ -19,6 +19,7 @@ console = { version = ">=0.9.1, <1.0.0", default-features = false }
 unicode-segmentation = { version = "1.6.0", optional = true }
 unicode-width = { version = "0.1.7", optional = true }
 rayon = { version = "1.0", optional = true }
+tokio = { version = "1.0", optional = true, features = ["fs", "io-util"] }
 
 [dev-dependencies]
 rand = "0.8"
