@@ -1,11 +1,11 @@
 use crate::progress_bar::ProgressBar;
 use std::convert::TryFrom;
-use std::io::{self, IoSliceMut, Error, SeekFrom};
+use std::io::{self, IoSliceMut};
 use std::iter::FusedIterator;
-use std::pin::Pin;
-use std::task::{Context, Poll};
 #[cfg(feature = "tokio")]
-use tokio::io::ReadBuf;
+use tokio::io::{ReadBuf, SeekFrom};
+#[cfg(feature = "tokio")]
+use std::{pin::Pin, task::{Context, Poll}};
 
 /// Wraps an iterator to display its progress.
 pub trait ProgressIterator
@@ -142,7 +142,7 @@ impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
 
 #[cfg(feature = "tokio")]
 impl <W: tokio::io::AsyncWrite + Unpin> tokio::io::AsyncWrite for ProgressBarIter<W> {
-    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<Result<usize, Error>> {
+    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         Pin::new(&mut self.it).poll_write(cx, buf).map(|poll| {
             poll.map(|inc| {
                 self.progress.inc(inc as u64);
@@ -151,11 +151,11 @@ impl <W: tokio::io::AsyncWrite + Unpin> tokio::io::AsyncWrite for ProgressBarIte
         })
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         Pin::new(&mut self.it).poll_flush(cx)
     }
 
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         Pin::new(&mut self.it).poll_shutdown(cx)
     }
 }
