@@ -472,7 +472,10 @@ impl ProgressBar {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn wrap_async_write<W: tokio::io::AsyncWrite + Unpin>(&self, write: W) -> ProgressBarIter<W> {
+    pub fn wrap_async_write<W: tokio::io::AsyncWrite + Unpin>(
+        &self,
+        write: W,
+    ) -> ProgressBarIter<W> {
         ProgressBarIter {
             progress: self.clone(),
             it: write,
