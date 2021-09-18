@@ -457,6 +457,52 @@ impl ProgressBar {
         }
     }
 
+    #[cfg(feature = "tokio")]
+    /// Wraps an [`tokio::io::AsyncWrite`] with the progress bar
+    ///
+    /// ```rust,no_run
+    /// # use tokio::fs::File;
+    /// # use tokio::io;
+    /// # use indicatif::ProgressBar;
+    /// # async fn test() -> io::Result<()> {
+    /// let mut source = File::open("work.txt").await?;
+    /// let mut target = File::open("done.txt").await?;
+    /// let pb = ProgressBar::new(source.metadata().await?.len());
+    /// io::copy(&mut source, &mut pb.wrap_async_write(target)).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn wrap_async_write<W: tokio::io::AsyncWrite + Unpin>(
+        &self,
+        write: W,
+    ) -> ProgressBarIter<W> {
+        ProgressBarIter {
+            progress: self.clone(),
+            it: write,
+        }
+    }
+    #[cfg(feature = "tokio")]
+    /// Wraps an [`tokio::io::AsyncRead`] with the progress bar
+    ///
+    /// ```rust,no_run
+    /// # use tokio::fs::File;
+    /// # use tokio::io;
+    /// # use indicatif::ProgressBar;
+    /// # async fn test() -> io::Result<()> {
+    /// let mut source = File::open("work.txt").await?;
+    /// let mut target = File::open("done.txt").await?;
+    /// let pb = ProgressBar::new(source.metadata().await?.len());
+    /// io::copy(&mut pb.wrap_async_read(source), &mut target).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn wrap_async_read<W: tokio::io::AsyncRead + Unpin>(&self, write: W) -> ProgressBarIter<W> {
+        ProgressBarIter {
+            progress: self.clone(),
+            it: write,
+        }
+    }
+
     fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, f: F) {
         // Delegate to the wrapped state.
         let mut state = self.state.lock().unwrap();
