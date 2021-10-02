@@ -1,4 +1,5 @@
 use crate::progress_bar::ProgressBar;
+#[cfg(feature = "tokio")]
 use std::borrow::BorrowMut;
 use std::convert::TryFrom;
 use std::io::{self, IoSliceMut};
