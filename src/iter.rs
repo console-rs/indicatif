@@ -1,4 +1,5 @@
 use crate::progress_bar::ProgressBar;
+use std::borrow::BorrowMut;
 use std::convert::TryFrom;
 use std::io::{self, IoSliceMut};
 use std::iter::FusedIterator;
@@ -199,56 +200,24 @@ impl<W: tokio::io::AsyncSeek + Unpin> tokio::io::AsyncSeek for ProgressBarIter<W
         Pin::new(&mut self.it).poll_complete(cx)
     }
 }
-
 #[cfg(feature = "tokio")]
-impl<W: tokio::io::AsyncWrite + Unpin> tokio::io::AsyncWrite for ProgressBarIter<W> {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut self.it).poll_write(cx, buf).map(|poll| {
-            poll.map(|inc| {
-                self.progress.inc(inc as u64);
-                inc
+impl<W: tokio::io::AsyncBufRead + Unpin + tokio::io::AsyncRead> tokio::io::AsyncBufRead
+    for ProgressBarIter<W>
+{
+    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
+        let pb = self.progress.clone();
+        Pin::new(self.get_mut().it.borrow_mut())
+            .poll_fill_buf(cx)
+            .map(|x| {
+                x.map(|buf| {
+                    pb.inc(buf.len() as u64);
+                    buf
+                })
             })
-        })
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.it).poll_flush(cx)
-    }
-
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.it).poll_shutdown(cx)
-    }
-}
-
-#[cfg(feature = "tokio")]
-impl<W: tokio::io::AsyncRead + Unpin> tokio::io::AsyncRead for ProgressBarIter<W> {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
-        let prev_len = buf.filled().len() as u64;
-        if let Poll::Ready(e) = Pin::new(&mut self.it).poll_read(cx, buf) {
-            self.progress.inc(buf.filled().len() as u64 - prev_len);
-            Poll::Ready(e)
-        } else {
-            Poll::Pending
-        }
-    }
-}
-
-#[cfg(feature = "tokio")]
-impl<W: tokio::io::AsyncSeek + Unpin> tokio::io::AsyncSeek for ProgressBarIter<W> {
-    fn start_seek(mut self: Pin<&mut Self>, position: SeekFrom) -> io::Result<()> {
-        Pin::new(&mut self.it).start_seek(position)
-    }
-
-    fn poll_complete(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<u64>> {
-        Pin::new(&mut self.it).poll_complete(cx)
+    fn consume(mut self: Pin<&mut Self>, amt: usize) {
+        Pin::new(&mut self.it).consume(amt);
     }
 }
 
