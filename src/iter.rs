@@ -1,6 +1,4 @@
 use crate::progress_bar::ProgressBar;
-#[cfg(feature = "tokio")]
-use std::borrow::BorrowMut;
 use std::convert::TryFrom;
 use std::io::{self, IoSliceMut};
 use std::iter::FusedIterator;
@@ -201,20 +199,18 @@ impl<W: tokio::io::AsyncSeek + Unpin> tokio::io::AsyncSeek for ProgressBarIter<W
         Pin::new(&mut self.it).poll_complete(cx)
     }
 }
+
 #[cfg(feature = "tokio")]
 impl<W: tokio::io::AsyncBufRead + Unpin + tokio::io::AsyncRead> tokio::io::AsyncBufRead
     for ProgressBarIter<W>
 {
     fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
-        let pb = self.progress.clone();
-        Pin::new(self.get_mut().it.borrow_mut())
-            .poll_fill_buf(cx)
-            .map(|x| {
-                x.map(|buf| {
-                    pb.inc(buf.len() as u64);
-                    buf
-                })
-            })
+        let this = self.get_mut();
+        let result = Pin::new(&mut this.it).poll_fill_buf(cx);
+        if let Poll::Ready(Ok(buf)) = &result {
+            this.progress.inc(buf.len() as u64);
+        }
+        result
     }
 
     fn consume(mut self: Pin<&mut Self>, amt: usize) {
