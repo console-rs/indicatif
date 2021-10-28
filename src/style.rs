@@ -63,23 +63,15 @@ fn width(c: &[Box<str>]) -> usize {
 impl ProgressStyle {
     /// Returns the default progress bar style for bars
     pub fn default_bar() -> ProgressStyle {
-        let progress_chars = segment("█░");
-        let char_width = width(&progress_chars);
-        ProgressStyle {
-            tick_strings: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
-                .chars()
-                .map(|c| c.to_string().into())
-                .collect(),
-            progress_chars,
-            char_width,
-            template: "{wide_bar} {pos}/{len}".into(),
-            on_finish: ProgressFinish::default(),
-            format_map: FormatMap::default(),
-        }
+        Self::new("{wide_bar} {pos}/{len}")
     }
 
     /// Returns the default progress bar style for spinners
-    pub fn default_spinner() -> ProgressStyle {
+    pub fn default_spinner() -> Self {
+        Self::new("{spinner} {msg}")
+    }
+
+    fn new(template: impl Into<Box<str>>) -> Self {
         let progress_chars = segment("█░");
         let char_width = width(&progress_chars);
         ProgressStyle {
@@ -89,7 +81,7 @@ impl ProgressStyle {
                 .collect(),
             progress_chars,
             char_width,
-            template: "{spinner} {msg}".into(),
+            template: template.into(),
             on_finish: ProgressFinish::default(),
             format_map: FormatMap::default(),
         }
@@ -192,12 +184,7 @@ impl ProgressStyle {
         &self.on_finish
     }
 
-    fn format_bar(
-        &self,
-        fract: f32,
-        width: usize,
-        alt_style: Option<&Style>,
-    ) -> BarDisplay<'_> {
+    fn format_bar(&self, fract: f32, width: usize, alt_style: Option<&Style>) -> BarDisplay<'_> {
         // The number of clusters from progress_chars to write (rounding down).
         let width = width / self.char_width;
         // The number of full clusters (including a fractional component for a partially-full one).
