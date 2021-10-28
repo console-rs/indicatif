@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt::{self, Write};
 
 use console::{measure_text_width, Style};
 use once_cell::sync::Lazy;
@@ -300,7 +301,13 @@ impl ProgressStyle {
                     )
                 } else if var.key == "msg" {
                     let msg_width = total_width.saturating_sub(measure_text_width(&s));
-                    let msg = pad_str(state.message(), msg_width, var.align, true);
+                    let msg = PaddedStringDisplay {
+                        str: state.message(),
+                        width: msg_width,
+                        align: var.align,
+                        truncate: true,
+                    }
+                    .to_string();
                     s.replace(
                         "\x00",
                         if var.last_element {
@@ -379,45 +386,62 @@ fn expand_template<F: FnMut(&TemplateVar<'_>) -> String>(s: &str, mut f: F) -> C
                 var.alt_style = Some(Style::from_dotted_str(alt_style.as_str()));
             }
         }
-        let mut rv = f(&var);
-        if let Some(width) = var.width {
-            rv = pad_str(&rv, width, var.align, var.truncate).to_string()
+
+        let rv = f(&var);
+        match var.width {
+            Some(width) => {
+                let padded = PaddedStringDisplay {
+                    str: &rv,
+                    width,
+                    align: var.align,
+                    truncate: var.truncate,
+                };
+                match var.style {
+                    Some(s) => s.apply_to(padded).to_string(),
+                    None => padded.to_string(),
+                }
+            }
+            None => match var.style {
+                Some(s) => s.apply_to(rv).to_string(),
+                None => rv,
+            },
         }
-        if let Some(s) = var.style {
-            rv = s.apply_to(rv).to_string();
-        }
-        rv
     })
 }
 
-fn pad_str(s: &str, width: usize, align: Alignment, truncate: bool) -> Cow<'_, str> {
-    let cols = measure_text_width(s);
+struct PaddedStringDisplay<'a> {
+    str: &'a str,
+    width: usize,
+    align: Alignment,
+    truncate: bool,
+}
 
-    if cols >= width {
-        return if truncate {
-            Cow::Borrowed(s.get(..width).unwrap_or(s))
-        } else {
-            Cow::Borrowed(s)
+impl<'a> fmt::Display for PaddedStringDisplay<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let cols = measure_text_width(self.str);
+        if cols >= self.width {
+            return match self.truncate {
+                true => f.write_str(self.str.get(..self.width).unwrap_or(self.str)),
+                false => f.write_str(self.str),
+            };
+        }
+
+        let diff = self.width.saturating_sub(cols);
+        let (left_pad, right_pad) = match self.align {
+            Alignment::Left => (0, diff),
+            Alignment::Right => (diff, 0),
+            Alignment::Center => (diff / 2, diff.saturating_sub(diff / 2)),
         };
-    }
 
-    let diff = width.saturating_sub(cols);
-
-    let (left_pad, right_pad) = match align {
-        Alignment::Left => (0, diff),
-        Alignment::Right => (diff, 0),
-        Alignment::Center => (diff / 2, diff.saturating_sub(diff / 2)),
-    };
-
-    let mut rv = String::new();
-    for _ in 0..left_pad {
-        rv.push(' ');
+        for _ in 0..left_pad {
+            f.write_char(' ')?;
+        }
+        f.write_str(self.str)?;
+        for _ in 0..right_pad {
+            f.write_char(' ')?;
+        }
+        Ok(())
     }
-    rv.push_str(s);
-    for _ in 0..right_pad {
-        rv.push(' ');
-    }
-    Cow::Owned(rv)
 }
 
 #[derive(Clone, Default)]
