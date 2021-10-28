@@ -502,55 +502,47 @@ enum Alignment {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::draw_target::ProgressDrawTarget;
+    use crate::state::ProgressState;
 
     #[test]
     fn test_expand_template() {
-        let rv = expand_template("{{ {foo} {bar} }}", |var| var.key.to_uppercase());
-        assert_eq!(&rv, "{ FOO BAR }");
-        let rv = expand_template(r#"{ "foo": "{foo}", "bar": {bar} }"#, |var| {
-            var.key.to_uppercase()
-        });
-        assert_eq!(&rv, r#"{ "foo": "FOO", "bar": BAR }"#);
+        let mut style = ProgressStyle::default_bar();
+        style.format_map.0.insert("foo", |_| "FOO".into());
+        style.format_map.0.insert("bar", |_| "BAR".into());
+        let state = ProgressState::new(10, ProgressDrawTarget::stdout());
+
+        style.template = "{{ {foo} {bar} }}".into();
+        let rv = style.format_state(&state);
+        assert_eq!(&rv[0], "{ FOO BAR }");
+
+        style.template = r#"{ "foo": "{foo}", "bar": {bar} }"#.into();
+        let rv = style.format_state(&state);
+        assert_eq!(&rv[0], r#"{ "foo": "FOO", "bar": BAR }"#);
     }
 
     #[test]
     fn test_expand_template_flags() {
         use console::set_colors_enabled;
         set_colors_enabled(true);
+        let mut style = ProgressStyle::default_bar();
+        style.format_map.0.insert("foo", |_| "XXX".into());
+        let state = ProgressState::new(10, ProgressDrawTarget::stdout());
 
-        let rv = expand_template("{foo:5}", |var| {
-            assert_eq!(var.key, "foo");
-            assert_eq!(var.width, Some(5));
-            "XXX".into()
-        });
-        assert_eq!(&rv, "XXX  ");
+        style.template = "{foo:5}".into();
+        let rv = style.format_state(&state);
+        assert_eq!(&rv[0], "XXX  ");
 
-        let rv = expand_template("{foo:.red.on_blue}", |var| {
-            assert_eq!(var.key, "foo");
-            assert_eq!(var.width, None);
-            assert_eq!(var.align, Alignment::Left);
-            assert_eq!(var.style, Some(Style::new().red().on_blue()));
-            "XXX".into()
-        });
-        assert_eq!(&rv, "\u{1b}[31m\u{1b}[44mXXX\u{1b}[0m");
+        style.template = "{foo:.red.on_blue}".into();
+        let rv = style.format_state(&state);
+        assert_eq!(&rv[0], "\u{1b}[31m\u{1b}[44mXXX\u{1b}[0m");
 
-        let rv = expand_template("{foo:^5.red.on_blue}", |var| {
-            assert_eq!(var.key, "foo");
-            assert_eq!(var.width, Some(5));
-            assert_eq!(var.align, Alignment::Center);
-            assert_eq!(var.style, Some(Style::new().red().on_blue()));
-            "XXX".into()
-        });
-        assert_eq!(&rv, "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
+        style.template = "{foo:^5.red.on_blue}".into();
+        let rv = style.format_state(&state);
+        assert_eq!(&rv[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
 
-        let rv = expand_template("{foo:^5.red.on_blue/green.on_cyan}", |var| {
-            assert_eq!(var.key, "foo");
-            assert_eq!(var.width, Some(5));
-            assert_eq!(var.align, Alignment::Center);
-            assert_eq!(var.style, Some(Style::new().red().on_blue()));
-            assert_eq!(var.alt_style, Some(Style::new().green().on_cyan()));
-            "XXX".into()
-        });
-        assert_eq!(&rv, "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
+        style.template = "{foo:^5.red.on_blue/green.on_cyan}".into();
+        let rv = style.format_state(&state);
+        assert_eq!(&rv[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
     }
 }
