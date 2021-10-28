@@ -1,10 +1,9 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{self, Write};
+use std::mem;
 
 use console::{measure_text_width, Style};
-use once_cell::sync::Lazy;
-use regex::{Captures, Regex};
 #[cfg(feature = "improved_unicode")]
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -16,7 +15,7 @@ use crate::state::ProgressState;
 pub struct ProgressStyle {
     tick_strings: Vec<Box<str>>,
     progress_chars: Vec<Box<str>>,
-    template: Box<str>,
+    template: Template,
     on_finish: ProgressFinish,
     // how unicode-big each char in progress_chars is
     char_width: usize,
@@ -71,7 +70,7 @@ impl ProgressStyle {
         Self::new("{spinner} {msg}")
     }
 
-    fn new(template: impl Into<Box<str>>) -> Self {
+    fn new(template: &str) -> Self {
         let progress_chars = segment("█░");
         let char_width = width(&progress_chars);
         ProgressStyle {
@@ -81,7 +80,7 @@ impl ProgressStyle {
                 .collect(),
             progress_chars,
             char_width,
-            template: template.into(),
+            template: Template::from_str(template),
             on_finish: ProgressFinish::default(),
             format_map: FormatMap::default(),
         }
@@ -137,7 +136,7 @@ impl ProgressStyle {
     ///
     /// Review the [list of template keys](./index.html#templates) for more information.
     pub fn template(mut self, s: &str) -> ProgressStyle {
-        self.template = s.into();
+        self.template = Template::from_str(s);
         self
     }
 
@@ -227,213 +226,354 @@ impl ProgressStyle {
     }
 
     pub(crate) fn format_state(&self, state: &ProgressState) -> Vec<String> {
-        static VAR_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\}\})|\{(\{|[^{}}]+\})").unwrap());
-        static KEY_RE: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(
-                r"(?x)
-                    ([^:]+)
-                    (?:
-                        :
-                        ([<^>])?
-                        ([0-9]+)?
-                        (!)?
-                        (?:\.([0-9a-z_]+(?:\.[0-9a-z_]+)*))?
-                        (?:/([a-z_]+(?:\.[a-z_]+)*))?
-                    )?
-                ",
-            )
-            .unwrap()
-        });
-
+        let mut cur = String::new();
         let mut buf = String::new();
         let mut rv = vec![];
-        for line in self.template.lines() {
-            let mut wide_element = None;
-            let s = VAR_RE.replace_all(line, |caps: &Captures<'_>| {
-                if caps.get(1).is_some() {
-                    return "}".into();
-                }
-
-                let key = &caps[2];
-                if key == "{" {
-                    return "{".into();
-                }
-
-                let mut var = TemplateVar {
+        let mut wide_element = None;
+        for part in &self.template.parts {
+            match part {
+                TemplatePart::Placeholder {
                     key,
-                    align: Alignment::Left,
-                    truncate: false,
-                    width: None,
-                    style: None,
-                    alt_style: None,
-                    last_element: caps.get(0).unwrap().end() >= line.len(),
-                };
-
-                if let Some(opt_caps) = KEY_RE.captures(&key[..key.len() - 1]) {
-                    if let Some(short_key) = opt_caps.get(1) {
-                        var.key = short_key.as_str();
-                    }
-                    var.align = match opt_caps.get(2).map(|x| x.as_str()) {
-                        Some("<") => Alignment::Left,
-                        Some("^") => Alignment::Center,
-                        Some(">") => Alignment::Right,
-                        _ => Alignment::Left,
+                    align,
+                    width,
+                    truncate,
+                    style,
+                    alt_style,
+                } => {
+                    buf.clear();
+                    if let Some(formatter) = self.format_map.0.get(key.as_str()) {
+                        buf.push_str(&formatter(state));
+                    } else {
+                        match key.as_str() {
+                            "wide_bar" => {
+                                wide_element = Some((key.as_str(), align, alt_style));
+                                buf.push('\x00');
+                            }
+                            "bar" => buf
+                                .write_fmt(format_args!(
+                                    "{}",
+                                    self.format_bar(
+                                        state.fraction(),
+                                        width.unwrap_or(20) as usize,
+                                        alt_style.as_ref(),
+                                    )
+                                ))
+                                .unwrap(),
+                            "spinner" => buf.push_str(state.current_tick_str()),
+                            "wide_msg" => {
+                                wide_element = Some((key.as_str(), align, alt_style));
+                                buf.push('\x00');
+                            }
+                            "msg" => buf.push_str(state.message()),
+                            "prefix" => buf.push_str(state.prefix()),
+                            "pos" => buf.write_fmt(format_args!("{}", state.pos)).unwrap(),
+                            "len" => buf.write_fmt(format_args!("{}", state.len)).unwrap(),
+                            "percent" => buf
+                                .write_fmt(format_args!("{:.*}", 0, state.fraction() * 100f32))
+                                .unwrap(),
+                            "bytes" => buf
+                                .write_fmt(format_args!("{}", HumanBytes(state.pos)))
+                                .unwrap(),
+                            "total_bytes" => buf
+                                .write_fmt(format_args!("{}", HumanBytes(state.len)))
+                                .unwrap(),
+                            "decimal_bytes" => buf
+                                .write_fmt(format_args!("{}", DecimalBytes(state.pos)))
+                                .unwrap(),
+                            "decimal_total_bytes" => buf
+                                .write_fmt(format_args!("{}", DecimalBytes(state.len)))
+                                .unwrap(),
+                            "binary_bytes" => buf
+                                .write_fmt(format_args!("{}", BinaryBytes(state.pos)))
+                                .unwrap(),
+                            "binary_total_bytes" => buf
+                                .write_fmt(format_args!("{}", BinaryBytes(state.len)))
+                                .unwrap(),
+                            "elapsed_precise" => buf
+                                .write_fmt(format_args!(
+                                    "{}",
+                                    FormattedDuration(state.started.elapsed())
+                                ))
+                                .unwrap(),
+                            "elapsed" => buf
+                                .write_fmt(format_args!(
+                                    "{:#}",
+                                    HumanDuration(state.started.elapsed())
+                                ))
+                                .unwrap(),
+                            "per_sec" => buf
+                                .write_fmt(format_args!("{:.4}/s", state.per_sec()))
+                                .unwrap(),
+                            "bytes_per_sec" => buf
+                                .write_fmt(format_args!("{}/s", HumanBytes(state.per_sec() as u64)))
+                                .unwrap(),
+                            "binary_bytes_per_sec" => buf
+                                .write_fmt(format_args!(
+                                    "{}/s",
+                                    BinaryBytes(state.per_sec() as u64)
+                                ))
+                                .unwrap(),
+                            "eta_precise" => buf
+                                .write_fmt(format_args!("{}", FormattedDuration(state.eta())))
+                                .unwrap(),
+                            "eta" => buf
+                                .write_fmt(format_args!("{:#}", HumanDuration(state.eta())))
+                                .unwrap(),
+                            "duration_precise" => buf
+                                .write_fmt(format_args!("{}", FormattedDuration(state.duration())))
+                                .unwrap(),
+                            "duration" => buf
+                                .write_fmt(format_args!("{:#}", HumanDuration(state.duration())))
+                                .unwrap(),
+                            _ => (),
+                        }
                     };
-                    if let Some(width) = opt_caps.get(3) {
-                        var.width = Some(width.as_str().parse().unwrap());
-                    }
-                    if opt_caps.get(4).is_some() {
-                        var.truncate = true;
-                    }
-                    if let Some(style) = opt_caps.get(5) {
-                        var.style = Some(Style::from_dotted_str(style.as_str()));
-                    }
-                    if let Some(alt_style) = opt_caps.get(6) {
-                        var.alt_style = Some(Style::from_dotted_str(alt_style.as_str()));
-                    }
-                }
 
-                buf.clear();
-                if let Some(formatter) = self.format_map.0.get(var.key) {
-                    buf.push_str(&formatter(state));
-                } else {
-                    match var.key {
-                        "wide_bar" => {
-                            wide_element = Some(var.duplicate_for_key("bar"));
-                            buf.push_str("\x00");
+                    match width {
+                        Some(width) => {
+                            let padded = PaddedStringDisplay {
+                                str: &buf,
+                                width: *width as usize,
+                                align: *align,
+                                truncate: *truncate,
+                            };
+                            match style {
+                                Some(s) => cur
+                                    .write_fmt(format_args!("{}", s.apply_to(padded)))
+                                    .unwrap(),
+                                None => cur.write_fmt(format_args!("{}", padded)).unwrap(),
+                            }
                         }
-                        "bar" => buf
-                            .write_fmt(format_args!(
-                                "{}",
-                                self.format_bar(
-                                    state.fraction(),
-                                    var.width.unwrap_or(20),
-                                    var.alt_style.as_ref(),
-                                )
-                            ))
-                            .unwrap(),
-                        "spinner" => buf.push_str(state.current_tick_str()),
-                        "wide_msg" => {
-                            wide_element = Some(var.duplicate_for_key("msg"));
-                            buf.push_str("\x00");
-                        }
-                        "msg" => buf.push_str(state.message()),
-                        "prefix" => buf.push_str(state.prefix()),
-                        "pos" => buf.write_fmt(format_args!("{}", state.pos)).unwrap(),
-                        "len" => buf.write_fmt(format_args!("{}", state.len)).unwrap(),
-                        "percent" => buf
-                            .write_fmt(format_args!("{:.*}", 0, state.fraction() * 100f32))
-                            .unwrap(),
-                        "bytes" => buf
-                            .write_fmt(format_args!("{}", HumanBytes(state.pos)))
-                            .unwrap(),
-                        "total_bytes" => buf
-                            .write_fmt(format_args!("{}", HumanBytes(state.len)))
-                            .unwrap(),
-                        "decimal_bytes" => buf
-                            .write_fmt(format_args!("{}", DecimalBytes(state.pos)))
-                            .unwrap(),
-                        "decimal_total_bytes" => buf
-                            .write_fmt(format_args!("{}", DecimalBytes(state.len)))
-                            .unwrap(),
-                        "binary_bytes" => buf
-                            .write_fmt(format_args!("{}", BinaryBytes(state.pos)))
-                            .unwrap(),
-                        "binary_total_bytes" => buf
-                            .write_fmt(format_args!("{}", BinaryBytes(state.len)))
-                            .unwrap(),
-                        "elapsed_precise" => buf
-                            .write_fmt(format_args!(
-                                "{}",
-                                FormattedDuration(state.started.elapsed())
-                            ))
-                            .unwrap(),
-                        "elapsed" => buf
-                            .write_fmt(format_args!("{:#}", HumanDuration(state.started.elapsed())))
-                            .unwrap(),
-                        "per_sec" => buf
-                            .write_fmt(format_args!("{:.4}/s", state.per_sec()))
-                            .unwrap(),
-                        "bytes_per_sec" => buf
-                            .write_fmt(format_args!("{}/s", HumanBytes(state.per_sec() as u64)))
-                            .unwrap(),
-                        "binary_bytes_per_sec" => buf
-                            .write_fmt(format_args!("{}/s", BinaryBytes(state.per_sec() as u64)))
-                            .unwrap(),
-                        "eta_precise" => buf
-                            .write_fmt(format_args!("{}", FormattedDuration(state.eta())))
-                            .unwrap(),
-                        "eta" => buf
-                            .write_fmt(format_args!("{:#}", HumanDuration(state.eta())))
-                            .unwrap(),
-                        "duration_precise" => buf
-                            .write_fmt(format_args!("{}", FormattedDuration(state.duration())))
-                            .unwrap(),
-                        "duration" => buf
-                            .write_fmt(format_args!("{:#}", HumanDuration(state.duration())))
-                            .unwrap(),
-                        _ => (),
-                    }
-                };
-
-                match var.width {
-                    Some(width) => {
-                        let padded = PaddedStringDisplay {
-                            str: &buf,
-                            width,
-                            align: var.align,
-                            truncate: var.truncate,
-                        };
-                        match var.style {
-                            Some(s) => s.apply_to(padded).to_string(),
-                            None => padded.to_string(),
-                        }
-                    }
-                    None => match var.style {
-                        Some(s) => s.apply_to(&buf).to_string(),
-                        None => buf.clone(),
-                    },
-                }
-            });
-
-            rv.push(if let Some(ref var) = wide_element {
-                let total_width = state.width();
-                if var.key == "bar" {
-                    let bar_width = total_width.saturating_sub(measure_text_width(&s));
-                    s.replace(
-                        "\x00",
-                        &format!(
-                            "{}",
-                            self.format_bar(state.fraction(), bar_width, var.alt_style.as_ref())
-                        ),
-                    )
-                } else if var.key == "msg" {
-                    let msg_width = total_width.saturating_sub(measure_text_width(&s));
-                    let msg = PaddedStringDisplay {
-                        str: state.message(),
-                        width: msg_width,
-                        align: var.align,
-                        truncate: true,
-                    }
-                    .to_string();
-                    s.replace(
-                        "\x00",
-                        if var.last_element {
-                            msg.trim_end()
-                        } else {
-                            &msg
+                        None => match style {
+                            Some(s) => cur.write_fmt(format_args!("{}", s.apply_to(&buf))).unwrap(),
+                            None => cur.push_str(&buf),
                         },
-                    )
-                } else {
-                    unreachable!()
+                    }
                 }
-            } else {
-                s.to_string()
-            });
+                TemplatePart::Literal(s) => cur.push_str(s),
+                TemplatePart::NewLine => {
+                    rv.push(expand_wide(
+                        mem::take(&mut cur),
+                        wide_element.take(),
+                        self,
+                        state,
+                        &mut buf,
+                    ));
+                }
+            }
         }
 
+        if !cur.is_empty() {
+            rv.push(expand_wide(
+                mem::take(&mut cur),
+                wide_element.take(),
+                self,
+                state,
+                &mut buf,
+            ));
+        }
         rv
     }
+}
+
+fn expand_wide(
+    cur: String,
+    wide: Option<(&str, &Alignment, &Option<Style>)>,
+    style: &ProgressStyle,
+    state: &ProgressState,
+    buf: &mut String,
+) -> String {
+    let (key, align, alt_style) = match wide {
+        Some(x) => x,
+        None => return cur,
+    };
+
+    let left = state.width().saturating_sub(measure_text_width(&cur));
+    if key == "bar" {
+        cur.replace(
+            "\x00",
+            &format!(
+                "{}",
+                style.format_bar(state.fraction(), left, alt_style.as_ref())
+            ),
+        )
+    } else if key == "msg" {
+        buf.clear();
+        buf.write_fmt(format_args!(
+            "{}",
+            PaddedStringDisplay {
+                str: state.message(),
+                width: left,
+                align: *align,
+                truncate: true,
+            }
+        ))
+        .unwrap();
+
+        let trimmed = match cur.as_bytes().last() == Some(&b'\x00') {
+            true => buf.trim_end(),
+            false => buf,
+        };
+
+        cur.replace("\x00", trimmed)
+    } else {
+        cur
+    }
+}
+
+#[derive(Clone, Debug)]
+struct Template {
+    parts: Vec<TemplatePart>,
+}
+
+impl Template {
+    fn from_str(s: &str) -> Self {
+        use State::*;
+        let (mut state, mut parts, mut buf) = (Literal, vec![], String::new());
+        for c in s.chars() {
+            let new = match (state, c) {
+                (Literal, '{') => (MaybeOpen, None),
+                (Literal, '\n') => {
+                    if !buf.is_empty() {
+                        parts.push(TemplatePart::Literal(mem::take(&mut buf)));
+                    }
+                    parts.push(TemplatePart::NewLine);
+                    (Literal, None)
+                }
+                (Literal, '}') => (DoubleClose, Some('}')),
+                (Literal, c) => (Literal, Some(c)),
+                (DoubleClose, '}') => (Literal, None),
+                (MaybeOpen, '{') => (Literal, Some('{')),
+                (MaybeOpen, c) | (Key, c) if c.is_ascii_whitespace() => {
+                    // If we find whitespace where the variable key is supposed to go,
+                    // backtrack and act as if this was a literal.
+                    buf.push(c);
+                    let mut new = String::from("{");
+                    new.push_str(&buf);
+                    buf.clear();
+                    parts.push(TemplatePart::Literal(new));
+                    (Literal, None)
+                }
+                (MaybeOpen, c) if c != '}' && c != ':' => (Key, Some(c)),
+                (Key, c) if c != '}' && c != ':' => (Key, Some(c)),
+                (Key, ':') => (Align, None),
+                (Key, '}') => (Literal, None),
+                (Key, '!') if !buf.is_empty() => {
+                    parts.push(TemplatePart::Placeholder {
+                        key: mem::take(&mut buf),
+                        align: Alignment::Left,
+                        width: None,
+                        truncate: true,
+                        style: None,
+                        alt_style: None,
+                    });
+                    (Width, None)
+                }
+                (Align, c) if c == '<' || c == '^' || c == '>' => {
+                    if let Some(TemplatePart::Placeholder { align, .. }) = parts.last_mut() {
+                        match c {
+                            '<' => *align = Alignment::Left,
+                            '^' => *align = Alignment::Center,
+                            '>' => *align = Alignment::Right,
+                            _ => (),
+                        }
+                    }
+
+                    (Width, None)
+                }
+                (Align, c @ '0'..='9') => (Width, Some(c)),
+                (Align, '!') | (Width, '!') => {
+                    if let Some(TemplatePart::Placeholder { truncate, .. }) = parts.last_mut() {
+                        *truncate = true;
+                    }
+                    (Width, None)
+                }
+                (Align, '.') => (FirstStyle, None),
+                (Align, '}') => (Literal, None),
+                (Width, c @ '0'..='9') => (Width, Some(c)),
+                (Width, '.') => (FirstStyle, None),
+                (Width, '}') => (Literal, None),
+                (FirstStyle, '/') => (AltStyle, None),
+                (FirstStyle, '}') => (Literal, None),
+                (FirstStyle, c) => (FirstStyle, Some(c)),
+                (AltStyle, '}') => (Literal, None),
+                (AltStyle, c) => (AltStyle, Some(c)),
+                (st, c) => panic!("unreachable state: {:?} @ {:?}", c, st),
+            };
+
+            match (state, new.0) {
+                (MaybeOpen, Key) if !buf.is_empty() => {
+                    parts.push(TemplatePart::Literal(mem::take(&mut buf)))
+                }
+                (Key, Align) | (Key, Literal) if !buf.is_empty() => {
+                    parts.push(TemplatePart::Placeholder {
+                        key: mem::take(&mut buf),
+                        align: Alignment::Left,
+                        width: None,
+                        truncate: false,
+                        style: None,
+                        alt_style: None,
+                    })
+                }
+                (Width, FirstStyle) | (Width, Literal) if !buf.is_empty() => {
+                    if let Some(TemplatePart::Placeholder { width, .. }) = parts.last_mut() {
+                        *width = Some(buf.parse().unwrap());
+                        buf.clear();
+                    }
+                }
+                (FirstStyle, AltStyle) | (FirstStyle, Literal) if !buf.is_empty() => {
+                    if let Some(TemplatePart::Placeholder { style, .. }) = parts.last_mut() {
+                        *style = Some(Style::from_dotted_str(&buf));
+                        buf.clear();
+                    }
+                }
+                (AltStyle, Literal) if !buf.is_empty() => {
+                    if let Some(TemplatePart::Placeholder { alt_style, .. }) = parts.last_mut() {
+                        *alt_style = Some(Style::from_dotted_str(&buf));
+                        buf.clear();
+                    }
+                }
+                (_, _) => (),
+            }
+
+            state = new.0;
+            if let Some(c) = new.1 {
+                buf.push(c);
+            }
+        }
+
+        if matches!(state, Literal | DoubleClose) && !buf.is_empty() {
+            parts.push(TemplatePart::Literal(buf));
+        }
+
+        Self { parts }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum TemplatePart {
+    Literal(String),
+    Placeholder {
+        key: String,
+        align: Alignment,
+        width: Option<u16>,
+        truncate: bool,
+        style: Option<Style>,
+        alt_style: Option<Style>,
+    },
+    NewLine,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+enum State {
+    Literal,
+    MaybeOpen,
+    DoubleClose,
+    Key,
+    Align,
+    Width,
+    FirstStyle,
+    AltStyle,
 }
 
 struct BarDisplay<'a> {
@@ -551,31 +691,6 @@ impl Default for ProgressFinish {
     }
 }
 
-#[derive(Debug)]
-struct TemplateVar<'a> {
-    pub key: &'a str,
-    pub align: Alignment,
-    pub truncate: bool,
-    pub width: Option<usize>,
-    pub style: Option<Style>,
-    pub alt_style: Option<Style>,
-    pub last_element: bool,
-}
-
-impl<'a> TemplateVar<'a> {
-    fn duplicate_for_key<'b>(&self, key: &'b str) -> TemplateVar<'b> {
-        TemplateVar {
-            key,
-            align: self.align,
-            truncate: self.truncate,
-            width: self.width,
-            style: self.style.clone(),
-            alt_style: self.alt_style.clone(),
-            last_element: self.last_element,
-        }
-    }
-}
-
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 enum Alignment {
     Left,
@@ -596,11 +711,11 @@ mod tests {
         style.format_map.0.insert("bar", |_| "BAR".into());
         let state = ProgressState::new(10, ProgressDrawTarget::stdout());
 
-        style.template = "{{ {foo} {bar} }}".into();
+        style.template = Template::from_str("{{ {foo} {bar} }}");
         let rv = style.format_state(&state);
         assert_eq!(&rv[0], "{ FOO BAR }");
 
-        style.template = r#"{ "foo": "{foo}", "bar": {bar} }"#.into();
+        style.template = Template::from_str(r#"{ "foo": "{foo}", "bar": {bar} }"#);
         let rv = style.format_state(&state);
         assert_eq!(&rv[0], r#"{ "foo": "FOO", "bar": BAR }"#);
     }
@@ -613,19 +728,19 @@ mod tests {
         style.format_map.0.insert("foo", |_| "XXX".into());
         let state = ProgressState::new(10, ProgressDrawTarget::stdout());
 
-        style.template = "{foo:5}".into();
+        style.template = Template::from_str("{foo:5}");
         let rv = style.format_state(&state);
         assert_eq!(&rv[0], "XXX  ");
 
-        style.template = "{foo:.red.on_blue}".into();
+        style.template = Template::from_str("{foo:.red.on_blue}");
         let rv = style.format_state(&state);
         assert_eq!(&rv[0], "\u{1b}[31m\u{1b}[44mXXX\u{1b}[0m");
 
-        style.template = "{foo:^5.red.on_blue}".into();
+        style.template = Template::from_str("{foo:^5.red.on_blue}");
         let rv = style.format_state(&state);
         assert_eq!(&rv[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
 
-        style.template = "{foo:^5.red.on_blue/green.on_cyan}".into();
+        style.template = Template::from_str("{foo:^5.red.on_blue/green.on_cyan}");
         let rv = style.format_state(&state);
         assert_eq!(&rv[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
     }
