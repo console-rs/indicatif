@@ -157,6 +157,13 @@ impl ProgressStyle {
         self
     }
 
+    pub(crate) fn current_tick_str(&self, state: &ProgressState) -> &str {
+        match state.is_finished() {
+            true => self.get_final_tick_str(),
+            false => self.get_tick_str(state.tick),
+        }
+    }
+
     /// Returns the tick string for a given number
     pub fn get_tick_str(&self, idx: u64) -> &str {
         &self.tick_strings[(idx as usize) % (self.tick_strings.len() - 1)]
