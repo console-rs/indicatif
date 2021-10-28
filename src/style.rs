@@ -192,7 +192,12 @@ impl ProgressStyle {
         &self.on_finish
     }
 
-    pub(crate) fn format_bar(&self, fract: f32, width: usize, alt_style: Option<&Style>) -> String {
+    fn format_bar(
+        &self,
+        fract: f32,
+        width: usize,
+        alt_style: Option<&Style>,
+    ) -> BarDisplay<'_> {
         // The number of clusters from progress_chars to write (rounding down).
         let width = width / self.char_width;
         // The number of full clusters (including a fractional component for a partially-full one).
@@ -207,8 +212,6 @@ impl ProgressStyle {
             0
         };
 
-        let pb = self.progress_chars[0].repeat(entirely_filled);
-
         let cur = if head == 1 {
             // Number of fine-grained progress entries in progress_chars.
             let n = self.progress_chars.len().saturating_sub(2);
@@ -221,20 +224,24 @@ impl ProgressStyle {
                 // of fill is 0 to the first one (1) if the fractional part of fill is almost 1.
                 n.saturating_sub((fill.fract() * n as f32) as usize)
             };
-            self.progress_chars[cur_char].to_string()
+            Some(cur_char)
         } else {
-            "".into()
+            None
         };
 
         // Number of entirely empty clusters needed to fill the bar up to `width`.
         let bg = width.saturating_sub(entirely_filled).saturating_sub(head);
-        let rest = self.progress_chars[self.progress_chars.len() - 1].repeat(bg);
-        format!(
-            "{}{}{}",
-            pb,
+        let rest = RepeatedStringDisplay {
+            str: &self.progress_chars[self.progress_chars.len() - 1],
+            num: bg,
+        };
+
+        BarDisplay {
+            chars: &self.progress_chars,
+            filled: entirely_filled,
             cur,
-            alt_style.unwrap_or(&Style::new()).apply_to(rest)
-        )
+            rest: alt_style.unwrap_or(&Style::new()).apply_to(rest),
+        }
     }
 
     pub(crate) fn format_state(&self, state: &ProgressState) -> Vec<String> {
@@ -311,10 +318,13 @@ impl ProgressStyle {
                             wide_element = Some(var.duplicate_for_key("bar"));
                             "\x00".into()
                         }
-                        "bar" => self.format_bar(
-                            state.fraction(),
-                            var.width.unwrap_or(20),
-                            var.alt_style.as_ref(),
+                        "bar" => format!(
+                            "{}",
+                            self.format_bar(
+                                state.fraction(),
+                                var.width.unwrap_or(20),
+                                var.alt_style.as_ref(),
+                            )
                         ),
                         "spinner" => state.current_tick_str().to_string(),
                         "wide_msg" => {
@@ -375,7 +385,10 @@ impl ProgressStyle {
                     let bar_width = total_width.saturating_sub(measure_text_width(&s));
                     s.replace(
                         "\x00",
-                        &self.format_bar(state.fraction(), bar_width, var.alt_style.as_ref()),
+                        &format!(
+                            "{}",
+                            self.format_bar(state.fraction(), bar_width, var.alt_style.as_ref())
+                        ),
                     )
                 } else if var.key == "msg" {
                     let msg_width = total_width.saturating_sub(measure_text_width(&s));
@@ -403,6 +416,39 @@ impl ProgressStyle {
         }
 
         rv
+    }
+}
+
+struct BarDisplay<'a> {
+    chars: &'a [Box<str>],
+    filled: usize,
+    cur: Option<usize>,
+    rest: console::StyledObject<RepeatedStringDisplay<'a>>,
+}
+
+impl<'a> fmt::Display for BarDisplay<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for _ in 0..self.filled {
+            f.write_str(&self.chars[0])?;
+        }
+        if let Some(cur) = self.cur {
+            f.write_str(&self.chars[cur])?;
+        }
+        self.rest.fmt(f)
+    }
+}
+
+struct RepeatedStringDisplay<'a> {
+    str: &'a str,
+    num: usize,
+}
+
+impl<'a> fmt::Display for RepeatedStringDisplay<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for _ in 0..self.num {
+            f.write_str(self.str)?;
+        }
+        Ok(())
     }
 }
 
