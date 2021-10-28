@@ -245,6 +245,7 @@ impl ProgressStyle {
             .unwrap()
         });
 
+        let mut buf = String::new();
         let mut rv = vec![];
         for line in self.template.lines() {
             let mut wide_element = None;
@@ -292,59 +293,93 @@ impl ProgressStyle {
                     }
                 }
 
-                let rv = if let Some(formatter) = self.format_map.0.get(var.key) {
-                    formatter(state)
+                buf.clear();
+                if let Some(formatter) = self.format_map.0.get(var.key) {
+                    buf.push_str(&formatter(state));
                 } else {
                     match var.key {
                         "wide_bar" => {
                             wide_element = Some(var.duplicate_for_key("bar"));
-                            "\x00".into()
+                            buf.push_str("\x00");
                         }
-                        "bar" => format!(
-                            "{}",
-                            self.format_bar(
-                                state.fraction(),
-                                var.width.unwrap_or(20),
-                                var.alt_style.as_ref(),
-                            )
-                        ),
-                        "spinner" => state.current_tick_str().to_string(),
+                        "bar" => buf
+                            .write_fmt(format_args!(
+                                "{}",
+                                self.format_bar(
+                                    state.fraction(),
+                                    var.width.unwrap_or(20),
+                                    var.alt_style.as_ref(),
+                                )
+                            ))
+                            .unwrap(),
+                        "spinner" => buf.push_str(state.current_tick_str()),
                         "wide_msg" => {
                             wide_element = Some(var.duplicate_for_key("msg"));
-                            "\x00".into()
+                            buf.push_str("\x00");
                         }
-                        "msg" => state.message().to_string(),
-                        "prefix" => state.prefix().to_string(),
-                        "pos" => state.pos.to_string(),
-                        "len" => state.len.to_string(),
-                        "percent" => format!("{:.*}", 0, state.fraction() * 100f32),
-                        "bytes" => format!("{}", HumanBytes(state.pos)),
-                        "total_bytes" => format!("{}", HumanBytes(state.len)),
-                        "decimal_bytes" => format!("{}", DecimalBytes(state.pos)),
-                        "decimal_total_bytes" => format!("{}", DecimalBytes(state.len)),
-                        "binary_bytes" => format!("{}", BinaryBytes(state.pos)),
-                        "binary_total_bytes" => format!("{}", BinaryBytes(state.len)),
-                        "elapsed_precise" => {
-                            format!("{}", FormattedDuration(state.started.elapsed()))
-                        }
-                        "elapsed" => format!("{:#}", HumanDuration(state.started.elapsed())),
-                        "per_sec" => format!("{:.4}/s", state.per_sec()),
-                        "bytes_per_sec" => format!("{}/s", HumanBytes(state.per_sec() as u64)),
-                        "binary_bytes_per_sec" => {
-                            format!("{}/s", BinaryBytes(state.per_sec() as u64))
-                        }
-                        "eta_precise" => format!("{}", FormattedDuration(state.eta())),
-                        "eta" => format!("{:#}", HumanDuration(state.eta())),
-                        "duration_precise" => format!("{}", FormattedDuration(state.duration())),
-                        "duration" => format!("{:#}", HumanDuration(state.duration())),
-                        _ => "".into(),
+                        "msg" => buf.push_str(state.message()),
+                        "prefix" => buf.push_str(state.prefix()),
+                        "pos" => buf.write_fmt(format_args!("{}", state.pos)).unwrap(),
+                        "len" => buf.write_fmt(format_args!("{}", state.len)).unwrap(),
+                        "percent" => buf
+                            .write_fmt(format_args!("{:.*}", 0, state.fraction() * 100f32))
+                            .unwrap(),
+                        "bytes" => buf
+                            .write_fmt(format_args!("{}", HumanBytes(state.pos)))
+                            .unwrap(),
+                        "total_bytes" => buf
+                            .write_fmt(format_args!("{}", HumanBytes(state.len)))
+                            .unwrap(),
+                        "decimal_bytes" => buf
+                            .write_fmt(format_args!("{}", DecimalBytes(state.pos)))
+                            .unwrap(),
+                        "decimal_total_bytes" => buf
+                            .write_fmt(format_args!("{}", DecimalBytes(state.len)))
+                            .unwrap(),
+                        "binary_bytes" => buf
+                            .write_fmt(format_args!("{}", BinaryBytes(state.pos)))
+                            .unwrap(),
+                        "binary_total_bytes" => buf
+                            .write_fmt(format_args!("{}", BinaryBytes(state.len)))
+                            .unwrap(),
+                        "elapsed_precise" => buf
+                            .write_fmt(format_args!(
+                                "{}",
+                                FormattedDuration(state.started.elapsed())
+                            ))
+                            .unwrap(),
+                        "elapsed" => buf
+                            .write_fmt(format_args!("{:#}", HumanDuration(state.started.elapsed())))
+                            .unwrap(),
+                        "per_sec" => buf
+                            .write_fmt(format_args!("{:.4}/s", state.per_sec()))
+                            .unwrap(),
+                        "bytes_per_sec" => buf
+                            .write_fmt(format_args!("{}/s", HumanBytes(state.per_sec() as u64)))
+                            .unwrap(),
+                        "binary_bytes_per_sec" => buf
+                            .write_fmt(format_args!("{}/s", BinaryBytes(state.per_sec() as u64)))
+                            .unwrap(),
+                        "eta_precise" => buf
+                            .write_fmt(format_args!("{}", FormattedDuration(state.eta())))
+                            .unwrap(),
+                        "eta" => buf
+                            .write_fmt(format_args!("{:#}", HumanDuration(state.eta())))
+                            .unwrap(),
+                        "duration_precise" => buf
+                            .write_fmt(format_args!("{}", FormattedDuration(state.duration())))
+                            .unwrap(),
+                        "duration" => buf
+                            .write_fmt(format_args!("{:#}", HumanDuration(state.duration())))
+                            .unwrap(),
+                        _ => (),
                     }
                 };
 
                 match var.width {
                     Some(width) => {
                         let padded = PaddedStringDisplay {
-                            str: &rv,
+                            str: &buf,
                             width,
                             align: var.align,
                             truncate: var.truncate,
@@ -355,8 +390,8 @@ impl ProgressStyle {
                         }
                     }
                     None => match var.style {
-                        Some(s) => s.apply_to(rv).to_string(),
-                        None => rv,
+                        Some(s) => s.apply_to(&buf).to_string(),
+                        None => buf.clone(),
                     },
                 }
             });
