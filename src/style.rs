@@ -238,56 +238,134 @@ impl ProgressStyle {
     }
 
     pub(crate) fn format_state(&self, state: &ProgressState) -> Vec<String> {
-        let mut rv = vec![];
+        static VAR_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\}\})|\{(\{|[^{}}]+\})").unwrap());
+        static KEY_RE: Lazy<Regex> = Lazy::new(|| {
+            Regex::new(
+                r"(?x)
+                    ([^:]+)
+                    (?:
+                        :
+                        ([<^>])?
+                        ([0-9]+)?
+                        (!)?
+                        (?:\.([0-9a-z_]+(?:\.[0-9a-z_]+)*))?
+                        (?:/([a-z_]+(?:\.[a-z_]+)*))?
+                    )?
+                ",
+            )
+            .unwrap()
+        });
 
+        let mut rv = vec![];
         for line in self.template.lines() {
             let mut wide_element = None;
-
-            let s = expand_template(line, |var| {
-                if let Some(formatter) = self.format_map.0.get(var.key) {
-                    return formatter(state);
+            let s = VAR_RE.replace_all(line, |caps: &Captures<'_>| {
+                if caps.get(1).is_some() {
+                    return "}".into();
                 }
 
-                match var.key {
-                    "wide_bar" => {
-                        wide_element = Some(var.duplicate_for_key("bar"));
-                        "\x00".into()
+                let key = &caps[2];
+                if key == "{" {
+                    return "{".into();
+                }
+
+                let mut var = TemplateVar {
+                    key,
+                    align: Alignment::Left,
+                    truncate: false,
+                    width: None,
+                    style: None,
+                    alt_style: None,
+                    last_element: caps.get(0).unwrap().end() >= line.len(),
+                };
+
+                if let Some(opt_caps) = KEY_RE.captures(&key[..key.len() - 1]) {
+                    if let Some(short_key) = opt_caps.get(1) {
+                        var.key = short_key.as_str();
                     }
-                    "bar" => self.format_bar(
-                        state.fraction(),
-                        var.width.unwrap_or(20),
-                        var.alt_style.as_ref(),
-                    ),
-                    "spinner" => state.current_tick_str().to_string(),
-                    "wide_msg" => {
-                        wide_element = Some(var.duplicate_for_key("msg"));
-                        "\x00".into()
+                    var.align = match opt_caps.get(2).map(|x| x.as_str()) {
+                        Some("<") => Alignment::Left,
+                        Some("^") => Alignment::Center,
+                        Some(">") => Alignment::Right,
+                        _ => Alignment::Left,
+                    };
+                    if let Some(width) = opt_caps.get(3) {
+                        var.width = Some(width.as_str().parse().unwrap());
                     }
-                    "msg" => state.message().to_string(),
-                    "prefix" => state.prefix().to_string(),
-                    "pos" => state.pos.to_string(),
-                    "len" => state.len.to_string(),
-                    "percent" => format!("{:.*}", 0, state.fraction() * 100f32),
-                    "bytes" => format!("{}", HumanBytes(state.pos)),
-                    "total_bytes" => format!("{}", HumanBytes(state.len)),
-                    "decimal_bytes" => format!("{}", DecimalBytes(state.pos)),
-                    "decimal_total_bytes" => format!("{}", DecimalBytes(state.len)),
-                    "binary_bytes" => format!("{}", BinaryBytes(state.pos)),
-                    "binary_total_bytes" => format!("{}", BinaryBytes(state.len)),
-                    "elapsed_precise" => {
-                        format!("{}", FormattedDuration(state.started.elapsed()))
+                    if opt_caps.get(4).is_some() {
+                        var.truncate = true;
                     }
-                    "elapsed" => format!("{:#}", HumanDuration(state.started.elapsed())),
-                    "per_sec" => format!("{:.4}/s", state.per_sec()),
-                    "bytes_per_sec" => format!("{}/s", HumanBytes(state.per_sec() as u64)),
-                    "binary_bytes_per_sec" => {
-                        format!("{}/s", BinaryBytes(state.per_sec() as u64))
+                    if let Some(style) = opt_caps.get(5) {
+                        var.style = Some(Style::from_dotted_str(style.as_str()));
                     }
-                    "eta_precise" => format!("{}", FormattedDuration(state.eta())),
-                    "eta" => format!("{:#}", HumanDuration(state.eta())),
-                    "duration_precise" => format!("{}", FormattedDuration(state.duration())),
-                    "duration" => format!("{:#}", HumanDuration(state.duration())),
-                    _ => "".into(),
+                    if let Some(alt_style) = opt_caps.get(6) {
+                        var.alt_style = Some(Style::from_dotted_str(alt_style.as_str()));
+                    }
+                }
+
+                let rv = if let Some(formatter) = self.format_map.0.get(var.key) {
+                    formatter(state)
+                } else {
+                    match var.key {
+                        "wide_bar" => {
+                            wide_element = Some(var.duplicate_for_key("bar"));
+                            "\x00".into()
+                        }
+                        "bar" => self.format_bar(
+                            state.fraction(),
+                            var.width.unwrap_or(20),
+                            var.alt_style.as_ref(),
+                        ),
+                        "spinner" => state.current_tick_str().to_string(),
+                        "wide_msg" => {
+                            wide_element = Some(var.duplicate_for_key("msg"));
+                            "\x00".into()
+                        }
+                        "msg" => state.message().to_string(),
+                        "prefix" => state.prefix().to_string(),
+                        "pos" => state.pos.to_string(),
+                        "len" => state.len.to_string(),
+                        "percent" => format!("{:.*}", 0, state.fraction() * 100f32),
+                        "bytes" => format!("{}", HumanBytes(state.pos)),
+                        "total_bytes" => format!("{}", HumanBytes(state.len)),
+                        "decimal_bytes" => format!("{}", DecimalBytes(state.pos)),
+                        "decimal_total_bytes" => format!("{}", DecimalBytes(state.len)),
+                        "binary_bytes" => format!("{}", BinaryBytes(state.pos)),
+                        "binary_total_bytes" => format!("{}", BinaryBytes(state.len)),
+                        "elapsed_precise" => {
+                            format!("{}", FormattedDuration(state.started.elapsed()))
+                        }
+                        "elapsed" => format!("{:#}", HumanDuration(state.started.elapsed())),
+                        "per_sec" => format!("{:.4}/s", state.per_sec()),
+                        "bytes_per_sec" => format!("{}/s", HumanBytes(state.per_sec() as u64)),
+                        "binary_bytes_per_sec" => {
+                            format!("{}/s", BinaryBytes(state.per_sec() as u64))
+                        }
+                        "eta_precise" => format!("{}", FormattedDuration(state.eta())),
+                        "eta" => format!("{:#}", HumanDuration(state.eta())),
+                        "duration_precise" => format!("{}", FormattedDuration(state.duration())),
+                        "duration" => format!("{:#}", HumanDuration(state.duration())),
+                        _ => "".into(),
+                    }
+                };
+
+                match var.width {
+                    Some(width) => {
+                        let padded = PaddedStringDisplay {
+                            str: &rv,
+                            width,
+                            align: var.align,
+                            truncate: var.truncate,
+                        };
+                        match var.style {
+                            Some(s) => s.apply_to(padded).to_string(),
+                            None => padded.to_string(),
+                        }
+                    }
+                    None => match var.style {
+                        Some(s) => s.apply_to(rv).to_string(),
+                        None => rv,
+                    },
                 }
             });
 
@@ -326,87 +404,6 @@ impl ProgressStyle {
 
         rv
     }
-}
-
-fn expand_template<F: FnMut(&TemplateVar<'_>) -> String>(s: &str, mut f: F) -> Cow<'_, str> {
-    static VAR_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\}\})|\{(\{|[^{}}]+\})").unwrap());
-    static KEY_RE: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(
-            r"(?x)
-                ([^:]+)
-                (?:
-                    :
-                    ([<^>])?
-                    ([0-9]+)?
-                    (!)?
-                    (?:\.([0-9a-z_]+(?:\.[0-9a-z_]+)*))?
-                    (?:/([a-z_]+(?:\.[a-z_]+)*))?
-                )?
-            ",
-        )
-        .unwrap()
-    });
-    VAR_RE.replace_all(s, |caps: &Captures<'_>| {
-        if caps.get(1).is_some() {
-            return "}".into();
-        }
-        let key = &caps[2];
-        if key == "{" {
-            return "{".into();
-        }
-        let mut var = TemplateVar {
-            key,
-            align: Alignment::Left,
-            truncate: false,
-            width: None,
-            style: None,
-            alt_style: None,
-            last_element: caps.get(0).unwrap().end() >= s.len(),
-        };
-        if let Some(opt_caps) = KEY_RE.captures(&key[..key.len() - 1]) {
-            if let Some(short_key) = opt_caps.get(1) {
-                var.key = short_key.as_str();
-            }
-            var.align = match opt_caps.get(2).map(|x| x.as_str()) {
-                Some("<") => Alignment::Left,
-                Some("^") => Alignment::Center,
-                Some(">") => Alignment::Right,
-                _ => Alignment::Left,
-            };
-            if let Some(width) = opt_caps.get(3) {
-                var.width = Some(width.as_str().parse().unwrap());
-            }
-            if opt_caps.get(4).is_some() {
-                var.truncate = true;
-            }
-            if let Some(style) = opt_caps.get(5) {
-                var.style = Some(Style::from_dotted_str(style.as_str()));
-            }
-            if let Some(alt_style) = opt_caps.get(6) {
-                var.alt_style = Some(Style::from_dotted_str(alt_style.as_str()));
-            }
-        }
-
-        let rv = f(&var);
-        match var.width {
-            Some(width) => {
-                let padded = PaddedStringDisplay {
-                    str: &rv,
-                    width,
-                    align: var.align,
-                    truncate: var.truncate,
-                };
-                match var.style {
-                    Some(s) => s.apply_to(padded).to_string(),
-                    None => padded.to_string(),
-                }
-            }
-            None => match var.style {
-                Some(s) => s.apply_to(rv).to_string(),
-                None => rv,
-            },
-        }
-    })
 }
 
 struct PaddedStringDisplay<'a> {
