@@ -157,21 +157,9 @@ impl ProgressStyle {
         self
     }
 
-    /// Returns the tick char for a given number
-    #[deprecated(since = "0.13.0", note = "Deprecated in favor of get_tick_str")]
-    pub fn get_tick_char(&self, idx: u64) -> char {
-        self.get_tick_str(idx).chars().next().unwrap_or(' ')
-    }
-
     /// Returns the tick string for a given number
     pub fn get_tick_str(&self, idx: u64) -> &str {
         &self.tick_strings[(idx as usize) % (self.tick_strings.len() - 1)]
-    }
-
-    /// Returns the tick char for the finished state
-    #[deprecated(since = "0.13.0", note = "Deprecated in favor of get_final_tick_str")]
-    pub fn get_final_tick_char(&self) -> char {
-        self.get_final_tick_str().chars().next().unwrap_or(' ')
     }
 
     /// Returns the tick string for the finished state
