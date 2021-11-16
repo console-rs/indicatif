@@ -1,5 +1,5 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use rand::{rngs::ThreadRng, Rng, RngCore};
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
@@ -20,64 +20,64 @@ struct Elem {
     progress_bar: ProgressBar,
 }
 
-lazy_static! {
-    static ref ELEMENTS: [Elem; 9] = [
+static ELEMENTS: Lazy<[Elem; 9]> = Lazy::new(|| {
+    [
         Elem {
             indent: 1,
             index: 0,
             progress_bar: ProgressBar::new(32),
-            key: "jumps".to_string()
+            key: "jumps".to_string(),
         },
         Elem {
             indent: 2,
             index: 1,
             progress_bar: ProgressBar::new(32),
-            key: "lazy".to_string()
+            key: "lazy".to_string(),
         },
         Elem {
             indent: 0,
             index: 0,
             progress_bar: ProgressBar::new(32),
-            key: "the".to_string()
+            key: "the".to_string(),
         },
         Elem {
             indent: 3,
             index: 3,
             progress_bar: ProgressBar::new(32),
-            key: "dog".to_string()
+            key: "dog".to_string(),
         },
         Elem {
             indent: 2,
             index: 2,
             progress_bar: ProgressBar::new(32),
-            key: "over".to_string()
+            key: "over".to_string(),
         },
         Elem {
             indent: 2,
             index: 1,
             progress_bar: ProgressBar::new(32),
-            key: "brown".to_string()
+            key: "brown".to_string(),
         },
         Elem {
             indent: 1,
             index: 1,
             progress_bar: ProgressBar::new(32),
-            key: "quick".to_string()
+            key: "quick".to_string(),
         },
         Elem {
             indent: 3,
             index: 5,
             progress_bar: ProgressBar::new(32),
-            key: "a".to_string()
+            key: "a".to_string(),
         },
         Elem {
             indent: 3,
             index: 3,
             progress_bar: ProgressBar::new(32),
-            key: "fox".to_string()
+            key: "fox".to_string(),
         },
-    ];
-}
+    ]
+});
 
 /// The example implements the tree-like collection of progress bars, where elements are
 /// added on the fly and progress bars get incremented until all elements is added and
