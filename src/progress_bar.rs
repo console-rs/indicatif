@@ -77,6 +77,12 @@ impl ProgressBar {
         self
     }
 
+    /// A convenience builder-like function for a progress bar with a given elapsed time
+    pub fn with_elapsed(self, elapsed: Duration) -> ProgressBar {
+        self.state.lock().unwrap().started = Instant::now() - elapsed;
+        self
+    }
+
     /// Creates a new spinner
     ///
     /// This spinner by default draws directly to stderr. This adds the default spinner style to it.
