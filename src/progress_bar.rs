@@ -558,6 +558,14 @@ impl Default for MultiProgress {
     }
 }
 
+enum InsertLocation {
+    End,
+    Index(usize),
+    IndexFromBack(usize),
+    After(ProgressBar),
+    Before(ProgressBar),
+}
+
 impl MultiProgress {
     /// Creates a new multi progress object.
     ///
@@ -608,7 +616,7 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
-        self.push(None, false, pb)
+        self.push(InsertLocation::End, pb)
     }
 
     /// Inserts a progress bar.
@@ -620,7 +628,7 @@ impl MultiProgress {
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the end of the list.
     pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
-        self.push(Some(index), false, pb)
+        self.push(InsertLocation::Index(index), pb)
     }
 
     /// Inserts a progress bar from the back.
@@ -633,10 +641,28 @@ impl MultiProgress {
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the start of the list.
     pub fn insert_from_back(&self, index: usize, pb: ProgressBar) -> ProgressBar {
-        self.push(Some(index), true, pb)
+        self.push(InsertLocation::IndexFromBack(index), pb)
     }
 
-    fn push(&self, pos: Option<usize>, from_back: bool, pb: ProgressBar) -> ProgressBar {
+    /// Inserts a progress bar before an existing one.
+    ///
+    /// The progress bar added will have the draw target changed to a
+    /// remote draw target that is intercepted by the multi progress
+    /// object overriding custom `ProgressDrawTarget` settings.
+    pub fn insert_before(&self, before: ProgressBar, pb: ProgressBar) -> ProgressBar {
+        self.push(InsertLocation::Before(before), pb)
+    }
+
+    /// Inserts a progress bar after an existing one.
+    ///
+    /// The progress bar added will have the draw target changed to a
+    /// remote draw target that is intercepted by the multi progress
+    /// object overriding custom `ProgressDrawTarget` settings.
+    pub fn insert_after(&self, after: ProgressBar, pb: ProgressBar) -> ProgressBar {
+        self.push(InsertLocation::After(after), pb)
+    }
+
+    fn push(&self, pos: InsertLocation, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
         let idx = match state.free_set.pop() {
             Some(idx) => {
@@ -650,15 +676,29 @@ impl MultiProgress {
         };
 
         match pos {
-            Some(pos) => {
-                let pos = match from_back {
-                    true => state.ordering.len().saturating_sub(pos),
-                    false => Ord::min(pos, state.ordering.len()),
-                };
-
+            InsertLocation::End => state.ordering.push(idx),
+            InsertLocation::Index(idx) => {
+                let pos = Ord::min(idx, state.ordering.len());
                 state.ordering.insert(pos, idx);
             }
-            _ => state.ordering.push(idx),
+            InsertLocation::IndexFromBack(idx) => {
+                let pos = state.ordering.len().saturating_sub(idx);
+                state.ordering.insert(pos, idx);
+            }
+            InsertLocation::After(after) => {
+                let after_idx = after.state.lock().unwrap().draw_target.remote().unwrap().1;
+                let pos = state.ordering.iter().position(|i| *i == after_idx).unwrap();
+                state.ordering.insert(pos + 1, idx);
+            }
+            InsertLocation::Before(before) => {
+                let before_idx = before.state.lock().unwrap().draw_target.remote().unwrap().1;
+                let pos = state
+                    .ordering
+                    .iter()
+                    .position(|i| *i == before_idx)
+                    .unwrap();
+                state.ordering.insert(pos, idx);
+            }
         }
 
         assert!(
