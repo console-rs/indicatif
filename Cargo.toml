@@ -16,6 +16,7 @@ regex = { version = "1.3.1", default-features = false, features = ["std"] }
 once_cell = "1.8.0"
 number_prefix = "0.4"
 console = { version = "0.15.0", default-features = false, features = ["ansi-parsing"] }
+generational_token_list = "0.1.1"
 unicode-segmentation = { version = "1.6.0", optional = true }
 unicode-width = { version = "0.1.7", optional = true }
 rayon = { version = "1.0", optional = true }
@@ -25,6 +26,7 @@ tokio = { version = "1.0", optional = true, features = ["fs", "io-util"] }
 rand = "0.8"
 structopt = "0.3"
 tokio = { version = "1.0", features = ["time", "rt"] }
+pretty_assertions = "1.0.0"
 
 [features]
 default = []

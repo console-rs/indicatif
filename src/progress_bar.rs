@@ -5,6 +5,7 @@ use std::sync::RwLock;
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
+use generational_token_list::GenerationalTokenList;
 
 use crate::draw_target::{
     MultiProgressAlignment, MultiProgressState, ProgressDrawState, ProgressDrawTarget,
@@ -572,9 +573,7 @@ impl MultiProgress {
     pub fn with_draw_target(draw_target: ProgressDrawTarget) -> MultiProgress {
         MultiProgress {
             state: Arc::new(RwLock::new(MultiProgressState {
-                draw_states: Vec::new(),
-                free_set: Vec::new(),
-                ordering: vec![],
+                draw_states: GenerationalTokenList::new(),
                 draw_target,
                 move_cursor: false,
                 alignment: Default::default(),
@@ -608,7 +607,7 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
-        self.push(None, pb)
+        self.push(pb)
     }
 
     /// Inserts a progress bar.
@@ -619,34 +618,25 @@ impl MultiProgress {
     ///
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the end of the list.
-    pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
-        self.push(Some(index), pb)
+
+    fn insert_after(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
+        let mut state = self.state.write().unwrap();
+        let token = state.draw_states.insert_after(after.state.lock().unwrap().draw_target.token().unwrap(), None);
+        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), token));
+        pb
     }
 
-    fn push(&self, pos: Option<usize>, pb: ProgressBar) -> ProgressBar {
+    fn insert_before(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
-        let idx = match state.free_set.pop() {
-            Some(idx) => {
-                state.draw_states[idx] = None;
-                idx
-            }
-            None => {
-                state.draw_states.push(None);
-                state.draw_states.len() - 1
-            }
-        };
+        let token = state.draw_states.insert_before(after.state.lock().unwrap().draw_target.token().unwrap(), None);
+        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), token));
+        pb
+    }
 
-        match pos {
-            Some(pos) if pos < state.ordering.len() => state.ordering.insert(pos, idx),
-            _ => state.ordering.push(idx),
-        }
-
-        assert!(
-            state.len() == state.ordering.len(),
-            "Draw state is inconsistent"
-        );
-
-        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
+    fn push(&self, pb: ProgressBar) -> ProgressBar {
+        let mut state = self.state.write().unwrap();
+        let token = state.draw_states.push_back(None);
+        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), token));
         pb
     }
 
@@ -814,32 +804,10 @@ mod tests {
         let p3 = mp.add(ProgressBar::new(1));
         mp.remove(&p2);
         mp.remove(&p1);
-        let p4 = mp.insert(1, ProgressBar::new(1));
+        let p4 = mp.insert_after(&p0, ProgressBar::new(1));
 
         let state = mp.state.read().unwrap();
-        // the removed place for p1 is reused
-        assert_eq!(state.draw_states.len(), 4);
         assert_eq!(state.len(), 3);
-
-        // free_set may contain 1 or 2
-        match state.free_set.last() {
-            Some(1) => {
-                assert_eq!(state.ordering, vec![0, 2, 3]);
-                assert!(state.draw_states[1].is_none());
-                assert_eq!(extract_index(&p4), 2);
-            }
-            Some(2) => {
-                assert_eq!(state.ordering, vec![0, 1, 3]);
-                assert!(state.draw_states[2].is_none());
-                assert_eq!(extract_index(&p4), 1);
-            }
-            _ => unreachable!(),
-        }
-
-        assert_eq!(extract_index(&p0), 0);
-        assert_eq!(extract_index(&p1), 1);
-        assert_eq!(extract_index(&p2), 2);
-        assert_eq!(extract_index(&p3), 3);
     }
 
     #[test]
@@ -854,19 +822,8 @@ mod tests {
 
         let state = mp.state.read().unwrap();
         // the removed place for p1 is reused
-        assert_eq!(state.draw_states.len(), 2);
-        assert_eq!(state.free_set.len(), 1);
         assert_eq!(state.len(), 1);
-        assert!(state.draw_states[0].is_none());
-        assert_eq!(state.free_set.last(), Some(&0));
-
-        assert_eq!(state.ordering, vec![1]);
-        assert_eq!(extract_index(&p0), 0);
-        assert_eq!(extract_index(&p1), 1);
-    }
-
-    fn extract_index(pb: &ProgressBar) -> usize {
-        pb.state.lock().unwrap().draw_target.remote().unwrap().1
+        assert!(state.draw_states.get(p0.state.lock().unwrap().draw_target.token().unwrap()).is_none());
     }
 
     #[test]

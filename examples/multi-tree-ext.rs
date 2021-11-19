@@ -221,9 +221,9 @@ pub fn main() {
             }
             Action::ModifyTree(elem_idx) => match &ELEMENTS[elem_idx] {
                 Elem::AddItem(item) => {
-                    let pb = mp2.insert(item.index, item.progress_bar.clone());
-                    pb.set_prefix("  ".repeat(item.indent));
-                    pb.set_message(&item.key);
+                    // let pb = mp2.insert(item.index, item.progress_bar.clone());
+                    // pb.set_prefix("  ".repeat(item.indent));
+                    // pb.set_message(&item.key);
                     items.insert(item.index, item);
                 }
                 Elem::RemoveItem(Index(index)) => {

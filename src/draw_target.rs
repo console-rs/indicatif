@@ -3,6 +3,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use console::Term;
+use generational_token_list::{GenerationalTokenList, ItemToken};
 
 /// Target for draw operations
 ///
@@ -67,9 +68,9 @@ impl ProgressDrawTarget {
         ProgressDrawTarget::term(Term::buffered_stderr(), None)
     }
 
-    pub(crate) fn new_remote(state: Arc<RwLock<MultiProgressState>>, idx: usize) -> Self {
+    pub(crate) fn new_remote(state: Arc<RwLock<MultiProgressState>>, token: ItemToken) -> Self {
         Self {
-            kind: ProgressDrawTargetKind::Remote { state, idx },
+            kind: ProgressDrawTargetKind::Remote { state, token },
         }
     }
 
@@ -159,11 +160,11 @@ impl ProgressDrawTarget {
                     return Ok(());
                 }
             }
-            ProgressDrawTargetKind::Remote { idx, ref state, .. } => {
+            ProgressDrawTargetKind::Remote { token, ref state, .. } => {
                 return state
                     .write()
                     .unwrap()
-                    .draw(idx, draw_state)
+                    .draw(token, draw_state)
                     .map_err(|e| io::Error::new(io::ErrorKind::Other, e));
             }
             // Hidden, finished, or no need to refresh yet
@@ -196,12 +197,12 @@ impl ProgressDrawTarget {
     pub(crate) fn disconnect(&self) {
         match self.kind {
             ProgressDrawTargetKind::Term { .. } => {}
-            ProgressDrawTargetKind::Remote { idx, ref state, .. } => {
+            ProgressDrawTargetKind::Remote { token, ref state, .. } => {
                 state
                     .write()
                     .unwrap()
                     .draw(
-                        idx,
+                        token,
                         ProgressDrawState {
                             lines: vec![],
                             orphan_lines: 0,
@@ -217,11 +218,15 @@ impl ProgressDrawTarget {
         };
     }
 
-    pub(crate) fn remote(&self) -> Option<(&Arc<RwLock<MultiProgressState>>, usize)> {
+    pub(crate) fn remote(&self) -> Option<(&Arc<RwLock<MultiProgressState>>, ItemToken)> {
         match &self.kind {
-            ProgressDrawTargetKind::Remote { state, idx } => Some((state, *idx)),
+            ProgressDrawTargetKind::Remote { state, token } => Some((state, *token)),
             _ => None,
         }
+    }
+
+    pub(crate) fn token(&self) -> Option<ItemToken> {
+        self.remote().map(|(_, token)| token)
     }
 }
 
@@ -234,7 +239,7 @@ enum ProgressDrawTargetKind {
     },
     Remote {
         state: Arc<RwLock<MultiProgressState>>,
-        idx: usize,
+        token: ItemToken,
     },
     Hidden,
 }
@@ -243,11 +248,7 @@ enum ProgressDrawTargetKind {
 pub(crate) struct MultiProgressState {
     /// The collection of states corresponding to progress bars
     /// the state is None for bars that have not yet been drawn or have been removed
-    pub(crate) draw_states: Vec<Option<ProgressDrawState>>,
-    /// Set of removed bars, should have corresponding `None` elements in the `draw_states` vector
-    pub(crate) free_set: Vec<usize>,
-    /// Indices to the `draw_states` to maintain correct visual order
-    pub(crate) ordering: Vec<usize>,
+    pub(crate) draw_states: GenerationalTokenList<Option<ProgressDrawState>>,
     /// Target for draw operation for MultiProgress
     pub(crate) draw_target: ProgressDrawTarget,
     /// Whether or not to just move cursor instead of clearing lines
@@ -261,7 +262,7 @@ impl MultiProgressState {
         self.draw_target.width()
     }
 
-    pub(crate) fn draw(&mut self, idx: usize, draw_state: ProgressDrawState) -> io::Result<()> {
+    pub(crate) fn draw(&mut self, token: ItemToken, draw_state: ProgressDrawState) -> io::Result<()> {
         let force_draw = draw_state.finished || draw_state.force_draw;
         let mut orphan_lines = vec![];
 
@@ -280,7 +281,9 @@ impl MultiProgressState {
             ..draw_state
         };
 
-        self.draw_states[idx] = Some(draw_state);
+        if let Some(s) = self.draw_states.get_mut(token) {
+            *s = Some(draw_state);
+        }
 
         // the rest from here is only drawing, we can skip it.
         if self.draw_target.is_hidden() {
@@ -294,8 +297,7 @@ impl MultiProgressState {
         let orphan_lines_count = orphan_lines.len();
         lines.append(&mut orphan_lines);
 
-        for index in self.ordering.iter() {
-            let draw_state = &self.draw_states[*index];
+        for draw_state in self.draw_states.iter() {
             if let Some(ref draw_state) = draw_state {
                 lines.extend_from_slice(&draw_state.lines[..]);
             }
@@ -317,22 +319,11 @@ impl MultiProgressState {
     }
 
     pub(crate) fn len(&self) -> usize {
-        self.draw_states.len() - self.free_set.len()
+        self.draw_states.len()
     }
 
-    pub(crate) fn remove_idx(&mut self, idx: usize) {
-        if self.free_set.contains(&idx) {
-            return;
-        }
-
-        self.draw_states[idx].take();
-        self.free_set.push(idx);
-        self.ordering.retain(|&x| x != idx);
-
-        assert!(
-            self.len() == self.ordering.len(),
-            "Draw state is inconsistent"
-        );
+    pub(crate) fn remove_idx(&mut self, token: ItemToken) {
+        self.draw_states.remove(token);
     }
 }
 
