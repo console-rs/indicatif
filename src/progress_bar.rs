@@ -608,7 +608,7 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
-        self.push(None, pb)
+        self.push(None, false, pb)
     }
 
     /// Inserts a progress bar.
@@ -620,10 +620,23 @@ impl MultiProgress {
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the end of the list.
     pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
-        self.push(Some(index), pb)
+        self.push(Some(index), false, pb)
     }
 
-    fn push(&self, pos: Option<usize>, pb: ProgressBar) -> ProgressBar {
+    /// Inserts a progress bar from the back.
+    ///
+    /// The progress bar inserted at position `MultiProgressState::objects.len() - index`
+    /// will have the draw target changed to a remote draw target that is
+    /// intercepted by the multi progress object overriding custom
+    /// `ProgressDrawTarget` settings.
+    ///
+    /// If `index >= MultiProgressState::objects.len()`, the progress bar
+    /// is added to the start of the list.
+    pub fn insert_from_back(&self, index: usize, pb: ProgressBar) -> ProgressBar {
+        self.push(Some(index), true, pb)
+    }
+
+    fn push(&self, pos: Option<usize>, from_back: bool, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
         let idx = match state.free_set.pop() {
             Some(idx) => {
@@ -637,7 +650,14 @@ impl MultiProgress {
         };
 
         match pos {
-            Some(pos) if pos < state.ordering.len() => state.ordering.insert(pos, idx),
+            Some(pos) => {
+                let pos = match from_back {
+                    true => state.ordering.len().saturating_sub(pos),
+                    false => Ord::min(pos, state.ordering.len()),
+                };
+
+                state.ordering.insert(pos, idx);
+            }
             _ => state.ordering.push(idx),
         }
 
@@ -840,6 +860,24 @@ mod tests {
         assert_eq!(extract_index(&p1), 1);
         assert_eq!(extract_index(&p2), 2);
         assert_eq!(extract_index(&p3), 3);
+    }
+
+    #[test]
+    fn multi_progress_insert_from_back() {
+        let mp = MultiProgress::new();
+        let p0 = mp.add(ProgressBar::new(1));
+        let p1 = mp.add(ProgressBar::new(1));
+        let p2 = mp.add(ProgressBar::new(1));
+        let p3 = mp.insert_from_back(1, ProgressBar::new(1));
+        let p4 = mp.insert_from_back(10, ProgressBar::new(1));
+
+        let state = mp.state.read().unwrap();
+        assert_eq!(state.ordering, vec![4, 0, 1, 3, 2]);
+        assert_eq!(extract_index(&p0), 0);
+        assert_eq!(extract_index(&p1), 1);
+        assert_eq!(extract_index(&p2), 2);
+        assert_eq!(extract_index(&p3), 3);
+        assert_eq!(extract_index(&p4), 4);
     }
 
     #[test]
