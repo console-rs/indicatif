@@ -160,11 +160,13 @@
 //! * `bar`: renders a progress bar. By default 20 characters wide.  The
 //!   style string is used to color the elapsed part, the alternative
 //!   style is used for the bar that is yet to render.
-//! * `wide_bar`: like `bar` but always fills the remaining space.
+//! * `wide_bar`: like `bar` but always fills the remaining space. It should not be used with
+//! `wide_msg`.
 //! * `spinner`: renders the spinner (current tick string).
 //! * `prefix`: renders the prefix set on the progress bar.
 //! * `msg`: renders the currently set message on the progress bar.
-//! * `wide_msg`: like `msg` but always fills the remaining space and truncates.
+//! * `wide_msg`: like `msg` but always fills the remaining space and truncates. It should not be used
+//! with `wide_bar`.
 //! * `pos`: renders the current position of the bar as integer
 //! * `len`: renders the total length of the bar as integer
 //! * `bytes`: renders the current position of the bar as bytes.
