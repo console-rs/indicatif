@@ -3,6 +3,7 @@ name = "indicatif"
 description = "A progress bar and cli reporting library for Rust"
 version = "0.17.0-beta.1"
 keywords = ["cli", "progress", "pb", "colors", "progressbar"]
+categories = ["command-line-interface"]
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>", "Dirkjan Ochtman <dirkjan@ochtman.nl>"]
 license = "MIT"
 repository = "https://github.com/mitsuhiko/indicatif"
