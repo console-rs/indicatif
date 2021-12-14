@@ -677,12 +677,12 @@ impl MultiProgress {
 
         match pos {
             InsertLocation::End => state.ordering.push(idx),
-            InsertLocation::Index(idx) => {
-                let pos = Ord::min(idx, state.ordering.len());
+            InsertLocation::Index(pos) => {
+                let pos = Ord::min(pos, state.ordering.len());
                 state.ordering.insert(pos, idx);
             }
-            InsertLocation::IndexFromBack(idx) => {
-                let pos = state.ordering.len().saturating_sub(idx);
+            InsertLocation::IndexFromBack(pos) => {
+                let pos = state.ordering.len().saturating_sub(pos);
                 state.ordering.insert(pos, idx);
             }
             InsertLocation::After(after) => {
