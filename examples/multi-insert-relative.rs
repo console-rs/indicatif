@@ -45,7 +45,7 @@ fn main() {
 
     for item in items_to_process {
         let item_spinner = mp.insert_before(
-            overall_progress.clone(),
+            &overall_progress,
             ProgressBar::new_spinner()
                 .with_message(item.name)
                 .with_style(item_spinner_style.clone()),
@@ -58,7 +58,7 @@ fn main() {
 
         for step in item.steps {
             let step_progress = mp.insert_after(
-                next_step_target.clone(),
+                &next_step_target,
                 ProgressBar::new(10)
                     .with_message(step)
                     .with_style(step_progress_style.clone()),

@@ -558,12 +558,12 @@ impl Default for MultiProgress {
     }
 }
 
-enum InsertLocation {
+enum InsertLocation<'a> {
     End,
     Index(usize),
     IndexFromBack(usize),
-    After(ProgressBar),
-    Before(ProgressBar),
+    After(&'a ProgressBar),
+    Before(&'a ProgressBar),
 }
 
 impl MultiProgress {
@@ -649,7 +649,7 @@ impl MultiProgress {
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
-    pub fn insert_before(&self, before: ProgressBar, pb: ProgressBar) -> ProgressBar {
+    pub fn insert_before(&self, before: &ProgressBar, pb: ProgressBar) -> ProgressBar {
         self.push(InsertLocation::Before(before), pb)
     }
 
@@ -658,7 +658,7 @@ impl MultiProgress {
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
-    pub fn insert_after(&self, after: ProgressBar, pb: ProgressBar) -> ProgressBar {
+    pub fn insert_after(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
         self.push(InsertLocation::After(after), pb)
     }
 
