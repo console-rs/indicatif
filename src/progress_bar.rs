@@ -921,6 +921,64 @@ mod tests {
     }
 
     #[test]
+    fn multi_progress_insert_after() {
+        let mp = MultiProgress::new();
+        let p0 = mp.add(ProgressBar::new(1));
+        let p1 = mp.add(ProgressBar::new(1));
+        let p2 = mp.add(ProgressBar::new(1));
+        let p3 = mp.insert_after(&p2, ProgressBar::new(1));
+        let p4 = mp.insert_after(&p0, ProgressBar::new(1));
+
+        let state = mp.state.read().unwrap();
+        assert_eq!(state.ordering, vec![0, 4, 1, 2, 3]);
+        assert_eq!(extract_index(&p0), 0);
+        assert_eq!(extract_index(&p1), 1);
+        assert_eq!(extract_index(&p2), 2);
+        assert_eq!(extract_index(&p3), 3);
+        assert_eq!(extract_index(&p4), 4);
+    }
+
+    #[test]
+    fn multi_progress_insert_before() {
+        let mp = MultiProgress::new();
+        let p0 = mp.add(ProgressBar::new(1));
+        let p1 = mp.add(ProgressBar::new(1));
+        let p2 = mp.add(ProgressBar::new(1));
+        let p3 = mp.insert_before(&p0, ProgressBar::new(1));
+        let p4 = mp.insert_before(&p2, ProgressBar::new(1));
+
+        let state = mp.state.read().unwrap();
+        assert_eq!(state.ordering, vec![3, 0, 1, 4, 2]);
+        assert_eq!(extract_index(&p0), 0);
+        assert_eq!(extract_index(&p1), 1);
+        assert_eq!(extract_index(&p2), 2);
+        assert_eq!(extract_index(&p3), 3);
+        assert_eq!(extract_index(&p4), 4);
+    }
+
+    #[test]
+    fn multi_progress_insert_before_and_after() {
+        let mp = MultiProgress::new();
+        let p0 = mp.add(ProgressBar::new(1));
+        let p1 = mp.add(ProgressBar::new(1));
+        let p2 = mp.add(ProgressBar::new(1));
+        let p3 = mp.insert_before(&p0, ProgressBar::new(1));
+        let p4 = mp.insert_after(&p3, ProgressBar::new(1));
+        let p5 = mp.insert_after(&p3, ProgressBar::new(1));
+        let p6 = mp.insert_before(&p1, ProgressBar::new(1));
+
+        let state = mp.state.read().unwrap();
+        assert_eq!(state.ordering, vec![3, 5, 4, 0, 6, 1, 2]);
+        assert_eq!(extract_index(&p0), 0);
+        assert_eq!(extract_index(&p1), 1);
+        assert_eq!(extract_index(&p2), 2);
+        assert_eq!(extract_index(&p3), 3);
+        assert_eq!(extract_index(&p4), 4);
+        assert_eq!(extract_index(&p5), 5);
+        assert_eq!(extract_index(&p6), 6);
+    }
+
+    #[test]
     fn multi_progress_multiple_remove() {
         let mp = MultiProgress::new();
         let p0 = mp.add(ProgressBar::new(1));
