@@ -138,7 +138,7 @@ impl ProgressBar {
                 }
                 ms = state.steady_tick;
 
-                state.draw().ok();
+                state.draw(false).ok();
             } else {
                 break;
             }
@@ -248,7 +248,6 @@ impl ProgressBar {
         let draw_state = ProgressDrawState {
             lines,
             orphan_lines,
-            finished: state.is_finished(),
             force_draw: true,
             move_cursor: false,
             alignment: Default::default(),
@@ -728,7 +727,6 @@ impl MultiProgress {
         state.draw_target.apply_draw_state(ProgressDrawState {
             lines: vec![],
             orphan_lines: 0,
-            finished: true,
             force_draw: true,
             move_cursor,
             alignment,
