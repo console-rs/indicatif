@@ -558,14 +558,6 @@ impl Default for MultiProgress {
     }
 }
 
-enum InsertLocation<'a> {
-    End,
-    Index(usize),
-    IndexFromBack(usize),
-    After(&'a ProgressBar),
-    Before(&'a ProgressBar),
-}
-
 impl MultiProgress {
     /// Creates a new multi progress object.
     ///
@@ -662,7 +654,7 @@ impl MultiProgress {
         self.push(InsertLocation::After(after), pb)
     }
 
-    fn push(&self, pos: InsertLocation, pb: ProgressBar) -> ProgressBar {
+    fn push(&self, location: InsertLocation, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
         let idx = match state.free_set.pop() {
             Some(idx) => {
@@ -675,7 +667,7 @@ impl MultiProgress {
             }
         };
 
-        match pos {
+        match location {
             InsertLocation::End => state.ordering.push(idx),
             InsertLocation::Index(pos) => {
                 let pos = Ord::min(pos, state.ordering.len());
@@ -762,6 +754,14 @@ impl WeakProgressBar {
     pub fn upgrade(&self) -> Option<ProgressBar> {
         self.state.upgrade().map(|state| ProgressBar { state })
     }
+}
+
+enum InsertLocation<'a> {
+    End,
+    Index(usize),
+    IndexFromBack(usize),
+    After(&'a ProgressBar),
+    Before(&'a ProgressBar),
 }
 
 #[cfg(test)]
