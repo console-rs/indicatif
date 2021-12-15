@@ -152,7 +152,7 @@ impl ProgressDrawTarget {
                 ref mut last_line_count,
                 leaky_bucket: Some(ref mut leaky_bucket),
             } => {
-                if draw_state.finished || draw_state.force_draw || leaky_bucket.try_add_work() {
+                if draw_state.force_draw || leaky_bucket.try_add_work() {
                     (term, last_line_count)
                 } else {
                     // rate limited
@@ -205,8 +205,7 @@ impl ProgressDrawTarget {
                         ProgressDrawState {
                             lines: vec![],
                             orphan_lines: 0,
-                            finished: true,
-                            force_draw: false,
+                            force_draw: true,
                             move_cursor: false,
                             alignment: Default::default(),
                         },
@@ -262,7 +261,7 @@ impl MultiProgressState {
     }
 
     pub(crate) fn draw(&mut self, idx: usize, draw_state: ProgressDrawState) -> io::Result<()> {
-        let force_draw = draw_state.finished || draw_state.force_draw;
+        let force_draw = draw_state.force_draw;
         let mut orphan_lines = vec![];
 
         // Split orphan lines out of the draw state, if any
@@ -301,18 +300,12 @@ impl MultiProgressState {
             }
         }
 
-        // !any(!done) is also true when iter() is empty, contrary to all(done)
-        let finished = !self
-            .draw_states
-            .iter()
-            .any(|x| !x.as_ref().map(|s| s.finished).unwrap_or(false));
         self.draw_target.apply_draw_state(ProgressDrawState {
             lines,
             orphan_lines: orphan_lines_count,
             force_draw: force_draw || orphan_lines_count > 0,
             move_cursor: self.move_cursor,
             alignment: self.alignment,
-            finished,
         })
     }
 
@@ -376,8 +369,6 @@ pub(crate) struct ProgressDrawState {
     pub lines: Vec<String>,
     /// The number of lines that shouldn't be reaped by the next tick.
     pub orphan_lines: usize,
-    /// True if the bar no longer needs drawing.
-    pub finished: bool,
     /// True if drawing should be forced.
     pub force_draw: bool,
     /// True if we should move the cursor up when possible instead of clearing lines.
@@ -387,12 +378,11 @@ pub(crate) struct ProgressDrawState {
 }
 
 impl ProgressDrawState {
-    pub(crate) fn new(lines: Vec<String>, finished: bool) -> Self {
+    pub(crate) fn new(lines: Vec<String>, force_draw: bool) -> Self {
         Self {
             lines,
             orphan_lines: 0,
-            finished,
-            force_draw: false,
+            force_draw,
             move_cursor: false,
             alignment: Default::default(),
         }

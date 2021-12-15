@@ -124,7 +124,7 @@ impl ProgressState {
     /// progress bar if the state has changed.
     pub fn update_and_draw<F: FnOnce(&mut ProgressState)>(&mut self, f: F) {
         if self.update(f) {
-            self.draw().ok();
+            self.draw(false).ok();
         }
     }
 
@@ -135,7 +135,7 @@ impl ProgressState {
             state.draw_next = state.pos;
             f(state);
         });
-        self.draw().ok();
+        self.draw(true).ok();
     }
 
     /// Call the provided `FnOnce` to update the state. If a draw should be run, returns `true`.
@@ -228,7 +228,7 @@ impl ProgressState {
         }
     }
 
-    pub(crate) fn draw(&mut self) -> io::Result<()> {
+    pub(crate) fn draw(&mut self, force_draw: bool) -> io::Result<()> {
         // we can bail early if the draw target is hidden.
         if self.draw_target.is_hidden() {
             return Ok(());
@@ -239,7 +239,9 @@ impl ProgressState {
             false => Vec::new(),
         };
 
-        let draw_state = ProgressDrawState::new(lines, self.is_finished());
+        // `|| self.is_finished()` should not be needed here, but we used to always for draw for
+        // finished progress bar, so it's kept as to not cause compatibility issues in weird cases.
+        let draw_state = ProgressDrawState::new(lines, force_draw || self.is_finished());
         self.draw_target.apply_draw_state(draw_state)
     }
 }
