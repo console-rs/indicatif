@@ -608,7 +608,7 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
-        self.push(None, false, pb)
+        self.push(InsertLocation::End, pb)
     }
 
     /// Inserts a progress bar.
@@ -620,7 +620,7 @@ impl MultiProgress {
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the end of the list.
     pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
-        self.push(Some(index), false, pb)
+        self.push(InsertLocation::Index(index), pb)
     }
 
     /// Inserts a progress bar from the back.
@@ -633,10 +633,28 @@ impl MultiProgress {
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the start of the list.
     pub fn insert_from_back(&self, index: usize, pb: ProgressBar) -> ProgressBar {
-        self.push(Some(index), true, pb)
+        self.push(InsertLocation::IndexFromBack(index), pb)
     }
 
-    fn push(&self, pos: Option<usize>, from_back: bool, pb: ProgressBar) -> ProgressBar {
+    /// Inserts a progress bar before an existing one.
+    ///
+    /// The progress bar added will have the draw target changed to a
+    /// remote draw target that is intercepted by the multi progress
+    /// object overriding custom `ProgressDrawTarget` settings.
+    pub fn insert_before(&self, before: &ProgressBar, pb: ProgressBar) -> ProgressBar {
+        self.push(InsertLocation::Before(before), pb)
+    }
+
+    /// Inserts a progress bar after an existing one.
+    ///
+    /// The progress bar added will have the draw target changed to a
+    /// remote draw target that is intercepted by the multi progress
+    /// object overriding custom `ProgressDrawTarget` settings.
+    pub fn insert_after(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
+        self.push(InsertLocation::After(after), pb)
+    }
+
+    fn push(&self, location: InsertLocation, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
         let idx = match state.free_set.pop() {
             Some(idx) => {
@@ -649,16 +667,30 @@ impl MultiProgress {
             }
         };
 
-        match pos {
-            Some(pos) => {
-                let pos = match from_back {
-                    true => state.ordering.len().saturating_sub(pos),
-                    false => Ord::min(pos, state.ordering.len()),
-                };
-
+        match location {
+            InsertLocation::End => state.ordering.push(idx),
+            InsertLocation::Index(pos) => {
+                let pos = Ord::min(pos, state.ordering.len());
                 state.ordering.insert(pos, idx);
             }
-            _ => state.ordering.push(idx),
+            InsertLocation::IndexFromBack(pos) => {
+                let pos = state.ordering.len().saturating_sub(pos);
+                state.ordering.insert(pos, idx);
+            }
+            InsertLocation::After(after) => {
+                let after_idx = after.state.lock().unwrap().draw_target.remote().unwrap().1;
+                let pos = state.ordering.iter().position(|i| *i == after_idx).unwrap();
+                state.ordering.insert(pos + 1, idx);
+            }
+            InsertLocation::Before(before) => {
+                let before_idx = before.state.lock().unwrap().draw_target.remote().unwrap().1;
+                let pos = state
+                    .ordering
+                    .iter()
+                    .position(|i| *i == before_idx)
+                    .unwrap();
+                state.ordering.insert(pos, idx);
+            }
         }
 
         assert!(
@@ -722,6 +754,14 @@ impl WeakProgressBar {
     pub fn upgrade(&self) -> Option<ProgressBar> {
         self.state.upgrade().map(|state| ProgressBar { state })
     }
+}
+
+enum InsertLocation<'a> {
+    End,
+    Index(usize),
+    IndexFromBack(usize),
+    After(&'a ProgressBar),
+    Before(&'a ProgressBar),
 }
 
 #[cfg(test)]
@@ -878,6 +918,64 @@ mod tests {
         assert_eq!(extract_index(&p2), 2);
         assert_eq!(extract_index(&p3), 3);
         assert_eq!(extract_index(&p4), 4);
+    }
+
+    #[test]
+    fn multi_progress_insert_after() {
+        let mp = MultiProgress::new();
+        let p0 = mp.add(ProgressBar::new(1));
+        let p1 = mp.add(ProgressBar::new(1));
+        let p2 = mp.add(ProgressBar::new(1));
+        let p3 = mp.insert_after(&p2, ProgressBar::new(1));
+        let p4 = mp.insert_after(&p0, ProgressBar::new(1));
+
+        let state = mp.state.read().unwrap();
+        assert_eq!(state.ordering, vec![0, 4, 1, 2, 3]);
+        assert_eq!(extract_index(&p0), 0);
+        assert_eq!(extract_index(&p1), 1);
+        assert_eq!(extract_index(&p2), 2);
+        assert_eq!(extract_index(&p3), 3);
+        assert_eq!(extract_index(&p4), 4);
+    }
+
+    #[test]
+    fn multi_progress_insert_before() {
+        let mp = MultiProgress::new();
+        let p0 = mp.add(ProgressBar::new(1));
+        let p1 = mp.add(ProgressBar::new(1));
+        let p2 = mp.add(ProgressBar::new(1));
+        let p3 = mp.insert_before(&p0, ProgressBar::new(1));
+        let p4 = mp.insert_before(&p2, ProgressBar::new(1));
+
+        let state = mp.state.read().unwrap();
+        assert_eq!(state.ordering, vec![3, 0, 1, 4, 2]);
+        assert_eq!(extract_index(&p0), 0);
+        assert_eq!(extract_index(&p1), 1);
+        assert_eq!(extract_index(&p2), 2);
+        assert_eq!(extract_index(&p3), 3);
+        assert_eq!(extract_index(&p4), 4);
+    }
+
+    #[test]
+    fn multi_progress_insert_before_and_after() {
+        let mp = MultiProgress::new();
+        let p0 = mp.add(ProgressBar::new(1));
+        let p1 = mp.add(ProgressBar::new(1));
+        let p2 = mp.add(ProgressBar::new(1));
+        let p3 = mp.insert_before(&p0, ProgressBar::new(1));
+        let p4 = mp.insert_after(&p3, ProgressBar::new(1));
+        let p5 = mp.insert_after(&p3, ProgressBar::new(1));
+        let p6 = mp.insert_before(&p1, ProgressBar::new(1));
+
+        let state = mp.state.read().unwrap();
+        assert_eq!(state.ordering, vec![3, 5, 4, 0, 6, 1, 2]);
+        assert_eq!(extract_index(&p0), 0);
+        assert_eq!(extract_index(&p1), 1);
+        assert_eq!(extract_index(&p2), 2);
+        assert_eq!(extract_index(&p3), 3);
+        assert_eq!(extract_index(&p4), 4);
+        assert_eq!(extract_index(&p5), 5);
+        assert_eq!(extract_index(&p6), 6);
     }
 
     #[test]
