@@ -229,7 +229,7 @@ impl ProgressStyle {
         let mut cur = String::new();
         let mut buf = String::new();
         let mut rv = vec![];
-        let mut wide_element = None;
+        let mut wide = None;
         for part in &self.template.parts {
             match part {
                 TemplatePart::Placeholder {
@@ -246,7 +246,7 @@ impl ProgressStyle {
                     } else {
                         match key.as_str() {
                             "wide_bar" => {
-                                wide_element = Some((key.as_str(), align, alt_style));
+                                wide = Some(WideElement::Bar { alt_style });
                                 buf.push('\x00');
                             }
                             "bar" => buf
@@ -261,7 +261,7 @@ impl ProgressStyle {
                                 .unwrap(),
                             "spinner" => buf.push_str(state.current_tick_str()),
                             "wide_msg" => {
-                                wide_element = Some((key.as_str(), align, alt_style));
+                                wide = Some(WideElement::Message { align });
                                 buf.push('\x00');
                             }
                             "msg" => buf.push_str(state.message()),
@@ -351,73 +351,67 @@ impl ProgressStyle {
                     }
                 }
                 TemplatePart::Literal(s) => cur.push_str(s),
-                TemplatePart::NewLine => {
-                    rv.push(expand_wide(
-                        mem::take(&mut cur),
-                        wide_element.take(),
-                        self,
-                        state,
-                        &mut buf,
-                    ));
-                }
+                TemplatePart::NewLine => rv.push(match wide {
+                    Some(inner) => inner.expand(mem::take(&mut cur), self, state, &mut buf),
+                    None => mem::take(&mut cur),
+                }),
             }
         }
 
         if !cur.is_empty() {
-            rv.push(expand_wide(
-                mem::take(&mut cur),
-                wide_element.take(),
-                self,
-                state,
-                &mut buf,
-            ));
+            rv.push(match wide {
+                Some(inner) => inner.expand(mem::take(&mut cur), self, state, &mut buf),
+                None => mem::take(&mut cur),
+            })
         }
         rv
     }
 }
 
-fn expand_wide(
-    cur: String,
-    wide: Option<(&str, &Alignment, &Option<Style>)>,
-    style: &ProgressStyle,
-    state: &ProgressState,
-    buf: &mut String,
-) -> String {
-    let (key, align, alt_style) = match wide {
-        Some(x) => x,
-        None => return cur,
-    };
+#[derive(Clone, Copy)]
+enum WideElement<'a> {
+    Bar { alt_style: &'a Option<Style> },
+    Message { align: &'a Alignment },
+}
 
-    let left = state.width().saturating_sub(measure_text_width(&cur));
-    if key == "bar" {
-        cur.replace(
-            "\x00",
-            &format!(
-                "{}",
-                style.format_bar(state.fraction(), left, alt_style.as_ref())
+impl<'a> WideElement<'a> {
+    fn expand(
+        self,
+        cur: String,
+        style: &ProgressStyle,
+        state: &ProgressState,
+        buf: &mut String,
+    ) -> String {
+        let left = state.width().saturating_sub(measure_text_width(&cur));
+        match self {
+            Self::Bar { alt_style } => cur.replace(
+                "\x00",
+                &format!(
+                    "{}",
+                    style.format_bar(state.fraction(), left, alt_style.as_ref())
+                ),
             ),
-        )
-    } else if key == "msg" {
-        buf.clear();
-        buf.write_fmt(format_args!(
-            "{}",
-            PaddedStringDisplay {
-                str: state.message(),
-                width: left,
-                align: *align,
-                truncate: true,
+            WideElement::Message { align } => {
+                buf.clear();
+                buf.write_fmt(format_args!(
+                    "{}",
+                    PaddedStringDisplay {
+                        str: state.message(),
+                        width: left,
+                        align: *align,
+                        truncate: true,
+                    }
+                ))
+                .unwrap();
+
+                let trimmed = match cur.as_bytes().last() == Some(&b'\x00') {
+                    true => buf.trim_end(),
+                    false => buf,
+                };
+
+                cur.replace("\x00", trimmed)
             }
-        ))
-        .unwrap();
-
-        let trimmed = match cur.as_bytes().last() == Some(&b'\x00') {
-            true => buf.trim_end(),
-            false => buf,
-        };
-
-        cur.replace("\x00", trimmed)
-    } else {
-        cur
+        }
     }
 }
 
