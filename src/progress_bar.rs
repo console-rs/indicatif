@@ -231,11 +231,14 @@ impl ProgressBar {
 
     /// Print a log line above the progress bar
     ///
+    /// If the progress bar is hidden (e.g. when standard output is not a terminal), `println()`
+    /// will not do anything. If you want to write to the standard output in such cases as well, use
+    /// [`suspend`] instead.
+    ///
     /// If the progress bar was added to a [`MultiProgress`], the log line will be
     /// printed above all other progress bars.
     ///
-    /// Note that if the progress bar is hidden (which by default happens if the progress bar is
-    /// redirected into a file) `println()` will not do anything either.
+    /// [`suspend`]: ProgressBar::suspend
     pub fn println<I: AsRef<str>>(&self, msg: I) {
         let mut state = self.state.lock().unwrap();
 
@@ -404,6 +407,30 @@ impl ProgressBar {
         let mut state = self.state.lock().unwrap();
         state.draw_target.disconnect();
         state.draw_target = target;
+    }
+
+    /// Hide the progress bar temporarily, execute `f`, then redraw the progress bar.
+    /// Useful for external code that writes to the standard output.
+    ///
+    /// **Note:** The internal lock is held while `f` is executed. Other threads trying to print
+    /// anything on the progress bar will be blocked until `f` finishes.
+    /// Therefore, it is recommended to not do long-running operations in `f`.
+    ///
+    /// ```rust,no_run
+    /// # use indicatif::ProgressBar;
+    /// let mut pb = ProgressBar::new(3);
+    /// pb.suspend(|| {
+    ///     println!("Log message");
+    /// })
+    /// ```
+    pub fn suspend<F: FnOnce() -> R, R>(&self, f: F) -> R {
+        let mut state = self.state.lock().unwrap();
+        let _ = state
+            .draw_target
+            .apply_draw_state(ProgressDrawState::new(vec![], true));
+        let ret = f();
+        let _ = state.draw(true);
+        ret
     }
 
     /// Wraps an [`Iterator`] with the progress bar
