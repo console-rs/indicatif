@@ -766,12 +766,19 @@ impl MultiProgress {
 /// A weak reference to a `ProgressBar`.
 ///
 /// Useful for creating custom steady tick implementations
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct WeakProgressBar {
     state: Weak<Mutex<ProgressState>>,
 }
 
 impl WeakProgressBar {
+    /// Create a new `WeakProgressBar` that returns `None` when [`upgrade`] is called.
+    ///
+    /// [`upgrade`]: WeakProgressBar::upgrade
+    pub fn new(&self) -> WeakProgressBar {
+        Default::default()
+    }
+
     /// Attempts to upgrade the Weak pointer to a [`ProgressBar`], delaying dropping of the inner
     /// value if successful. Returns `None` if the inner value has since been dropped.
     ///
