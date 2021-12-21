@@ -409,12 +409,13 @@ impl ProgressBar {
         state.draw_target = target;
     }
 
-    /// Hide the progress bar temporarily, execute `f`, then redraw the progress bar.
+    /// Hide the progress bar temporarily, execute `f`, then redraw the progress bar
+    ///
     /// Useful for external code that writes to the standard output.
     ///
     /// **Note:** The internal lock is held while `f` is executed. Other threads trying to print
     /// anything on the progress bar will be blocked until `f` finishes.
-    /// Therefore, it is recommended to not do long-running operations in `f`.
+    /// Therefore, it is recommended to avoid long-running operations in `f`.
     ///
     /// ```rust,no_run
     /// # use indicatif::ProgressBar;
