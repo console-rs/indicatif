@@ -1,7 +1,10 @@
 use crate::progress_bar::ProgressBar;
+use crate::style::ProgressStyle;
+use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::io::{self, IoSliceMut};
 use std::iter::FusedIterator;
+use std::time::Duration;
 #[cfg(feature = "tokio")]
 use std::{
     pin::Pin,
@@ -57,6 +60,48 @@ where
 pub struct ProgressBarIter<T> {
     pub(crate) it: T,
     pub progress: ProgressBar,
+}
+
+impl<T> ProgressBarIter<T> {
+    /// Builder-like function for setting underlying progress bar's style.
+    ///
+    /// See [ProgressBar::with_style].
+    pub fn with_style(mut self, style: ProgressStyle) -> ProgressBarIter<T> {
+        self.progress = self.progress.with_style(style);
+        self
+    }
+
+    /// Builder-like function for setting underlying progress bar's prefix.
+    ///
+    /// See [ProgressBar::with_prefix].
+    pub fn with_prefix(mut self, prefix: impl Into<Cow<'static, str>>) -> ProgressBarIter<T> {
+        self.progress = self.progress.with_prefix(prefix);
+        self
+    }
+
+    /// Builder-like function for setting underlying progress bar's message.
+    ///
+    /// See [ProgressBar::with_message].
+    pub fn with_message(mut self, message: impl Into<Cow<'static, str>>) -> ProgressBarIter<T> {
+        self.progress = self.progress.with_message(message);
+        self
+    }
+
+    /// Builder-like function for setting underlying progress bar's position.
+    ///
+    /// See [ProgressBar::with_position].
+    pub fn with_position(mut self, position: u64) -> ProgressBarIter<T> {
+        self.progress = self.progress.with_position(position);
+        self
+    }
+
+    /// Builder-like function for setting underlying progress bar's elapsed time.
+    ///
+    /// See [ProgressBar::with_elapsed].
+    pub fn with_elapsed(mut self, elapsed: Duration) -> ProgressBarIter<T> {
+        self.progress = self.progress.with_elapsed(elapsed);
+        self
+    }
 }
 
 impl<S, T: Iterator<Item = S>> Iterator for ProgressBarIter<T> {
