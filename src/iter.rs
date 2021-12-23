@@ -1,17 +1,18 @@
-use crate::progress_bar::ProgressBar;
-use crate::style::ProgressStyle;
 use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::io::{self, IoSliceMut};
 use std::iter::FusedIterator;
-use std::time::Duration;
 #[cfg(feature = "tokio")]
-use std::{
-    pin::Pin,
-    task::{Context, Poll},
-};
+use std::pin::Pin;
+#[cfg(feature = "tokio")]
+use std::task::{Context, Poll};
+use std::time::Duration;
+
 #[cfg(feature = "tokio")]
 use tokio::io::{ReadBuf, SeekFrom};
+
+use crate::progress_bar::ProgressBar;
+use crate::style::ProgressStyle;
 
 /// Wraps an iterator to display its progress.
 pub trait ProgressIterator
