@@ -173,7 +173,7 @@ impl ProgressDrawTarget {
         if !draw_state.lines.is_empty() && draw_state.move_cursor {
             term.move_cursor_up(*last_line_count)?;
         } else {
-            term.clear_last_lines(*last_line_count)?;
+            clear_last_lines(term, *last_line_count)?;
         }
 
         let shift = match draw_state.alignment {
@@ -389,8 +389,14 @@ impl ProgressDrawState {
     }
 
     pub fn draw_to_term(&self, term: &Term) -> io::Result<()> {
-        for line in &self.lines {
-            term.write_line(line)?;
+        let len = self.lines.len();
+        for (idx, line) in self.lines.iter().enumerate() {
+            if idx + 1 != len {
+                term.write_line(line)?;
+            } else {
+                // Don't append a '\n' if this is the last line
+                term.write_str(line)?;
+            }
         }
         Ok(())
     }
@@ -422,4 +428,17 @@ impl Default for MultiProgressAlignment {
     fn default() -> Self {
         Self::Top
     }
+}
+
+/// Fork of console::clear_last_lines that assumes that the last line doesn't contain a '\n'
+fn clear_last_lines(term: &Term, n: usize) -> io::Result<()> {
+    term.move_cursor_up(n.saturating_sub(1))?;
+    for i in 0..n {
+        term.clear_line()?;
+        if i + 1 != n {
+            term.move_cursor_down(1)?;
+        }
+    }
+    term.move_cursor_up(n.saturating_sub(1))?;
+    Ok(())
 }
