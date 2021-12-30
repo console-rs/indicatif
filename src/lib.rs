@@ -23,6 +23,7 @@
 //!   * [`DecimalBytes`](struct.DecimalBytes.html) for formatting bytes using SI prefixes
 //!   * [`BinaryBytes`](struct.BinaryBytes.html) for formatting bytes using ISO/IEC prefixes
 //!   * [`HumanDuration`](struct.HumanDuration.html) for formatting durations
+//!   * [`HumanCount`](struct.HumanCount.html) for formatting large counts
 //!
 //! # Progress Bars and Spinners
 //!
@@ -168,7 +169,11 @@
 //! * `wide_msg`: like `msg` but always fills the remaining space and truncates. It should not be used
 //! with `wide_bar`.
 //! * `pos`: renders the current position of the bar as integer
+//! * `human_pos`: renders the current position of the bar as an integer, with commas as the
+//! thousands separator.
 //! * `len`: renders the total length of the bar as integer
+//! * `human_len`: renders the total length of the bar as an integer, with commas as the thousands
+//! separator.
 //! * `bytes`: renders the current position of the bar as bytes.
 //! * `percent`: renders the current position of the bar as a percentage of the total length.
 //! * `total_bytes`: renders the total length of the bar as bytes.
@@ -195,10 +200,11 @@
 //!
 //! ```rust
 //! # use std::time::Duration;
-//! use indicatif::{HumanDuration, HumanBytes};
+//! use indicatif::{HumanBytes, HumanCount, HumanDuration};
 //!
 //! assert_eq!("3.00MiB", HumanBytes(3*1024*1024).to_string());
 //! assert_eq!("8 seconds", HumanDuration(Duration::from_secs(8)).to_string());
+//! assert_eq!("33,857,009", HumanCount(33857009).to_string());
 //! ```
 //!
 //! # Feature Flags
@@ -216,7 +222,9 @@ mod state;
 mod style;
 
 pub use crate::draw_target::{MultiProgressAlignment, ProgressDrawTarget};
-pub use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
+pub use crate::format::{
+    BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,
+};
 pub use crate::iter::{ProgressBarIter, ProgressIterator};
 pub use crate::progress_bar::{MultiProgress, ProgressBar, WeakProgressBar};
 pub use crate::style::{ProgressFinish, ProgressStyle};
