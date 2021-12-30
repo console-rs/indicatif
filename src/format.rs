@@ -134,11 +134,11 @@ impl fmt::Display for HumanCount {
         use fmt::Write;
 
         let num = self.0.to_string();
-        let mut i = num.len();
-        for c in num.chars() {
+        let len = num.len();
+        for (idx, c) in num.chars().enumerate() {
+            let pos = len - idx - 1;
             f.write_char(c)?;
-            i -= 1;
-            if i > 0 && i % 3 == 0 {
+            if pos > 0 && pos % 3 == 0 {
                 f.write_char(',')?;
             }
         }
