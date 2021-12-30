@@ -30,6 +30,10 @@ pub struct DecimalBytes(pub u64);
 #[derive(Debug)]
 pub struct BinaryBytes(pub u64);
 
+/// Formats counts for human readability using commas
+#[derive(Debug)]
+pub struct HumanCount(pub u64);
+
 impl fmt::Display for FormattedDuration {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut t = self.0.as_secs();
@@ -122,6 +126,23 @@ impl fmt::Display for BinaryBytes {
             NumberPrefix::Standalone(number) => write!(f, "{:.0}B", number),
             NumberPrefix::Prefixed(prefix, number) => write!(f, "{:.2}{}B", number, prefix),
         }
+    }
+}
+
+impl fmt::Display for HumanCount {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use fmt::Write;
+
+        let num = self.0.to_string();
+        let mut i = num.len();
+        for c in num.chars() {
+            f.write_char(c)?;
+            i -= 1;
+            if i > 0 && i % 3 == 0 {
+                f.write_char(',')?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -249,5 +270,13 @@ mod tests {
         assert_eq!("3 days", format!("{}", HumanDuration(3 * DAY)));
         assert_eq!("3 weeks", format!("{}", HumanDuration(3 * WEEK)));
         assert_eq!("3 years", format!("{}", HumanDuration(3 * YEAR)));
+    }
+
+    #[test]
+    fn human_count() {
+        assert_eq!("42", format!("{}", HumanCount(42)));
+        assert_eq!("7,654", format!("{}", HumanCount(7654)));
+        assert_eq!("12,345", format!("{}", HumanCount(12345)));
+        assert_eq!("1,234,567,890", format!("{}", HumanCount(1234567890)));
     }
 }

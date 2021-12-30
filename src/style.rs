@@ -7,7 +7,9 @@ use console::{measure_text_width, Style};
 #[cfg(feature = "improved_unicode")]
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::format::{BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanDuration};
+use crate::format::{
+    BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,
+};
 use crate::state::ProgressState;
 
 /// Controls the rendering style of progress bars
@@ -267,7 +269,13 @@ impl ProgressStyle {
                             "msg" => buf.push_str(state.message()),
                             "prefix" => buf.push_str(state.prefix()),
                             "pos" => buf.write_fmt(format_args!("{}", state.pos)).unwrap(),
+                            "human_pos" => buf
+                                .write_fmt(format_args!("{}", HumanCount(state.pos)))
+                                .unwrap(),
                             "len" => buf.write_fmt(format_args!("{}", state.len)).unwrap(),
+                            "human_len" => buf
+                                .write_fmt(format_args!("{}", HumanCount(state.len)))
+                                .unwrap(),
                             "percent" => buf
                                 .write_fmt(format_args!("{:.*}", 0, state.fraction() * 100f32))
                                 .unwrap(),
