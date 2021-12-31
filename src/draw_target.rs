@@ -396,6 +396,9 @@ impl ProgressDrawState {
             } else {
                 // Don't append a '\n' if this is the last line
                 term.write_str(line)?;
+                // Also append a ' ' to keep the original chars count
+                // This is important if the line was meant to fill the entire width
+                term.write_str(" ")?;
             }
         }
         Ok(())
