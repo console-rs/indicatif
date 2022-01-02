@@ -106,7 +106,7 @@ impl fmt::Display for HumanBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match NumberPrefix::binary(self.0 as f64) {
             NumberPrefix::Standalone(number) => write!(f, "{:.0}B", number),
-            NumberPrefix::Prefixed(prefix, number) => write!(f, "{:.2}{}B", number, prefix),
+            NumberPrefix::Prefixed(prefix, number) => write!(f, "{:.2} {}B", number, prefix),
         }
     }
 }
@@ -115,7 +115,7 @@ impl fmt::Display for DecimalBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match NumberPrefix::decimal(self.0 as f64) {
             NumberPrefix::Standalone(number) => write!(f, "{:.0}B", number),
-            NumberPrefix::Prefixed(prefix, number) => write!(f, "{:.2}{}B", number, prefix),
+            NumberPrefix::Prefixed(prefix, number) => write!(f, "{:.2} {}B", number, prefix),
         }
     }
 }
@@ -124,7 +124,7 @@ impl fmt::Display for BinaryBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match NumberPrefix::binary(self.0 as f64) {
             NumberPrefix::Standalone(number) => write!(f, "{:.0}B", number),
-            NumberPrefix::Prefixed(prefix, number) => write!(f, "{:.2}{}B", number, prefix),
+            NumberPrefix::Prefixed(prefix, number) => write!(f, "{:.2} {}B", number, prefix),
         }
     }
 }
