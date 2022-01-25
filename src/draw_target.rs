@@ -396,9 +396,10 @@ impl ProgressDrawState {
             } else {
                 // Don't append a '\n' if this is the last line
                 term.write_str(line)?;
-                // Also append a ' ' to keep the original chars count
-                // This is important if the line was meant to fill the entire width
-                term.write_str(" ")?;
+                // Keep the cursor on the right terminal side
+                // So that next user writes/prints will happen on the next line
+                let line_width = console::measure_text_width(line);
+                term.move_cursor_right(usize::from(term.size().1) - line_width)?;
             }
         }
         Ok(())
