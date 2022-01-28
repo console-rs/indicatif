@@ -390,8 +390,9 @@ impl<'a> WideElement<'a> {
         state: &ProgressState,
         buf: &mut String,
     ) -> String {
-        let left = state.width().saturating_sub(measure_text_width(&cur));
-        let left = left + 1; // Add 1 to cover the whole terminal width
+        let left = state
+            .width()
+            .saturating_sub(measure_text_width(&*cur.replace("\x00", "")));
         match self {
             Self::Bar { alt_style } => cur.replace(
                 "\x00",
