@@ -228,6 +228,8 @@ pub(crate) struct MultiProgressState {
     pub(crate) move_cursor: bool,
     /// Controls how the multi progress is aligned if some of its progress bars get removed, default is `Top`
     pub(crate) alignment: MultiProgressAlignment,
+    /// Orphaned lines are carried over across draw operations
+    orphan_lines: Vec<String>,
 }
 
 impl MultiProgressState {
@@ -239,6 +241,7 @@ impl MultiProgressState {
             draw_target,
             move_cursor: false,
             alignment: Default::default(),
+            orphan_lines: Vec::new(),
         }
     }
 
@@ -248,12 +251,11 @@ impl MultiProgressState {
 
     pub(crate) fn draw(&mut self, idx: usize, draw_state: ProgressDrawState) -> io::Result<()> {
         let force_draw = draw_state.force_draw;
-        let mut orphan_lines = vec![];
 
         // Split orphan lines out of the draw state, if any
         let lines = if draw_state.orphan_lines > 0 {
             let split = draw_state.lines.split_at(draw_state.orphan_lines);
-            orphan_lines.extend_from_slice(split.0);
+            self.orphan_lines.extend_from_slice(split.0);
             split.1.to_vec()
         } else {
             draw_state.lines
@@ -276,8 +278,8 @@ impl MultiProgressState {
 
         // Make orphaned lines appear at the top, so they can be properly
         // forgotten.
-        let orphan_lines_count = orphan_lines.len();
-        lines.append(&mut orphan_lines);
+        let orphan_lines_count = self.orphan_lines.len();
+        lines.append(&mut self.orphan_lines);
 
         for index in self.ordering.iter() {
             let draw_state = &self.draw_states[*index];
