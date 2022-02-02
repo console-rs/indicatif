@@ -227,10 +227,14 @@ impl ProgressStyle {
         }
     }
 
-    pub(crate) fn format_state(&self, state: &ProgressState, target_width: usize) -> Vec<String> {
+    pub(crate) fn format_state(
+        &self,
+        state: &ProgressState,
+        lines: &mut Vec<String>,
+        target_width: usize,
+    ) {
         let mut cur = String::new();
         let mut buf = String::new();
-        let mut rv = vec![];
         let mut wide = None;
         for part in &self.template.parts {
             match part {
@@ -359,7 +363,7 @@ impl ProgressStyle {
                     }
                 }
                 TemplatePart::Literal(s) => cur.push_str(s),
-                TemplatePart::NewLine => rv.push(match wide {
+                TemplatePart::NewLine => lines.push(match wide {
                     Some(inner) => {
                         inner.expand(mem::take(&mut cur), self, state, &mut buf, target_width)
                     }
@@ -369,14 +373,13 @@ impl ProgressStyle {
         }
 
         if !cur.is_empty() {
-            rv.push(match wide {
+            lines.push(match wide {
                 Some(inner) => {
                     inner.expand(mem::take(&mut cur), self, state, &mut buf, target_width)
                 }
                 None => mem::take(&mut cur),
             })
         }
-        rv
     }
 }
 
@@ -713,46 +716,55 @@ mod tests {
 
     #[test]
     fn test_expand_template() {
-        let mut style = ProgressStyle::default_bar();
-        style.format_map.0.insert("foo", |_| "FOO".into());
-        style.format_map.0.insert("bar", |_| "BAR".into());
         let draw_target = ProgressDrawTarget::stdout();
         let width = draw_target.width();
         let state = ProgressState::new(10);
+        let mut buf = Vec::new();
+
+        let mut style = ProgressStyle::default_bar();
+        style.format_map.0.insert("foo", |_| "FOO".into());
+        style.format_map.0.insert("bar", |_| "BAR".into());
 
         style.template = Template::from_str("{{ {foo} {bar} }}");
-        let rv = style.format_state(&state, width);
-        assert_eq!(&rv[0], "{ FOO BAR }");
+        style.format_state(&state, &mut buf, width);
+        assert_eq!(&buf[0], "{ FOO BAR }");
 
+        buf.clear();
         style.template = Template::from_str(r#"{ "foo": "{foo}", "bar": {bar} }"#);
-        let rv = style.format_state(&state, width);
-        assert_eq!(&rv[0], r#"{ "foo": "FOO", "bar": BAR }"#);
+        style.format_state(&state, &mut buf, width);
+        assert_eq!(&buf[0], r#"{ "foo": "FOO", "bar": BAR }"#);
     }
 
     #[test]
     fn test_expand_template_flags() {
         use console::set_colors_enabled;
         set_colors_enabled(true);
-        let mut style = ProgressStyle::default_bar();
-        style.format_map.0.insert("foo", |_| "XXX".into());
+
         let draw_target = ProgressDrawTarget::stdout();
         let width = draw_target.width();
         let state = ProgressState::new(10);
+        let mut buf = Vec::new();
+
+        let mut style = ProgressStyle::default_bar();
+        style.format_map.0.insert("foo", |_| "XXX".into());
 
         style.template = Template::from_str("{foo:5}");
-        let rv = style.format_state(&state, width);
-        assert_eq!(&rv[0], "XXX  ");
+        style.format_state(&state, &mut buf, width);
+        assert_eq!(&buf[0], "XXX  ");
 
+        buf.clear();
         style.template = Template::from_str("{foo:.red.on_blue}");
-        let rv = style.format_state(&state, width);
-        assert_eq!(&rv[0], "\u{1b}[31m\u{1b}[44mXXX\u{1b}[0m");
+        style.format_state(&state, &mut buf, width);
+        assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44mXXX\u{1b}[0m");
 
+        buf.clear();
         style.template = Template::from_str("{foo:^5.red.on_blue}");
-        let rv = style.format_state(&state, width);
-        assert_eq!(&rv[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
+        style.format_state(&state, &mut buf, width);
+        assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
 
+        buf.clear();
         style.template = Template::from_str("{foo:^5.red.on_blue/green.on_cyan}");
-        let rv = style.format_state(&state, width);
-        assert_eq!(&rv[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
+        style.format_state(&state, &mut buf, width);
+        assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
     }
 }
