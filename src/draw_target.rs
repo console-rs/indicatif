@@ -402,7 +402,7 @@ impl MultiProgressState {
 }
 
 #[derive(Debug)]
-pub(crate) struct LeakyBucket {
+struct LeakyBucket {
     leak_rate: f64,
     last_update: Instant,
     bucket: f64,
