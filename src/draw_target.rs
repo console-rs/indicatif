@@ -140,56 +140,31 @@ impl ProgressDrawTarget {
     }
 
     /// Apply the given draw state (draws it).
-    pub(crate) fn apply_draw_state(&mut self, draw_state: ProgressDrawState) -> io::Result<()> {
-        let (term, last_line_count) = match self.kind {
+    pub(crate) fn apply_draw_state(&mut self, mut draw_state: ProgressDrawState) -> io::Result<()> {
+        match self.kind {
             ProgressDrawTargetKind::Term {
                 ref term,
                 ref mut last_line_count,
                 leaky_bucket: None,
-            } => (term, last_line_count),
+            } => draw_state.draw_to_term(term, last_line_count),
             ProgressDrawTargetKind::Term {
                 ref term,
                 ref mut last_line_count,
                 leaky_bucket: Some(ref mut leaky_bucket),
             } => {
-                if draw_state.force_draw || leaky_bucket.try_add_work() {
-                    (term, last_line_count)
-                } else {
-                    // rate limited
-                    return Ok(());
+                match draw_state.force_draw || leaky_bucket.try_add_work() {
+                    true => draw_state.draw_to_term(term, last_line_count),
+                    false => Ok(()), // rate limited
                 }
             }
-            ProgressDrawTargetKind::Remote { idx, ref state, .. } => {
-                return state
-                    .write()
-                    .unwrap()
-                    .draw(idx, draw_state)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e));
-            }
+            ProgressDrawTargetKind::Remote { idx, ref state, .. } => state
+                .write()
+                .unwrap()
+                .draw(idx, draw_state)
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e)),
             // Hidden, finished, or no need to refresh yet
-            _ => return Ok(()),
-        };
-
-        if !draw_state.lines.is_empty() && draw_state.move_cursor {
-            term.move_cursor_up(*last_line_count)?;
-        } else {
-            clear_last_lines(term, *last_line_count)?;
+            _ => Ok(()),
         }
-
-        let shift = match draw_state.alignment {
-            MultiProgressAlignment::Bottom if draw_state.lines.len() < *last_line_count => {
-                let shift = *last_line_count - draw_state.lines.len();
-                for _ in 0..shift {
-                    term.write_line("")?;
-                }
-                shift
-            }
-            _ => 0,
-        };
-        draw_state.draw_to_term(term)?;
-        term.flush()?;
-        *last_line_count = draw_state.lines.len() - draw_state.orphan_lines + shift;
-        Ok(())
     }
 
     /// Properly disconnects from the draw target
@@ -388,7 +363,24 @@ impl ProgressDrawState {
         }
     }
 
-    pub fn draw_to_term(&self, term: &Term) -> io::Result<()> {
+    fn draw_to_term(&mut self, term: &Term, last_line_count: &mut usize) -> io::Result<()> {
+        if !self.lines.is_empty() && self.move_cursor {
+            term.move_cursor_up(*last_line_count)?;
+        } else {
+            clear_last_lines(term, *last_line_count)?;
+        }
+
+        let shift = match self.alignment {
+            MultiProgressAlignment::Bottom if self.lines.len() < *last_line_count => {
+                let shift = *last_line_count - self.lines.len();
+                for _ in 0..shift {
+                    term.write_line("")?;
+                }
+                shift
+            }
+            _ => 0,
+        };
+
         let len = self.lines.len();
         for (idx, line) in self.lines.iter().enumerate() {
             if idx + 1 != len {
@@ -402,6 +394,9 @@ impl ProgressDrawState {
                 term.write_str(&" ".repeat(usize::from(term.size().1) - line_width))?;
             }
         }
+
+        term.flush()?;
+        *last_line_count = self.lines.len() - self.orphan_lines + shift;
         Ok(())
     }
 }
