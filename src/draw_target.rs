@@ -141,26 +141,26 @@ impl ProgressDrawTarget {
 
     /// Apply the given draw state (draws it).
     pub(crate) fn apply_draw_state(&mut self, mut draw_state: ProgressDrawState) -> io::Result<()> {
-        match self.kind {
+        match &mut self.kind {
             ProgressDrawTargetKind::Term {
-                ref term,
-                ref mut last_line_count,
-                leaky_bucket: None,
-            } => draw_state.draw_to_term(term, last_line_count),
-            ProgressDrawTargetKind::Term {
-                ref term,
-                ref mut last_line_count,
-                leaky_bucket: Some(ref mut leaky_bucket),
+                term,
+                last_line_count,
+                leaky_bucket,
             } => {
-                match draw_state.force_draw || leaky_bucket.try_add_work() {
+                let has_capacity = leaky_bucket
+                    .as_mut()
+                    .map(|b| b.try_add_work())
+                    .unwrap_or(true);
+
+                match draw_state.force_draw || has_capacity {
                     true => draw_state.draw_to_term(term, last_line_count),
                     false => Ok(()), // rate limited
                 }
             }
-            ProgressDrawTargetKind::Remote { idx, ref state, .. } => state
+            ProgressDrawTargetKind::Remote { idx, state, .. } => state
                 .write()
                 .unwrap()
-                .draw(idx, draw_state)
+                .draw(*idx, draw_state)
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, e)),
             // Hidden, finished, or no need to refresh yet
             _ => Ok(()),
