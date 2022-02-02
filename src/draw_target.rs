@@ -249,20 +249,15 @@ impl MultiProgressState {
         self.draw_target.width()
     }
 
-    pub(crate) fn draw(&mut self, idx: usize, draw_state: ProgressDrawState) -> io::Result<()> {
+    pub(crate) fn draw(&mut self, idx: usize, mut draw_state: ProgressDrawState) -> io::Result<()> {
         let force_draw = draw_state.force_draw;
 
         // Split orphan lines out of the draw state, if any
-        let lines = if draw_state.orphan_lines > 0 {
-            let split = draw_state.lines.split_at(draw_state.orphan_lines);
-            self.orphan_lines.extend_from_slice(split.0);
-            split.1.to_vec()
-        } else {
-            draw_state.lines
-        };
+        self.orphan_lines
+            .extend(draw_state.lines.drain(..draw_state.orphan_lines));
 
         let draw_state = ProgressDrawState {
-            lines,
+            lines: draw_state.lines,
             orphan_lines: 0,
             ..draw_state
         };
