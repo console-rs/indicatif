@@ -1,5 +1,5 @@
 use std::io;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::time::Instant;
 
 use console::Term;
@@ -105,6 +105,7 @@ impl ProgressDrawTarget {
                     leak_rate: rate as f64,
                     last_update: Instant::now(),
                 }),
+                draw_state: ProgressDrawState::new(Vec::new(), false),
             },
         }
     }
@@ -140,12 +141,13 @@ impl ProgressDrawTarget {
     }
 
     /// Apply the given draw state (draws it).
-    pub(crate) fn apply_draw_state(&mut self, mut draw_state: ProgressDrawState) -> io::Result<()> {
+    pub(crate) fn drawable(&mut self) -> Option<Drawable<'_>> {
         match &mut self.kind {
             ProgressDrawTargetKind::Term {
                 term,
                 last_line_count,
                 leaky_bucket,
+                draw_state,
             } => {
                 let has_capacity = leaky_bucket
                     .as_mut()
@@ -153,17 +155,24 @@ impl ProgressDrawTarget {
                     .unwrap_or(true);
 
                 match draw_state.force_draw || has_capacity {
-                    true => draw_state.draw_to_term(term, last_line_count),
-                    false => Ok(()), // rate limited
+                    true => Some(Drawable::Term {
+                        term,
+                        last_line_count,
+                        draw_state,
+                    }),
+                    false => None, // rate limited
                 }
             }
-            ProgressDrawTargetKind::Remote { idx, state, .. } => state
-                .write()
-                .unwrap()
-                .draw(*idx, draw_state)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e)),
+            ProgressDrawTargetKind::Remote { idx, state, .. } => {
+                let state = state.write().unwrap();
+                Some(Drawable::Multi {
+                    idx: *idx,
+                    state,
+                    force_draw: false,
+                })
+            }
             // Hidden, finished, or no need to refresh yet
-            _ => Ok(()),
+            _ => None,
         }
     }
 
@@ -172,20 +181,18 @@ impl ProgressDrawTarget {
         match self.kind {
             ProgressDrawTargetKind::Term { .. } => {}
             ProgressDrawTargetKind::Remote { idx, ref state, .. } => {
-                state
-                    .write()
-                    .unwrap()
-                    .draw(
-                        idx,
-                        ProgressDrawState {
-                            lines: vec![],
-                            orphan_lines: 0,
-                            force_draw: true,
-                            move_cursor: false,
-                            alignment: Default::default(),
-                        },
-                    )
-                    .ok();
+                let state = state.write().unwrap();
+                let mut drawable = Drawable::Multi {
+                    state,
+                    idx,
+                    force_draw: false,
+                };
+
+                let mut draw_state = drawable.state();
+                draw_state.reset();
+                draw_state.force_draw = true;
+                drop(draw_state);
+                let _ = drawable.draw();
             }
             ProgressDrawTargetKind::Hidden => {}
         };
@@ -205,12 +212,103 @@ enum ProgressDrawTargetKind {
         term: Term,
         last_line_count: usize,
         leaky_bucket: Option<LeakyBucket>,
+        draw_state: ProgressDrawState,
     },
     Remote {
         state: Arc<RwLock<MultiProgressState>>,
         idx: usize,
     },
     Hidden,
+}
+
+pub(crate) enum Drawable<'a> {
+    Term {
+        term: &'a Term,
+        last_line_count: &'a mut usize,
+        draw_state: &'a mut ProgressDrawState,
+    },
+    Multi {
+        state: RwLockWriteGuard<'a, MultiProgressState>,
+        idx: usize,
+        force_draw: bool,
+    },
+}
+
+impl<'a> Drawable<'a> {
+    pub(crate) fn state(&mut self) -> DrawStateWrapper<'_> {
+        match self {
+            Drawable::Term { draw_state, .. } => DrawStateWrapper {
+                state: *draw_state,
+                extra: None,
+            },
+            Drawable::Multi {
+                state,
+                idx,
+                force_draw,
+            } => {
+                let state = &mut **state;
+                let (states, orphans) = (&mut state.draw_states, &mut state.orphan_lines);
+                match states.get_mut(*idx) {
+                    Some(Some(draw_state)) => DrawStateWrapper {
+                        state: draw_state,
+                        extra: Some((orphans, force_draw)),
+                    },
+                    Some(inner) => {
+                        *inner = Some(ProgressDrawState::new(Vec::new(), false));
+                        DrawStateWrapper {
+                            state: inner.as_mut().unwrap(),
+                            extra: Some((orphans, force_draw)),
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+        }
+    }
+
+    pub(crate) fn draw(self) -> io::Result<()> {
+        match self {
+            Drawable::Term {
+                term,
+                last_line_count,
+                draw_state,
+            } => draw_state.draw_to_term(term, last_line_count),
+            Drawable::Multi {
+                mut state,
+                force_draw,
+                ..
+            } => state.draw(force_draw),
+        }
+    }
+}
+
+pub(crate) struct DrawStateWrapper<'a> {
+    state: &'a mut ProgressDrawState,
+    extra: Option<(&'a mut Vec<String>, &'a mut bool)>,
+}
+
+impl std::ops::Deref for DrawStateWrapper<'_> {
+    type Target = ProgressDrawState;
+
+    fn deref(&self) -> &Self::Target {
+        self.state
+    }
+}
+
+impl std::ops::DerefMut for DrawStateWrapper<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.state
+    }
+}
+
+impl Drop for DrawStateWrapper<'_> {
+    fn drop(&mut self) {
+        if let Some((orphan_lines, force_draw)) = &mut self.extra {
+            orphan_lines.extend(self.state.lines.drain(..self.state.orphan_lines));
+            self.state.orphan_lines = 0;
+            **force_draw = self.state.force_draw;
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -249,47 +347,38 @@ impl MultiProgressState {
         self.draw_target.width()
     }
 
-    pub(crate) fn draw(&mut self, idx: usize, mut draw_state: ProgressDrawState) -> io::Result<()> {
-        let force_draw = draw_state.force_draw;
-
-        // Split orphan lines out of the draw state, if any
-        self.orphan_lines
-            .extend(draw_state.lines.drain(..draw_state.orphan_lines));
-
-        let draw_state = ProgressDrawState {
-            lines: draw_state.lines,
-            orphan_lines: 0,
-            ..draw_state
-        };
-
-        self.draw_states[idx] = Some(draw_state);
-
+    fn draw(&mut self, force_draw: bool) -> io::Result<()> {
         // the rest from here is only drawing, we can skip it.
         if self.draw_target.is_hidden() {
             return Ok(());
         }
 
-        let mut lines = vec![];
+        let mut drawable = match self.draw_target.drawable() {
+            Some(drawable) => drawable,
+            None => return Ok(()),
+        };
+
+        let mut draw_state = drawable.state();
+        draw_state.reset();
 
         // Make orphaned lines appear at the top, so they can be properly
         // forgotten.
         let orphan_lines_count = self.orphan_lines.len();
-        lines.append(&mut self.orphan_lines);
+        draw_state.lines.append(&mut self.orphan_lines);
 
         for index in self.ordering.iter() {
-            let draw_state = &self.draw_states[*index];
-            if let Some(ref draw_state) = draw_state {
-                lines.extend_from_slice(&draw_state.lines[..]);
+            if let Some(state) = &self.draw_states[*index] {
+                draw_state.lines.extend_from_slice(&state.lines[..]);
             }
         }
 
-        self.draw_target.apply_draw_state(ProgressDrawState {
-            lines,
-            orphan_lines: orphan_lines_count,
-            force_draw: force_draw || orphan_lines_count > 0,
-            move_cursor: self.move_cursor,
-            alignment: self.alignment,
-        })
+        draw_state.orphan_lines = orphan_lines_count;
+        draw_state.force_draw = force_draw || orphan_lines_count > 0;
+        draw_state.move_cursor = self.move_cursor;
+        draw_state.alignment = self.alignment;
+
+        drop(draw_state);
+        drawable.draw()
     }
 
     pub(crate) fn len(&self) -> usize {
@@ -406,6 +495,14 @@ impl ProgressDrawState {
         term.flush()?;
         *last_line_count = self.lines.len() - self.orphan_lines + shift;
         Ok(())
+    }
+
+    pub(crate) fn reset(&mut self) {
+        self.lines.clear();
+        self.orphan_lines = 0;
+        self.force_draw = false;
+        self.move_cursor = false;
+        self.alignment = MultiProgressAlignment::default();
     }
 }
 

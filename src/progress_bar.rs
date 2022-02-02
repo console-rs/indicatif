@@ -6,9 +6,7 @@ use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::draw_target::{
-    MultiProgressAlignment, MultiProgressState, ProgressDrawState, ProgressDrawTarget,
-};
+use crate::draw_target::{MultiProgressAlignment, MultiProgressState, ProgressDrawTarget};
 use crate::state::{BarState, ProgressState, Status};
 use crate::style::ProgressStyle;
 use crate::{ProgressBarIter, ProgressIterator};
@@ -244,28 +242,35 @@ impl ProgressBar {
     ///
     /// [`suspend`]: ProgressBar::suspend
     pub fn println<I: AsRef<str>>(&self, msg: I) {
-        let mut state = self.state.lock().unwrap();
+        let state = &mut *self.state.lock().unwrap();
+        let draw_lines = state.state.should_render() && !state.draw_target.is_hidden();
+        let (draw_target, state) = (&mut state.draw_target, &state.state);
+        let width = draw_target.width();
 
-        let mut lines: Vec<String> = msg.as_ref().lines().map(Into::into).collect();
-        let orphan_lines = lines.len();
-        if state.state.should_render() && !state.draw_target.is_hidden() {
-            lines.extend(
-                state
-                    .state
-                    .style
-                    .format_state(&state.state, state.draw_target.width()),
-            );
-        }
-
-        let draw_state = ProgressDrawState {
-            lines,
-            orphan_lines,
-            force_draw: true,
-            move_cursor: false,
-            alignment: Default::default(),
+        let mut drawable = match draw_target.drawable() {
+            Some(drawable) => drawable,
+            None => return,
         };
 
-        state.draw_target.apply_draw_state(draw_state).ok();
+        let mut draw_state = drawable.state();
+        draw_state.reset();
+
+        draw_state.force_draw = true;
+        draw_state.move_cursor = false;
+        draw_state.alignment = Default::default();
+
+        draw_state
+            .lines
+            .extend(msg.as_ref().lines().map(Into::into));
+        draw_state.orphan_lines = draw_state.lines.len();
+        if draw_lines {
+            draw_state
+                .lines
+                .extend(state.style.format_state(state, width));
+        }
+
+        drop(draw_state);
+        let _ = drawable.draw();
     }
 
     /// Sets the position of the progress bar
@@ -435,9 +440,15 @@ impl ProgressBar {
     /// ```
     pub fn suspend<F: FnOnce() -> R, R>(&self, f: F) -> R {
         let mut state = self.state.lock().unwrap();
-        let _ = state
-            .draw_target
-            .apply_draw_state(ProgressDrawState::new(vec![], true));
+
+        if let Some(mut drawable) = state.draw_target.drawable() {
+            let mut draw_state = drawable.state();
+            draw_state.reset();
+            draw_state.force_draw = true;
+            drop(draw_state);
+            let _ = drawable.draw();
+        }
+
         let ret = f();
         let _ = state.draw(true);
         ret
@@ -752,17 +763,21 @@ impl MultiProgress {
 
     pub fn clear(&self) -> io::Result<()> {
         let mut state = self.state.write().unwrap();
-        let move_cursor = state.move_cursor;
-        let alignment = state.alignment;
-        state.draw_target.apply_draw_state(ProgressDrawState {
-            lines: vec![],
-            orphan_lines: 0,
-            force_draw: true,
-            move_cursor,
-            alignment,
-        })?;
+        let (move_cursor, alignment) = (state.move_cursor, state.alignment);
 
-        Ok(())
+        let mut drawable = match state.draw_target.drawable() {
+            Some(drawable) => drawable,
+            None => return Ok(()),
+        };
+
+        let mut draw_state = drawable.state();
+        draw_state.reset();
+        draw_state.force_draw = true;
+        draw_state.move_cursor = move_cursor;
+        draw_state.alignment = alignment;
+
+        drop(draw_state);
+        drawable.draw()
     }
 }
 

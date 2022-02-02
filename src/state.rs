@@ -4,7 +4,7 @@ use std::io;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::draw_target::{ProgressDrawState, ProgressDrawTarget};
+use crate::draw_target::ProgressDrawTarget;
 use crate::style::{ProgressFinish, ProgressStyle};
 
 pub(crate) struct BarState {
@@ -107,18 +107,26 @@ impl BarState {
             return Ok(());
         }
 
-        let lines = match self.state.should_render() {
-            true => self
-                .state
-                .style
-                .format_state(&self.state, self.draw_target.width()),
-            false => Vec::new(),
+        let width = self.draw_target.width();
+        let mut drawable = match self.draw_target.drawable() {
+            Some(drawable) => drawable,
+            None => return Ok(()),
         };
+
+        let mut draw_state = drawable.state();
+        draw_state.reset();
 
         // `|| self.is_finished()` should not be needed here, but we used to always for draw for
         // finished progress bar, so it's kept as to not cause compatibility issues in weird cases.
-        let draw_state = ProgressDrawState::new(lines, force_draw || self.state.is_finished());
-        self.draw_target.apply_draw_state(draw_state)
+        draw_state.force_draw = force_draw || self.state.is_finished();
+
+        draw_state.lines = match self.state.should_render() {
+            true => self.state.style.format_state(&self.state, width),
+            false => Vec::new(),
+        };
+
+        drop(draw_state);
+        drawable.draw()
     }
 }
 
