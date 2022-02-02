@@ -718,7 +718,7 @@ mod tests {
         style.format_map.0.insert("bar", |_| "BAR".into());
         let draw_target = ProgressDrawTarget::stdout();
         let width = draw_target.width();
-        let state = ProgressState::new(10, draw_target);
+        let state = ProgressState::new(10);
 
         style.template = Template::from_str("{{ {foo} {bar} }}");
         let rv = style.format_state(&state, width);
@@ -737,7 +737,7 @@ mod tests {
         style.format_map.0.insert("foo", |_| "XXX".into());
         let draw_target = ProgressDrawTarget::stdout();
         let width = draw_target.width();
-        let state = ProgressState::new(10, draw_target);
+        let state = ProgressState::new(10);
 
         style.template = Template::from_str("{foo:5}");
         let rv = style.format_state(&state, width);
