@@ -88,11 +88,6 @@ impl ProgressState {
         &self.prefix
     }
 
-    /// The entire draw width
-    pub fn width(&self) -> usize {
-        self.draw_target.width()
-    }
-
     /// The expected ETA
     pub fn eta(&self) -> Duration {
         if self.len == !0 || self.is_finished() {
@@ -235,7 +230,7 @@ impl ProgressState {
         }
 
         let lines = match self.should_render() {
-            true => self.style.format_state(self),
+            true => self.style.format_state(self, self.draw_target.width()),
             false => Vec::new(),
         };
 
