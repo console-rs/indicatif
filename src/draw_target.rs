@@ -231,6 +231,17 @@ pub(crate) struct MultiProgressState {
 }
 
 impl MultiProgressState {
+    pub(crate) fn new(draw_target: ProgressDrawTarget) -> Self {
+        Self {
+            draw_states: vec![],
+            free_set: vec![],
+            ordering: vec![],
+            draw_target,
+            move_cursor: false,
+            alignment: Default::default(),
+        }
+    }
+
     fn width(&self) -> usize {
         self.draw_target.width()
     }
