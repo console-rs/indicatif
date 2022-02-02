@@ -120,10 +120,11 @@ impl BarState {
         // finished progress bar, so it's kept as to not cause compatibility issues in weird cases.
         draw_state.force_draw = force_draw || self.state.is_finished();
 
-        draw_state.lines = match self.state.should_render() {
-            true => self.state.style.format_state(&self.state, width),
-            false => Vec::new(),
-        };
+        if self.state.should_render() {
+            self.state
+                .style
+                .format_state(&self.state, &mut draw_state.lines, width);
+        }
 
         drop(draw_state);
         drawable.draw()

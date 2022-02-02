@@ -264,9 +264,9 @@ impl ProgressBar {
             .extend(msg.as_ref().lines().map(Into::into));
         draw_state.orphan_lines = draw_state.lines.len();
         if draw_lines {
-            draw_state
-                .lines
-                .extend(state.style.format_state(state, width));
+            state
+                .style
+                .format_state(state, &mut draw_state.lines, width);
         }
 
         drop(draw_state);
