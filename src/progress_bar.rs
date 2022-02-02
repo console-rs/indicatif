@@ -776,7 +776,7 @@ impl WeakProgressBar {
     /// Create a new `WeakProgressBar` that returns `None` when [`upgrade`] is called.
     ///
     /// [`upgrade`]: WeakProgressBar::upgrade
-    pub fn new(&self) -> WeakProgressBar {
+    pub fn new() -> WeakProgressBar {
         Default::default()
     }
 
