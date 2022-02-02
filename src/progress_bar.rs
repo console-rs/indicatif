@@ -598,14 +598,7 @@ impl MultiProgress {
     /// Creates a new multi progress object with the given draw target.
     pub fn with_draw_target(draw_target: ProgressDrawTarget) -> MultiProgress {
         MultiProgress {
-            state: Arc::new(RwLock::new(MultiProgressState {
-                draw_states: Vec::new(),
-                free_set: Vec::new(),
-                ordering: vec![],
-                draw_target,
-                move_cursor: false,
-                alignment: Default::default(),
-            })),
+            state: Arc::new(RwLock::new(MultiProgressState::new(draw_target))),
         }
     }
 
