@@ -464,7 +464,16 @@ impl ProgressDrawState {
         if !self.lines.is_empty() && self.move_cursor {
             term.move_cursor_up(*last_line_count)?;
         } else {
-            clear_last_lines(term, *last_line_count)?;
+            // Fork of console::clear_last_lines that assumes that the last line doesn't contain a '\n'
+            let n = *last_line_count;
+            term.move_cursor_up(n.saturating_sub(1))?;
+            for i in 0..n {
+                term.clear_line()?;
+                if i + 1 != n {
+                    term.move_cursor_down(1)?;
+                }
+            }
+            term.move_cursor_up(n.saturating_sub(1))?;
         }
 
         let shift = match self.alignment {
@@ -532,17 +541,4 @@ impl Default for MultiProgressAlignment {
     fn default() -> Self {
         Self::Top
     }
-}
-
-/// Fork of console::clear_last_lines that assumes that the last line doesn't contain a '\n'
-fn clear_last_lines(term: &Term, n: usize) -> io::Result<()> {
-    term.move_cursor_up(n.saturating_sub(1))?;
-    for i in 0..n {
-        term.clear_line()?;
-        if i + 1 != n {
-            term.move_cursor_down(1)?;
-        }
-    }
-    term.move_cursor_up(n.saturating_sub(1))?;
-    Ok(())
 }
