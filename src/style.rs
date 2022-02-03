@@ -21,7 +21,7 @@ pub struct ProgressStyle {
     on_finish: ProgressFinish,
     // how unicode-big each char in progress_chars is
     char_width: usize,
-    format_map: FormatMap,
+    format_map: HashMap<&'static str, fn(&ProgressState) -> String>,
 }
 
 #[cfg(feature = "improved_unicode")]
@@ -84,7 +84,7 @@ impl ProgressStyle {
             char_width,
             template: Template::from_str(template),
             on_finish: ProgressFinish::default(),
-            format_map: FormatMap::default(),
+            format_map: HashMap::default(),
         }
     }
 
@@ -129,8 +129,8 @@ impl ProgressStyle {
     }
 
     /// Adds a custom key that references a `&ProgressState` to the template
-    pub fn with_key(mut self, key: &'static str, f: Format) -> ProgressStyle {
-        self.format_map.0.insert(key, f);
+    pub fn with_key(mut self, key: &'static str, f: fn(&ProgressState) -> String) -> ProgressStyle {
+        self.format_map.insert(key, f);
         self
     }
 
@@ -247,7 +247,7 @@ impl ProgressStyle {
                     alt_style,
                 } => {
                     buf.clear();
-                    if let Some(formatter) = self.format_map.0.get(key.as_str()) {
+                    if let Some(formatter) = self.format_map.get(key.as_str()) {
                         buf.push_str(&formatter(state));
                     } else {
                         match key.as_str() {
@@ -654,11 +654,6 @@ impl<'a> fmt::Display for PaddedStringDisplay<'a> {
     }
 }
 
-#[derive(Clone, Default)]
-struct FormatMap(HashMap<&'static str, Format>);
-
-type Format = fn(&ProgressState) -> String;
-
 /// Behavior of a progress bar when it is finished
 ///
 /// This is invoked when a [`ProgressBar`] or [`ProgressBarIter`] completes and
@@ -722,8 +717,8 @@ mod tests {
         let mut buf = Vec::new();
 
         let mut style = ProgressStyle::default_bar();
-        style.format_map.0.insert("foo", |_| "FOO".into());
-        style.format_map.0.insert("bar", |_| "BAR".into());
+        style.format_map.insert("foo", |_| "FOO".into());
+        style.format_map.insert("bar", |_| "BAR".into());
 
         style.template = Template::from_str("{{ {foo} {bar} }}");
         style.format_state(&state, &mut buf, width);
@@ -746,7 +741,7 @@ mod tests {
         let mut buf = Vec::new();
 
         let mut style = ProgressStyle::default_bar();
-        style.format_map.0.insert("foo", |_| "XXX".into());
+        style.format_map.insert("foo", |_| "XXX".into());
 
         style.template = Template::from_str("{foo:5}");
         style.format_state(&state, &mut buf, width);
