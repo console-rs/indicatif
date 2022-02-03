@@ -343,6 +343,23 @@ impl MultiProgressState {
         }
     }
 
+    pub(crate) fn clear(&mut self) -> io::Result<()> {
+        let (move_cursor, alignment) = (self.move_cursor, self.alignment);
+        let mut drawable = match self.draw_target.drawable() {
+            Some(drawable) => drawable,
+            None => return Ok(()),
+        };
+
+        let mut draw_state = drawable.state();
+        draw_state.reset();
+        draw_state.force_draw = true;
+        draw_state.move_cursor = move_cursor;
+        draw_state.alignment = alignment;
+
+        drop(draw_state);
+        drawable.draw()
+    }
+
     fn width(&self) -> usize {
         self.draw_target.width()
     }
