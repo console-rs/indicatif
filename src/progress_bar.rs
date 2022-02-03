@@ -251,10 +251,7 @@ impl ProgressBar {
             None => return,
         };
 
-        let mut draw_state = drawable.state();
-        draw_state.reset();
-
-        draw_state.force_draw = true;
+        let mut draw_state = drawable.state(true);
         draw_state.move_cursor = false;
         draw_state.alignment = Default::default();
 
@@ -441,9 +438,7 @@ impl ProgressBar {
         let mut state = self.state.lock().unwrap();
 
         if let Some(mut drawable) = state.draw_target.drawable() {
-            let mut draw_state = drawable.state();
-            draw_state.reset();
-            draw_state.force_draw = true;
+            let draw_state = drawable.state(true);
             drop(draw_state);
             let _ = drawable.draw();
         }

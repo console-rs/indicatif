@@ -113,12 +113,9 @@ impl BarState {
             None => return Ok(()),
         };
 
-        let mut draw_state = drawable.state();
-        draw_state.reset();
-
         // `|| self.is_finished()` should not be needed here, but we used to always for draw for
         // finished progress bar, so it's kept as to not cause compatibility issues in weird cases.
-        draw_state.force_draw = force_draw || self.state.is_finished();
+        let mut draw_state = drawable.state(force_draw || self.state.is_finished());
 
         if self.state.should_render() {
             self.state

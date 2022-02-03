@@ -202,12 +202,10 @@ impl MultiProgressState {
             None => return Ok(()),
         };
 
-        let mut draw_state = drawable.state();
-        draw_state.reset();
-
-        // Make orphaned lines appear at the top, so they can be properly
-        // forgotten.
         let orphan_lines_count = self.orphan_lines.len();
+        let mut draw_state = drawable.state(force_draw || orphan_lines_count > 0);
+
+        // Make orphaned lines appear at the top, so they can be properly forgotten.
         draw_state.lines.append(&mut self.orphan_lines);
 
         for index in self.ordering.iter() {
@@ -217,7 +215,6 @@ impl MultiProgressState {
         }
 
         draw_state.orphan_lines = orphan_lines_count;
-        draw_state.force_draw = force_draw || orphan_lines_count > 0;
         draw_state.move_cursor = self.move_cursor;
         draw_state.alignment = self.alignment;
 
@@ -296,9 +293,7 @@ impl MultiProgressState {
             None => return Ok(()),
         };
 
-        let mut draw_state = drawable.state();
-        draw_state.reset();
-        draw_state.force_draw = true;
+        let mut draw_state = drawable.state(true);
         draw_state.move_cursor = move_cursor;
         draw_state.alignment = alignment;
 
