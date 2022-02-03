@@ -239,32 +239,12 @@ pub(crate) enum Drawable<'a> {
 impl<'a> Drawable<'a> {
     pub(crate) fn state(&mut self) -> DrawStateWrapper<'_> {
         match self {
-            Drawable::Term { draw_state, .. } => DrawStateWrapper {
-                state: *draw_state,
-                extra: None,
-            },
+            Drawable::Term { draw_state, .. } => DrawStateWrapper::for_term(draw_state),
             Drawable::Multi {
                 state,
                 idx,
                 force_draw,
-            } => {
-                let state = &mut **state;
-                let (states, orphans) = (&mut state.draw_states, &mut state.orphan_lines);
-                match states.get_mut(*idx) {
-                    Some(Some(draw_state)) => DrawStateWrapper {
-                        state: draw_state,
-                        extra: Some((orphans, force_draw)),
-                    },
-                    Some(inner) => {
-                        *inner = Some(ProgressDrawState::new(Vec::new(), false));
-                        DrawStateWrapper {
-                            state: inner.as_mut().unwrap(),
-                            extra: Some((orphans, force_draw)),
-                        }
-                    }
-                    _ => unreachable!(),
-                }
-            }
+            } => state.draw_state(*idx, force_draw),
         }
     }
 
@@ -287,6 +267,23 @@ impl<'a> Drawable<'a> {
 pub(crate) struct DrawStateWrapper<'a> {
     state: &'a mut ProgressDrawState,
     extra: Option<(&'a mut Vec<String>, &'a mut bool)>,
+}
+
+impl<'a> DrawStateWrapper<'a> {
+    pub(crate) fn for_term(state: &'a mut ProgressDrawState) -> Self {
+        Self { state, extra: None }
+    }
+
+    pub(crate) fn for_multi(
+        state: &'a mut ProgressDrawState,
+        orphan_lines: &'a mut Vec<String>,
+        force_draw: &'a mut bool,
+    ) -> Self {
+        Self {
+            state,
+            extra: Some((orphan_lines, force_draw)),
+        }
+    }
 }
 
 impl std::ops::Deref for DrawStateWrapper<'_> {
