@@ -11,11 +11,25 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         rust: [stable, beta, 1.51]
+        features: [--all-features, ""]
+        include:
+          - rust: 1.51
+            os: ubuntu-latest
+            features: --features improved_unicode
+          - rust: 1.51
+            os: macos-latest
+            features: --features improved_unicode
+          - rust: 1.51
+            os: windows-latest
+            features: --features improved_unicode
         exclude:
           - os: macos-latest
             rust: beta
           - os: windows-latest
             rust: beta
+          # Can't use vt100 with 1.51 since it is 2021.1 edition
+          - rust: 1.51
+            features: --all-features
 
     runs-on: ${{ matrix.os }}
 
@@ -37,7 +51,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --all-features
+          args: --workspace ${{ matrix.features }}
 
   lint:
     runs-on: ubuntu-latest
