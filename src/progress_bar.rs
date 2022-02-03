@@ -1,14 +1,11 @@
 use std::borrow::Cow;
 use std::fmt;
 use std::io;
-use std::sync::RwLock;
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::draw_target::{
-    InsertLocation, MultiProgressAlignment, MultiProgressState, ProgressDrawTarget,
-};
+use crate::draw_target::ProgressDrawTarget;
 use crate::state::{BarState, ProgressState, Status};
 use crate::style::ProgressStyle;
 use crate::{ProgressBarIter, ProgressIterator};
@@ -595,161 +592,6 @@ impl ProgressBar {
     }
 }
 
-/// Manages multiple progress bars from different threads
-#[derive(Debug)]
-pub struct MultiProgress {
-    pub(crate) state: Arc<RwLock<MultiProgressState>>,
-}
-
-impl Default for MultiProgress {
-    fn default() -> MultiProgress {
-        MultiProgress::with_draw_target(ProgressDrawTarget::stderr())
-    }
-}
-
-impl MultiProgress {
-    /// Creates a new multi progress object.
-    ///
-    /// Progress bars added to this object by default draw directly to stderr, and refresh
-    /// a maximum of 15 times a second. To change the refresh rate set the draw target to
-    /// one with a different refresh rate.
-    pub fn new() -> MultiProgress {
-        MultiProgress::default()
-    }
-
-    /// Creates a new multi progress object with the given draw target.
-    pub fn with_draw_target(draw_target: ProgressDrawTarget) -> MultiProgress {
-        MultiProgress {
-            state: Arc::new(RwLock::new(MultiProgressState::new(draw_target))),
-        }
-    }
-
-    /// Sets a different draw target for the multiprogress bar.
-    pub fn set_draw_target(&self, target: ProgressDrawTarget) {
-        let mut state = self.state.write().unwrap();
-        state.draw_target.disconnect();
-        state.draw_target = target;
-    }
-
-    /// Set whether we should try to move the cursor when possible instead of clearing lines.
-    ///
-    /// This can reduce flickering, but do not enable it if you intend to change the number of
-    /// progress bars.
-    pub fn set_move_cursor(&self, move_cursor: bool) {
-        self.state.write().unwrap().move_cursor = move_cursor;
-    }
-
-    /// Set alignment flag
-    pub fn set_alignment(&self, alignment: MultiProgressAlignment) {
-        self.state.write().unwrap().alignment = alignment;
-    }
-
-    /// Adds a progress bar.
-    ///
-    /// The progress bar added will have the draw target changed to a
-    /// remote draw target that is intercepted by the multi progress
-    /// object overriding custom `ProgressDrawTarget` settings.
-    pub fn add(&self, pb: ProgressBar) -> ProgressBar {
-        let idx = self.state.write().unwrap().insert(InsertLocation::End);
-        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
-        pb
-    }
-
-    /// Inserts a progress bar.
-    ///
-    /// The progress bar inserted at position `index` will have the draw
-    /// target changed to a remote draw target that is intercepted by the
-    /// multi progress object overriding custom `ProgressDrawTarget` settings.
-    ///
-    /// If `index >= MultiProgressState::objects.len()`, the progress bar
-    /// is added to the end of the list.
-    pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
-        let idx = self
-            .state
-            .write()
-            .unwrap()
-            .insert(InsertLocation::Index(index));
-
-        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
-        pb
-    }
-
-    /// Inserts a progress bar from the back.
-    ///
-    /// The progress bar inserted at position `MultiProgressState::objects.len() - index`
-    /// will have the draw target changed to a remote draw target that is
-    /// intercepted by the multi progress object overriding custom
-    /// `ProgressDrawTarget` settings.
-    ///
-    /// If `index >= MultiProgressState::objects.len()`, the progress bar
-    /// is added to the start of the list.
-    pub fn insert_from_back(&self, index: usize, pb: ProgressBar) -> ProgressBar {
-        let idx = self
-            .state
-            .write()
-            .unwrap()
-            .insert(InsertLocation::IndexFromBack(index));
-
-        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
-        pb
-    }
-
-    /// Inserts a progress bar before an existing one.
-    ///
-    /// The progress bar added will have the draw target changed to a
-    /// remote draw target that is intercepted by the multi progress
-    /// object overriding custom `ProgressDrawTarget` settings.
-    pub fn insert_before(&self, before: &ProgressBar, pb: ProgressBar) -> ProgressBar {
-        let idx = self
-            .state
-            .write()
-            .unwrap()
-            .insert(InsertLocation::Before(before));
-
-        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
-        pb
-    }
-
-    /// Inserts a progress bar after an existing one.
-    ///
-    /// The progress bar added will have the draw target changed to a
-    /// remote draw target that is intercepted by the multi progress
-    /// object overriding custom `ProgressDrawTarget` settings.
-    pub fn insert_after(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
-        let idx = self
-            .state
-            .write()
-            .unwrap()
-            .insert(InsertLocation::After(after));
-
-        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
-        pb
-    }
-
-    /// Removes a progress bar.
-    ///
-    /// The progress bar is removed only if it was previously inserted or added
-    /// by the methods `MultiProgress::insert` or `MultiProgress::add`.
-    /// If the passed progress bar does not satisfy the condition above,
-    /// the `remove` method does nothing.
-    pub fn remove(&self, pb: &ProgressBar) {
-        let idx = match &pb.state.lock().unwrap().draw_target.remote() {
-            Some((state, idx)) => {
-                // Check that this progress bar is owned by the current MultiProgress.
-                assert!(Arc::ptr_eq(&self.state, state));
-                *idx
-            }
-            _ => return,
-        };
-
-        self.state.write().unwrap().remove_idx(idx);
-    }
-
-    pub fn clear(&self) -> io::Result<()> {
-        self.state.write().unwrap().clear()
-    }
-}
-
 /// A weak reference to a `ProgressBar`.
 ///
 /// Useful for creating custom steady tick implementations
@@ -820,34 +662,6 @@ mod tests {
     }
 
     #[test]
-    fn test_draw_delta_deadlock() {
-        // see issue #187
-        let mpb = MultiProgress::new();
-        let pb = mpb.add(ProgressBar::new(1));
-        pb.set_draw_delta(2);
-        drop(pb);
-    }
-
-    #[test]
-    fn test_abandon_deadlock() {
-        let mpb = MultiProgress::new();
-        let pb = mpb.add(ProgressBar::new(1));
-        pb.set_draw_delta(2);
-        pb.abandon();
-        drop(pb);
-    }
-
-    #[test]
-    fn late_pb_drop() {
-        let pb = ProgressBar::new(10);
-        let mpb = MultiProgress::new();
-        // This clone call is required to trigger a now fixed bug.
-        // See <https://github.com/mitsuhiko/indicatif/pull/141> for context
-        #[allow(clippy::redundant_clone)]
-        mpb.add(pb.clone());
-    }
-
-    #[test]
     fn it_can_wrap_a_reader() {
         let bytes = &b"I am an implementation of io::Read"[..];
         let pb = ProgressBar::new(bytes.len() as u64);
@@ -866,20 +680,5 @@ mod tests {
         let mut writer = pb.wrap_write(writer);
         io::copy(&mut reader, &mut writer).unwrap();
         assert_eq!(writer.it, bytes);
-    }
-
-    #[test]
-    fn progress_bar_sync_send() {
-        let _: Box<dyn Sync> = Box::new(ProgressBar::new(1));
-        let _: Box<dyn Send> = Box::new(ProgressBar::new(1));
-        let _: Box<dyn Sync> = Box::new(MultiProgress::new());
-        let _: Box<dyn Send> = Box::new(MultiProgress::new());
-    }
-
-    #[test]
-    fn multi_progress_hidden() {
-        let mpb = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let pb = mpb.add(ProgressBar::new(123));
-        pb.finish();
     }
 }
