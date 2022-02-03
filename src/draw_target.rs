@@ -4,6 +4,8 @@ use std::time::Instant;
 
 use console::Term;
 
+use crate::progress_bar::ProgressBar;
+
 /// Target for draw operations
 ///
 /// This tells a progress bar or a multi progress object where to paint to.
@@ -343,6 +345,48 @@ impl MultiProgressState {
         }
     }
 
+    pub(crate) fn insert(&mut self, location: InsertLocation) -> usize {
+        let idx = match self.free_set.pop() {
+            Some(idx) => {
+                self.draw_states[idx] = None;
+                idx
+            }
+            None => {
+                self.draw_states.push(None);
+                self.draw_states.len() - 1
+            }
+        };
+
+        match location {
+            InsertLocation::End => self.ordering.push(idx),
+            InsertLocation::Index(pos) => {
+                let pos = Ord::min(pos, self.ordering.len());
+                self.ordering.insert(pos, idx);
+            }
+            InsertLocation::IndexFromBack(pos) => {
+                let pos = self.ordering.len().saturating_sub(pos);
+                self.ordering.insert(pos, idx);
+            }
+            InsertLocation::After(after) => {
+                let after_idx = after.state.lock().unwrap().draw_target.remote().unwrap().1;
+                let pos = self.ordering.iter().position(|i| *i == after_idx).unwrap();
+                self.ordering.insert(pos + 1, idx);
+            }
+            InsertLocation::Before(before) => {
+                let before_idx = before.state.lock().unwrap().draw_target.remote().unwrap().1;
+                let pos = self.ordering.iter().position(|i| *i == before_idx).unwrap();
+                self.ordering.insert(pos, idx);
+            }
+        }
+
+        assert!(
+            self.len() == self.ordering.len(),
+            "Draw state is inconsistent"
+        );
+
+        idx
+    }
+
     pub(crate) fn clear(&mut self) -> io::Result<()> {
         let (move_cursor, alignment) = (self.move_cursor, self.alignment);
         let mut drawable = match self.draw_target.drawable() {
@@ -416,6 +460,14 @@ impl MultiProgressState {
             "Draw state is inconsistent"
         );
     }
+}
+
+pub(crate) enum InsertLocation<'a> {
+    End,
+    Index(usize),
+    IndexFromBack(usize),
+    After(&'a ProgressBar),
+    Before(&'a ProgressBar),
 }
 
 #[derive(Debug)]

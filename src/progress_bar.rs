@@ -6,7 +6,9 @@ use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::draw_target::{MultiProgressAlignment, MultiProgressState, ProgressDrawTarget};
+use crate::draw_target::{
+    InsertLocation, MultiProgressAlignment, MultiProgressState, ProgressDrawTarget,
+};
 use crate::state::{BarState, ProgressState, Status};
 use crate::style::ProgressStyle;
 use crate::{ProgressBarIter, ProgressIterator};
@@ -17,7 +19,7 @@ use crate::{ProgressBarIter, ProgressIterator};
 /// just increments the refcount (so the original and its clone share the same state).
 #[derive(Clone)]
 pub struct ProgressBar {
-    state: Arc<Mutex<BarState>>,
+    pub(crate) state: Arc<Mutex<BarState>>,
 }
 
 impl fmt::Debug for ProgressBar {
@@ -648,7 +650,9 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
-        self.push(InsertLocation::End, pb)
+        let idx = self.state.write().unwrap().insert(InsertLocation::End);
+        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
+        pb
     }
 
     /// Inserts a progress bar.
@@ -660,7 +664,14 @@ impl MultiProgress {
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the end of the list.
     pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
-        self.push(InsertLocation::Index(index), pb)
+        let idx = self
+            .state
+            .write()
+            .unwrap()
+            .insert(InsertLocation::Index(index));
+
+        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
+        pb
     }
 
     /// Inserts a progress bar from the back.
@@ -673,7 +684,14 @@ impl MultiProgress {
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the start of the list.
     pub fn insert_from_back(&self, index: usize, pb: ProgressBar) -> ProgressBar {
-        self.push(InsertLocation::IndexFromBack(index), pb)
+        let idx = self
+            .state
+            .write()
+            .unwrap()
+            .insert(InsertLocation::IndexFromBack(index));
+
+        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
+        pb
     }
 
     /// Inserts a progress bar before an existing one.
@@ -682,7 +700,14 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn insert_before(&self, before: &ProgressBar, pb: ProgressBar) -> ProgressBar {
-        self.push(InsertLocation::Before(before), pb)
+        let idx = self
+            .state
+            .write()
+            .unwrap()
+            .insert(InsertLocation::Before(before));
+
+        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
+        pb
     }
 
     /// Inserts a progress bar after an existing one.
@@ -691,52 +716,11 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn insert_after(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
-        self.push(InsertLocation::After(after), pb)
-    }
-
-    fn push(&self, location: InsertLocation, pb: ProgressBar) -> ProgressBar {
-        let mut state = self.state.write().unwrap();
-        let idx = match state.free_set.pop() {
-            Some(idx) => {
-                state.draw_states[idx] = None;
-                idx
-            }
-            None => {
-                state.draw_states.push(None);
-                state.draw_states.len() - 1
-            }
-        };
-
-        match location {
-            InsertLocation::End => state.ordering.push(idx),
-            InsertLocation::Index(pos) => {
-                let pos = Ord::min(pos, state.ordering.len());
-                state.ordering.insert(pos, idx);
-            }
-            InsertLocation::IndexFromBack(pos) => {
-                let pos = state.ordering.len().saturating_sub(pos);
-                state.ordering.insert(pos, idx);
-            }
-            InsertLocation::After(after) => {
-                let after_idx = after.state.lock().unwrap().draw_target.remote().unwrap().1;
-                let pos = state.ordering.iter().position(|i| *i == after_idx).unwrap();
-                state.ordering.insert(pos + 1, idx);
-            }
-            InsertLocation::Before(before) => {
-                let before_idx = before.state.lock().unwrap().draw_target.remote().unwrap().1;
-                let pos = state
-                    .ordering
-                    .iter()
-                    .position(|i| *i == before_idx)
-                    .unwrap();
-                state.ordering.insert(pos, idx);
-            }
-        }
-
-        assert!(
-            state.len() == state.ordering.len(),
-            "Draw state is inconsistent"
-        );
+        let idx = self
+            .state
+            .write()
+            .unwrap()
+            .insert(InsertLocation::After(after));
 
         pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
         pb
@@ -789,14 +773,6 @@ impl WeakProgressBar {
     pub fn upgrade(&self) -> Option<ProgressBar> {
         self.state.upgrade().map(|state| ProgressBar { state })
     }
-}
-
-enum InsertLocation<'a> {
-    End,
-    Index(usize),
-    IndexFromBack(usize),
-    After(&'a ProgressBar),
-    Before(&'a ProgressBar),
 }
 
 #[cfg(test)]
