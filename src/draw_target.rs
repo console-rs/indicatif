@@ -424,7 +424,5 @@ impl ProgressDrawState {
         self.lines.clear();
         self.orphan_lines = 0;
         self.force_draw = false;
-        self.move_cursor = false;
-        self.alignment = MultiProgressAlignment::default();
     }
 }

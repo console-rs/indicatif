@@ -204,6 +204,7 @@ impl MultiProgressState {
 
         let orphan_lines_count = self.orphan_lines.len();
         let mut draw_state = drawable.state(force_draw || orphan_lines_count > 0);
+        draw_state.orphan_lines = orphan_lines_count;
 
         // Make orphaned lines appear at the top, so they can be properly forgotten.
         draw_state.lines.append(&mut self.orphan_lines);
@@ -213,10 +214,6 @@ impl MultiProgressState {
                 draw_state.lines.extend_from_slice(&state.lines[..]);
             }
         }
-
-        draw_state.orphan_lines = orphan_lines_count;
-        draw_state.move_cursor = self.move_cursor;
-        draw_state.alignment = self.alignment;
 
         drop(draw_state);
         drawable.draw()
@@ -232,7 +229,10 @@ impl MultiProgressState {
             Some(Some(draw_state)) => draw_state,
             Some(inner) => {
                 *inner = Some(ProgressDrawState::new(Vec::new(), false));
-                inner.as_mut().unwrap()
+                let state = inner.as_mut().unwrap();
+                state.move_cursor = self.move_cursor;
+                state.alignment = self.alignment;
+                state
             }
             _ => unreachable!(),
         };
@@ -287,18 +287,10 @@ impl MultiProgressState {
     }
 
     fn clear(&mut self) -> io::Result<()> {
-        let (move_cursor, alignment) = (self.move_cursor, self.alignment);
-        let mut drawable = match self.draw_target.drawable() {
-            Some(drawable) => drawable,
-            None => return Ok(()),
-        };
-
-        let mut draw_state = drawable.state(true);
-        draw_state.move_cursor = move_cursor;
-        draw_state.alignment = alignment;
-
-        drop(draw_state);
-        drawable.draw()
+        match self.draw_target.drawable() {
+            Some(drawable) => drawable.clear(),
+            None => Ok(()),
+        }
     }
 
     fn remove_idx(&mut self, idx: usize) {
