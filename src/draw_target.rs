@@ -5,6 +5,7 @@ use std::time::Instant;
 use console::Term;
 
 use crate::multi::{MultiProgressAlignment, MultiProgressState};
+use crate::TermLike;
 
 /// Target for draw operations
 ///
@@ -112,6 +113,17 @@ impl ProgressDrawTarget {
         }
     }
 
+    /// Draw to a boxed object that implements the [`TermLike`] trait.
+    pub fn term_like(term_like: Box<dyn TermLike>) -> ProgressDrawTarget {
+        ProgressDrawTarget {
+            kind: ProgressDrawTargetKind::TermLike {
+                inner: term_like,
+                last_line_count: 0,
+                draw_state: ProgressDrawState::new(Vec::new(), false),
+            },
+        }
+    }
+
     /// A hidden draw target.
     ///
     /// This forces a progress bar to be not rendered at all.
@@ -139,6 +151,7 @@ impl ProgressDrawTarget {
             ProgressDrawTargetKind::Term { ref term, .. } => term.size().1 as usize,
             ProgressDrawTargetKind::Remote { ref state, .. } => state.read().unwrap().width(),
             ProgressDrawTargetKind::Hidden => 0,
+            ProgressDrawTargetKind::TermLike { ref inner, .. } => inner.width(),
         }
     }
 
@@ -173,6 +186,15 @@ impl ProgressDrawTarget {
                     force_draw: false,
                 })
             }
+            ProgressDrawTargetKind::TermLike {
+                inner,
+                last_line_count,
+                draw_state,
+            } => Some(Drawable::TermLike {
+                term_like: &**inner,
+                last_line_count,
+                draw_state,
+            }),
             // Hidden, finished, or no need to refresh yet
             _ => None,
         }
@@ -192,6 +214,7 @@ impl ProgressDrawTarget {
                 .clear();
             }
             ProgressDrawTargetKind::Hidden => {}
+            ProgressDrawTargetKind::TermLike { .. } => {}
         };
     }
 
@@ -216,6 +239,11 @@ enum ProgressDrawTargetKind {
         idx: usize,
     },
     Hidden,
+    TermLike {
+        inner: Box<dyn TermLike>,
+        last_line_count: usize,
+        draw_state: ProgressDrawState,
+    },
 }
 
 pub(crate) enum Drawable<'a> {
@@ -229,6 +257,11 @@ pub(crate) enum Drawable<'a> {
         idx: usize,
         force_draw: bool,
     },
+    TermLike {
+        term_like: &'a dyn TermLike,
+        last_line_count: &'a mut usize,
+        draw_state: &'a mut ProgressDrawState,
+    },
 }
 
 impl<'a> Drawable<'a> {
@@ -240,6 +273,7 @@ impl<'a> Drawable<'a> {
                 idx,
                 force_draw,
             } => state.draw_state(*idx, force_draw),
+            Drawable::TermLike { draw_state, .. } => DrawStateWrapper::for_term(draw_state),
         };
 
         state.reset();
@@ -265,6 +299,11 @@ impl<'a> Drawable<'a> {
                 force_draw,
                 ..
             } => state.draw(force_draw),
+            Drawable::TermLike {
+                term_like,
+                last_line_count,
+                draw_state,
+            } => draw_state.draw_to_term(term_like, last_line_count),
         }
     }
 }
@@ -374,7 +413,11 @@ impl ProgressDrawState {
         }
     }
 
-    fn draw_to_term(&mut self, term: &Term, last_line_count: &mut usize) -> io::Result<()> {
+    fn draw_to_term(
+        &mut self,
+        term: &(impl TermLike + ?Sized),
+        last_line_count: &mut usize,
+    ) -> io::Result<()> {
         if !self.lines.is_empty() && self.move_cursor {
             term.move_cursor_up(*last_line_count)?;
         } else {
@@ -411,7 +454,7 @@ impl ProgressDrawState {
                 // Keep the cursor on the right terminal side
                 // So that next user writes/prints will happen on the next line
                 let line_width = console::measure_text_width(line);
-                term.write_str(&" ".repeat(usize::from(term.size().1) - line_width))?;
+                term.write_str(&" ".repeat(term.width() - line_width))?;
             }
         }
 
