@@ -59,9 +59,7 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
-        let idx = self.state.write().unwrap().insert(InsertLocation::End);
-        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
-        pb
+        self.internalize(InsertLocation::End, pb)
     }
 
     /// Inserts a progress bar.
@@ -73,14 +71,7 @@ impl MultiProgress {
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the end of the list.
     pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
-        let idx = self
-            .state
-            .write()
-            .unwrap()
-            .insert(InsertLocation::Index(index));
-
-        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
-        pb
+        self.internalize(InsertLocation::Index(index), pb)
     }
 
     /// Inserts a progress bar from the back.
@@ -93,14 +84,7 @@ impl MultiProgress {
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the start of the list.
     pub fn insert_from_back(&self, index: usize, pb: ProgressBar) -> ProgressBar {
-        let idx = self
-            .state
-            .write()
-            .unwrap()
-            .insert(InsertLocation::IndexFromBack(index));
-
-        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
-        pb
+        self.internalize(InsertLocation::IndexFromBack(index), pb)
     }
 
     /// Inserts a progress bar before an existing one.
@@ -109,14 +93,7 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn insert_before(&self, before: &ProgressBar, pb: ProgressBar) -> ProgressBar {
-        let idx = self
-            .state
-            .write()
-            .unwrap()
-            .insert(InsertLocation::Before(before));
-
-        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
-        pb
+        self.internalize(InsertLocation::Before(before), pb)
     }
 
     /// Inserts a progress bar after an existing one.
@@ -125,14 +102,7 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn insert_after(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
-        let idx = self
-            .state
-            .write()
-            .unwrap()
-            .insert(InsertLocation::After(after));
-
-        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
-        pb
+        self.internalize(InsertLocation::After(after), pb)
     }
 
     /// Removes a progress bar.
@@ -152,6 +122,12 @@ impl MultiProgress {
         };
 
         self.state.write().unwrap().remove_idx(idx);
+    }
+
+    fn internalize(&self, location: InsertLocation, pb: ProgressBar) -> ProgressBar {
+        let idx = self.state.write().unwrap().insert(location);
+        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
+        pb
     }
 
     pub fn clear(&self) -> io::Result<()> {
