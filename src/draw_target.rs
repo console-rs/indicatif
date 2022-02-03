@@ -347,15 +347,15 @@ const MAX_GROUP_SIZE: f64 = 32.0;
 #[derive(Clone, Debug)]
 pub(crate) struct ProgressDrawState {
     /// The lines to print (can contain ANSI codes)
-    pub lines: Vec<String>,
+    pub(crate) lines: Vec<String>,
     /// The number of lines that shouldn't be reaped by the next tick.
-    pub orphan_lines: usize,
+    pub(crate) orphan_lines: usize,
     /// True if drawing should be forced.
-    pub force_draw: bool,
+    pub(crate) force_draw: bool,
     /// True if we should move the cursor up when possible instead of clearing lines.
-    pub move_cursor: bool,
+    pub(crate) move_cursor: bool,
     /// Controls how the multi progress is aligned if some of its progress bars get removed, default is `Top`
-    pub alignment: MultiProgressAlignment,
+    pub(crate) alignment: MultiProgressAlignment,
 }
 
 impl ProgressDrawState {
