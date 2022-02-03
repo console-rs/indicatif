@@ -379,11 +379,11 @@ impl fmt::Debug for Estimate {
     }
 }
 
-pub fn duration_to_secs(d: Duration) -> f64 {
+fn duration_to_secs(d: Duration) -> f64 {
     d.as_secs() as f64 + f64::from(d.subsec_nanos()) / 1_000_000_000f64
 }
 
-pub fn secs_to_duration(s: f64) -> Duration {
+fn secs_to_duration(s: f64) -> Duration {
     let secs = s.trunc() as u64;
     let nanos = (s.fract() * 1_000_000_000f64) as u32;
     Duration::new(secs, nanos)

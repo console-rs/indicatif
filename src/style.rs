@@ -657,7 +657,7 @@ impl<'a> fmt::Display for PaddedStringDisplay<'a> {
 #[derive(Clone, Default)]
 struct FormatMap(HashMap<&'static str, Format>);
 
-pub type Format = fn(&ProgressState) -> String;
+type Format = fn(&ProgressState) -> String;
 
 /// Behavior of a progress bar when it is finished
 ///

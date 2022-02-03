@@ -212,6 +212,8 @@
 //! * `rayon`: adds rayon support
 //! * `improved_unicode`: adds improved unicode support (graphemes, better width calculation)
 
+#![warn(unreachable_pub)]
+
 mod draw_target;
 mod format;
 mod iter;
