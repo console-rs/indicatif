@@ -165,21 +165,21 @@ pub(crate) struct MultiProgressState {
     /// the state is None for bars that have not yet been drawn or have been removed
     pub(crate) draw_states: Vec<Option<ProgressDrawState>>,
     /// Set of removed bars, should have corresponding `None` elements in the `draw_states` vector
-    pub(crate) free_set: Vec<usize>,
+    free_set: Vec<usize>,
     /// Indices to the `draw_states` to maintain correct visual order
-    pub(crate) ordering: Vec<usize>,
+    ordering: Vec<usize>,
     /// Target for draw operation for MultiProgress
-    pub(crate) draw_target: ProgressDrawTarget,
+    draw_target: ProgressDrawTarget,
     /// Whether or not to just move cursor instead of clearing lines
-    pub(crate) move_cursor: bool,
+    move_cursor: bool,
     /// Controls how the multi progress is aligned if some of its progress bars get removed, default is `Top`
-    pub(crate) alignment: MultiProgressAlignment,
+    alignment: MultiProgressAlignment,
     /// Orphaned lines are carried over across draw operations
     pub(crate) orphan_lines: Vec<String>,
 }
 
 impl MultiProgressState {
-    pub(crate) fn new(draw_target: ProgressDrawTarget) -> Self {
+    fn new(draw_target: ProgressDrawTarget) -> Self {
         Self {
             draw_states: vec![],
             free_set: vec![],
@@ -191,7 +191,7 @@ impl MultiProgressState {
         }
     }
 
-    pub(crate) fn insert(&mut self, location: InsertLocation) -> usize {
+    fn insert(&mut self, location: InsertLocation) -> usize {
         let idx = match self.free_set.pop() {
             Some(idx) => {
                 self.draw_states[idx] = None;
@@ -233,7 +233,7 @@ impl MultiProgressState {
         idx
     }
 
-    pub(crate) fn clear(&mut self) -> io::Result<()> {
+    fn clear(&mut self) -> io::Result<()> {
         let (move_cursor, alignment) = (self.move_cursor, self.alignment);
         let mut drawable = match self.draw_target.drawable() {
             Some(drawable) => drawable,
@@ -288,11 +288,11 @@ impl MultiProgressState {
         drawable.draw()
     }
 
-    pub(crate) fn len(&self) -> usize {
+    fn len(&self) -> usize {
         self.draw_states.len() - self.free_set.len()
     }
 
-    pub(crate) fn remove_idx(&mut self, idx: usize) {
+    fn remove_idx(&mut self, idx: usize) {
         if self.free_set.contains(&idx) {
             return;
         }
@@ -336,7 +336,7 @@ impl Default for MultiProgressAlignment {
     }
 }
 
-pub(crate) enum InsertLocation<'a> {
+enum InsertLocation<'a> {
     End,
     Index(usize),
     IndexFromBack(usize),
