@@ -4,7 +4,7 @@ use std::fmt::{self, Write};
 use std::mem;
 
 use console::{measure_text_width, Style};
-#[cfg(feature = "improved_unicode")]
+#[cfg(feature = "unicode-segmentation")]
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::format::{
@@ -24,24 +24,24 @@ pub struct ProgressStyle {
     format_map: HashMap<&'static str, fn(&ProgressState) -> String>,
 }
 
-#[cfg(feature = "improved_unicode")]
+#[cfg(feature = "unicode-segmentation")]
 fn segment(s: &str) -> Vec<Box<str>> {
     UnicodeSegmentation::graphemes(s, true)
         .map(|s| s.into())
         .collect()
 }
 
-#[cfg(not(feature = "improved_unicode"))]
+#[cfg(not(feature = "unicode-segmentation"))]
 fn segment(s: &str) -> Vec<Box<str>> {
     s.chars().map(|x| x.to_string().into()).collect()
 }
 
-#[cfg(feature = "improved_unicode")]
+#[cfg(feature = "unicode_width")]
 fn measure(s: &str) -> usize {
     unicode_width::UnicodeWidthStr::width(s)
 }
 
-#[cfg(not(feature = "improved_unicode"))]
+#[cfg(not(feature = "unicode_width"))]
 fn measure(s: &str) -> usize {
     s.chars().count()
 }
