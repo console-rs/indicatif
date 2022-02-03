@@ -762,22 +762,7 @@ impl MultiProgress {
     }
 
     pub fn clear(&self) -> io::Result<()> {
-        let mut state = self.state.write().unwrap();
-        let (move_cursor, alignment) = (state.move_cursor, state.alignment);
-
-        let mut drawable = match state.draw_target.drawable() {
-            Some(drawable) => drawable,
-            None => return Ok(()),
-        };
-
-        let mut draw_state = drawable.state();
-        draw_state.reset();
-        draw_state.force_draw = true;
-        draw_state.move_cursor = move_cursor;
-        draw_state.alignment = alignment;
-
-        drop(draw_state);
-        drawable.draw()
+        self.state.write().unwrap().clear()
     }
 }
 
