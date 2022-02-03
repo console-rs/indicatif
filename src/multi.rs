@@ -1,7 +1,7 @@
 use std::io;
 use std::sync::{Arc, RwLock};
 
-use crate::draw_target::{ProgressDrawState, ProgressDrawTarget};
+use crate::draw_target::{DrawStateWrapper, ProgressDrawState, ProgressDrawTarget};
 use crate::progress_bar::ProgressBar;
 
 /// Manages multiple progress bars from different threads
@@ -163,7 +163,7 @@ impl MultiProgress {
 pub(crate) struct MultiProgressState {
     /// The collection of states corresponding to progress bars
     /// the state is None for bars that have not yet been drawn or have been removed
-    pub(crate) draw_states: Vec<Option<ProgressDrawState>>,
+    draw_states: Vec<Option<ProgressDrawState>>,
     /// Set of removed bars, should have corresponding `None` elements in the `draw_states` vector
     free_set: Vec<usize>,
     /// Indices to the `draw_states` to maintain correct visual order
@@ -175,7 +175,7 @@ pub(crate) struct MultiProgressState {
     /// Controls how the multi progress is aligned if some of its progress bars get removed, default is `Top`
     alignment: MultiProgressAlignment,
     /// Orphaned lines are carried over across draw operations
-    pub(crate) orphan_lines: Vec<String>,
+    orphan_lines: Vec<String>,
 }
 
 impl MultiProgressState {
@@ -223,6 +223,24 @@ impl MultiProgressState {
 
         drop(draw_state);
         drawable.draw()
+    }
+
+    pub(crate) fn draw_state<'a>(
+        &'a mut self,
+        idx: usize,
+        force_draw: &'a mut bool,
+    ) -> DrawStateWrapper<'a> {
+        let (states, orphans) = (&mut self.draw_states, &mut self.orphan_lines);
+        let state = match states.get_mut(idx) {
+            Some(Some(draw_state)) => draw_state,
+            Some(inner) => {
+                *inner = Some(ProgressDrawState::new(Vec::new(), false));
+                inner.as_mut().unwrap()
+            }
+            _ => unreachable!(),
+        };
+
+        DrawStateWrapper::for_multi(state, orphans, force_draw)
     }
 
     pub(crate) fn width(&self) -> usize {
