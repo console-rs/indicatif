@@ -26,7 +26,7 @@ structopt = "0.3"
 tokio = { version = "1.0", features = ["time", "rt"] }
 
 [features]
-default = []
+default = ["unicode-width", "console/unicode-width"]
 improved_unicode = ["unicode-segmentation", "unicode-width", "console/unicode-width"]
 
 # Legacy alias for `rayon`
