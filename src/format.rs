@@ -164,7 +164,10 @@ mod tests {
 
     #[test]
     fn human_duration_less_than_one_second() {
-        assert_eq!("0 seconds", format!("{}", HumanDuration(Duration::ZERO)));
+        assert_eq!(
+            "0 seconds",
+            format!("{}", HumanDuration(Duration::from_secs(0)))
+        );
         assert_eq!("0 seconds", format!("{}", HumanDuration(MILLI)));
         assert_eq!("0 seconds", format!("{}", HumanDuration(499 * MILLI)));
         assert_eq!("1 second", format!("{}", HumanDuration(500 * MILLI)));
