@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::fmt;
 use std::io;
+use std::sync::MutexGuard;
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -16,7 +17,7 @@ use crate::{ProgressBarIter, ProgressIterator};
 /// just increments the refcount (so the original and its clone share the same state).
 #[derive(Clone)]
 pub struct ProgressBar {
-    pub(crate) state: Arc<Mutex<BarState>>,
+    state: Arc<Mutex<BarState>>,
 }
 
 impl fmt::Debug for ProgressBar {
@@ -581,6 +582,15 @@ impl ProgressBar {
     /// Returns the current elapsed time
     pub fn elapsed(&self) -> Duration {
         self.state.lock().unwrap().state.started.elapsed()
+    }
+
+    /// Index in the `MultiState`
+    pub(crate) fn index(&self) -> Option<usize> {
+        self.state().draw_target.remote().map(|(_, idx)| idx)
+    }
+
+    pub(crate) fn state(&self) -> MutexGuard<'_, BarState> {
+        self.state.lock().unwrap()
     }
 }
 
