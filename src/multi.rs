@@ -142,7 +142,7 @@ impl MultiProgress {
     /// If the passed progress bar does not satisfy the condition above,
     /// the `remove` method does nothing.
     pub fn remove(&self, pb: &ProgressBar) {
-        let idx = match &pb.state.lock().unwrap().draw_target.remote() {
+        let idx = match &pb.state().draw_target.remote() {
             Some((state, idx)) => {
                 // Check that this progress bar is owned by the current MultiProgress.
                 assert!(Arc::ptr_eq(&self.state, state));
@@ -267,12 +267,12 @@ impl MultiProgressState {
                 self.ordering.insert(pos, idx);
             }
             InsertLocation::After(after) => {
-                let after_idx = after.state.lock().unwrap().draw_target.remote().unwrap().1;
+                let after_idx = after.index().unwrap();
                 let pos = self.ordering.iter().position(|i| *i == after_idx).unwrap();
                 self.ordering.insert(pos + 1, idx);
             }
             InsertLocation::Before(before) => {
-                let before_idx = before.state.lock().unwrap().draw_target.remote().unwrap().1;
+                let before_idx = before.index().unwrap();
                 let pos = self.ordering.iter().position(|i| *i == before_idx).unwrap();
                 self.ordering.insert(pos, idx);
             }
@@ -417,20 +417,20 @@ mod tests {
             Some(1) => {
                 assert_eq!(state.ordering, vec![0, 2, 3]);
                 assert!(state.draw_states[1].is_none());
-                assert_eq!(extract_index(&p4), 2);
+                assert_eq!(p4.index().unwrap(), 2);
             }
             Some(2) => {
                 assert_eq!(state.ordering, vec![0, 1, 3]);
                 assert!(state.draw_states[2].is_none());
-                assert_eq!(extract_index(&p4), 1);
+                assert_eq!(p4.index().unwrap(), 1);
             }
             _ => unreachable!(),
         }
 
-        assert_eq!(extract_index(&p0), 0);
-        assert_eq!(extract_index(&p1), 1);
-        assert_eq!(extract_index(&p2), 2);
-        assert_eq!(extract_index(&p3), 3);
+        assert_eq!(p0.index().unwrap(), 0);
+        assert_eq!(p1.index().unwrap(), 1);
+        assert_eq!(p2.index().unwrap(), 2);
+        assert_eq!(p3.index().unwrap(), 3);
     }
 
     #[test]
@@ -444,11 +444,11 @@ mod tests {
 
         let state = mp.state.read().unwrap();
         assert_eq!(state.ordering, vec![4, 0, 1, 3, 2]);
-        assert_eq!(extract_index(&p0), 0);
-        assert_eq!(extract_index(&p1), 1);
-        assert_eq!(extract_index(&p2), 2);
-        assert_eq!(extract_index(&p3), 3);
-        assert_eq!(extract_index(&p4), 4);
+        assert_eq!(p0.index().unwrap(), 0);
+        assert_eq!(p1.index().unwrap(), 1);
+        assert_eq!(p2.index().unwrap(), 2);
+        assert_eq!(p3.index().unwrap(), 3);
+        assert_eq!(p4.index().unwrap(), 4);
     }
 
     #[test]
@@ -462,11 +462,11 @@ mod tests {
 
         let state = mp.state.read().unwrap();
         assert_eq!(state.ordering, vec![0, 4, 1, 2, 3]);
-        assert_eq!(extract_index(&p0), 0);
-        assert_eq!(extract_index(&p1), 1);
-        assert_eq!(extract_index(&p2), 2);
-        assert_eq!(extract_index(&p3), 3);
-        assert_eq!(extract_index(&p4), 4);
+        assert_eq!(p0.index().unwrap(), 0);
+        assert_eq!(p1.index().unwrap(), 1);
+        assert_eq!(p2.index().unwrap(), 2);
+        assert_eq!(p3.index().unwrap(), 3);
+        assert_eq!(p4.index().unwrap(), 4);
     }
 
     #[test]
@@ -480,11 +480,11 @@ mod tests {
 
         let state = mp.state.read().unwrap();
         assert_eq!(state.ordering, vec![3, 0, 1, 4, 2]);
-        assert_eq!(extract_index(&p0), 0);
-        assert_eq!(extract_index(&p1), 1);
-        assert_eq!(extract_index(&p2), 2);
-        assert_eq!(extract_index(&p3), 3);
-        assert_eq!(extract_index(&p4), 4);
+        assert_eq!(p0.index().unwrap(), 0);
+        assert_eq!(p1.index().unwrap(), 1);
+        assert_eq!(p2.index().unwrap(), 2);
+        assert_eq!(p3.index().unwrap(), 3);
+        assert_eq!(p4.index().unwrap(), 4);
     }
 
     #[test]
@@ -500,13 +500,13 @@ mod tests {
 
         let state = mp.state.read().unwrap();
         assert_eq!(state.ordering, vec![3, 5, 4, 0, 6, 1, 2]);
-        assert_eq!(extract_index(&p0), 0);
-        assert_eq!(extract_index(&p1), 1);
-        assert_eq!(extract_index(&p2), 2);
-        assert_eq!(extract_index(&p3), 3);
-        assert_eq!(extract_index(&p4), 4);
-        assert_eq!(extract_index(&p5), 5);
-        assert_eq!(extract_index(&p6), 6);
+        assert_eq!(p0.index().unwrap(), 0);
+        assert_eq!(p1.index().unwrap(), 1);
+        assert_eq!(p2.index().unwrap(), 2);
+        assert_eq!(p3.index().unwrap(), 3);
+        assert_eq!(p4.index().unwrap(), 4);
+        assert_eq!(p5.index().unwrap(), 5);
+        assert_eq!(p6.index().unwrap(), 6);
     }
 
     #[test]
@@ -528,11 +528,7 @@ mod tests {
         assert_eq!(state.free_set.last(), Some(&0));
 
         assert_eq!(state.ordering, vec![1]);
-        assert_eq!(extract_index(&p0), 0);
-        assert_eq!(extract_index(&p1), 1);
-    }
-
-    fn extract_index(pb: &ProgressBar) -> usize {
-        pb.state.lock().unwrap().draw_target.remote().unwrap().1
+        assert_eq!(p0.index().unwrap(), 0);
+        assert_eq!(p1.index().unwrap(), 1);
     }
 }
