@@ -223,6 +223,7 @@ mod progress_bar;
 mod rayon;
 mod state;
 mod style;
+mod term_like;
 
 pub use crate::draw_target::ProgressDrawTarget;
 pub use crate::format::{
@@ -232,6 +233,7 @@ pub use crate::iter::{ProgressBarIter, ProgressIterator};
 pub use crate::multi::{MultiProgress, MultiProgressAlignment};
 pub use crate::progress_bar::{ProgressBar, WeakProgressBar};
 pub use crate::style::{ProgressFinish, ProgressStyle};
+pub use crate::term_like::TermLike;
 
 #[cfg(feature = "rayon")]
 pub use crate::rayon::ParallelProgressIterator;
