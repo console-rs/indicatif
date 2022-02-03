@@ -191,6 +191,44 @@ impl MultiProgressState {
         }
     }
 
+    pub(crate) fn draw(&mut self, force_draw: bool) -> io::Result<()> {
+        // the rest from here is only drawing, we can skip it.
+        if self.draw_target.is_hidden() {
+            return Ok(());
+        }
+
+        let mut drawable = match self.draw_target.drawable() {
+            Some(drawable) => drawable,
+            None => return Ok(()),
+        };
+
+        let mut draw_state = drawable.state();
+        draw_state.reset();
+
+        // Make orphaned lines appear at the top, so they can be properly
+        // forgotten.
+        let orphan_lines_count = self.orphan_lines.len();
+        draw_state.lines.append(&mut self.orphan_lines);
+
+        for index in self.ordering.iter() {
+            if let Some(state) = &self.draw_states[*index] {
+                draw_state.lines.extend_from_slice(&state.lines[..]);
+            }
+        }
+
+        draw_state.orphan_lines = orphan_lines_count;
+        draw_state.force_draw = force_draw || orphan_lines_count > 0;
+        draw_state.move_cursor = self.move_cursor;
+        draw_state.alignment = self.alignment;
+
+        drop(draw_state);
+        drawable.draw()
+    }
+
+    pub(crate) fn width(&self) -> usize {
+        self.draw_target.width()
+    }
+
     fn insert(&mut self, location: InsertLocation) -> usize {
         let idx = match self.free_set.pop() {
             Some(idx) => {
@@ -250,48 +288,6 @@ impl MultiProgressState {
         drawable.draw()
     }
 
-    pub(crate) fn width(&self) -> usize {
-        self.draw_target.width()
-    }
-
-    pub(crate) fn draw(&mut self, force_draw: bool) -> io::Result<()> {
-        // the rest from here is only drawing, we can skip it.
-        if self.draw_target.is_hidden() {
-            return Ok(());
-        }
-
-        let mut drawable = match self.draw_target.drawable() {
-            Some(drawable) => drawable,
-            None => return Ok(()),
-        };
-
-        let mut draw_state = drawable.state();
-        draw_state.reset();
-
-        // Make orphaned lines appear at the top, so they can be properly
-        // forgotten.
-        let orphan_lines_count = self.orphan_lines.len();
-        draw_state.lines.append(&mut self.orphan_lines);
-
-        for index in self.ordering.iter() {
-            if let Some(state) = &self.draw_states[*index] {
-                draw_state.lines.extend_from_slice(&state.lines[..]);
-            }
-        }
-
-        draw_state.orphan_lines = orphan_lines_count;
-        draw_state.force_draw = force_draw || orphan_lines_count > 0;
-        draw_state.move_cursor = self.move_cursor;
-        draw_state.alignment = self.alignment;
-
-        drop(draw_state);
-        drawable.draw()
-    }
-
-    fn len(&self) -> usize {
-        self.draw_states.len() - self.free_set.len()
-    }
-
     fn remove_idx(&mut self, idx: usize) {
         if self.free_set.contains(&idx) {
             return;
@@ -305,6 +301,10 @@ impl MultiProgressState {
             self.len() == self.ordering.len(),
             "Draw state is inconsistent"
         );
+    }
+
+    fn len(&self) -> usize {
+        self.draw_states.len() - self.free_set.len()
     }
 }
 
