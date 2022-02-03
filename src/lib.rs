@@ -216,6 +216,8 @@
 
 mod draw_target;
 mod format;
+#[cfg(feature = "in_memory")]
+mod in_memory;
 mod iter;
 mod multi;
 mod progress_bar;
@@ -229,6 +231,8 @@ pub use crate::draw_target::ProgressDrawTarget;
 pub use crate::format::{
     BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,
 };
+#[cfg(feature = "in_memory")]
+pub use crate::in_memory::InMemoryTerm;
 pub use crate::iter::{ProgressBarIter, ProgressIterator};
 pub use crate::multi::{MultiProgress, MultiProgressAlignment};
 pub use crate::progress_bar::{ProgressBar, WeakProgressBar};
