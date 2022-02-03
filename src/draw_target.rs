@@ -184,15 +184,12 @@ impl ProgressDrawTarget {
             ProgressDrawTargetKind::Term { .. } => {}
             ProgressDrawTargetKind::Remote { idx, ref state, .. } => {
                 let state = state.write().unwrap();
-                let mut drawable = Drawable::Multi {
+                let _ = Drawable::Multi {
                     state,
                     idx,
                     force_draw: false,
-                };
-
-                let draw_state = drawable.state(true);
-                drop(draw_state);
-                let _ = drawable.draw();
+                }
+                .clear();
             }
             ProgressDrawTargetKind::Hidden => {}
         };
@@ -248,6 +245,12 @@ impl<'a> Drawable<'a> {
         state.reset();
         state.force_draw = force_draw;
         state
+    }
+
+    pub(crate) fn clear(mut self) -> io::Result<()> {
+        let state = self.state(true);
+        drop(state);
+        self.draw()
     }
 
     pub(crate) fn draw(self) -> io::Result<()> {

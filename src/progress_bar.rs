@@ -436,11 +436,8 @@ impl ProgressBar {
     /// ```
     pub fn suspend<F: FnOnce() -> R, R>(&self, f: F) -> R {
         let mut state = self.state.lock().unwrap();
-
-        if let Some(mut drawable) = state.draw_target.drawable() {
-            let draw_state = drawable.state(true);
-            drop(draw_state);
-            let _ = drawable.draw();
+        if let Some(drawable) = state.draw_target.drawable() {
+            let _ = drawable.clear();
         }
 
         let ret = f();
