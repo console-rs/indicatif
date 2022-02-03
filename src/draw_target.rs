@@ -190,9 +190,7 @@ impl ProgressDrawTarget {
                     force_draw: false,
                 };
 
-                let mut draw_state = drawable.state();
-                draw_state.reset();
-                draw_state.force_draw = true;
+                let draw_state = drawable.state(true);
                 drop(draw_state);
                 let _ = drawable.draw();
             }
@@ -237,15 +235,19 @@ pub(crate) enum Drawable<'a> {
 }
 
 impl<'a> Drawable<'a> {
-    pub(crate) fn state(&mut self) -> DrawStateWrapper<'_> {
-        match self {
+    pub(crate) fn state(&mut self, force_draw: bool) -> DrawStateWrapper<'_> {
+        let mut state = match self {
             Drawable::Term { draw_state, .. } => DrawStateWrapper::for_term(draw_state),
             Drawable::Multi {
                 state,
                 idx,
                 force_draw,
             } => state.draw_state(*idx, force_draw),
-        }
+        };
+
+        state.reset();
+        state.force_draw = force_draw;
+        state
     }
 
     pub(crate) fn draw(self) -> io::Result<()> {
@@ -351,7 +353,7 @@ pub(crate) struct ProgressDrawState {
     /// The number of lines that shouldn't be reaped by the next tick.
     pub(crate) orphan_lines: usize,
     /// True if drawing should be forced.
-    pub(crate) force_draw: bool,
+    force_draw: bool,
     /// True if we should move the cursor up when possible instead of clearing lines.
     pub(crate) move_cursor: bool,
     /// Controls how the multi progress is aligned if some of its progress bars get removed, default is `Top`
@@ -415,7 +417,7 @@ impl ProgressDrawState {
         Ok(())
     }
 
-    pub(crate) fn reset(&mut self) {
+    fn reset(&mut self) {
         self.lines.clear();
         self.orphan_lines = 0;
         self.force_draw = false;
