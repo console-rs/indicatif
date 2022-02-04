@@ -13,22 +13,20 @@ jobs:
         rust: [stable, beta, 1.51]
         features: [--all-features, ""]
         include:
-          - rust: 1.51
-            os: ubuntu-latest
+          - os: ubuntu-latest
+            rust: stable
+            features: ""
+          - os: ubuntu-latest
+            rust: beta
+            features: --all-features
+          - os: ubuntu-latest
+            rust: 1.51
             features: --features improved_unicode
-          - rust: 1.51
-            os: macos-latest
-            features: --features improved_unicode
-          - rust: 1.51
-            os: windows-latest
-            features: --features improved_unicode
-        exclude:
           - os: macos-latest
-            rust: beta
+            rust: stable
+            features: --all-features
           - os: windows-latest
-            rust: beta
-          # Can't use vt100 with 1.51 since it is 2021.1 edition
-          - rust: 1.51
+            rust: stable
             features: --all-features
 
     runs-on: ${{ matrix.os }}
