@@ -13,6 +13,15 @@ jobs:
         rust: [stable, beta, 1.51]
         features: [--all-features, ""]
         exclude:
+          - os: ubuntu-latest
+            rust: beta
+            features: ""
+          - os: ubuntu-latest
+            rust: 1.51
+            features: --all-features
+          - os: ubuntu-latest
+            rust: 1.51
+            features: ""
           - os: macos-latest
             rust: stable
             features: ""
@@ -43,6 +52,10 @@ jobs:
           - os: windows-latest
             rust: 1.51
             features: ""
+        include:
+          - os: ubuntu-latest
+            rust: 1.51
+            features: --features improved_unicode
 
     runs-on: ${{ matrix.os }}
 
