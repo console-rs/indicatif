@@ -454,7 +454,7 @@ impl ProgressDrawState {
                 // Keep the cursor on the right terminal side
                 // So that next user writes/prints will happen on the next line
                 let line_width = console::measure_text_width(line);
-                term.write_str(&" ".repeat(term.width() - line_width))?;
+                term.write_str(&" ".repeat(term.width().saturating_sub(line_width)))?;
             }
         }
 
