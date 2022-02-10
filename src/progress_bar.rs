@@ -155,7 +155,8 @@ impl ProgressBar {
     ///
     /// By default, the progress bar will redraw whenever its state advances. This setting is
     /// helpful in situations where the overhead of redrawing the progress bar dominates the
-    /// computation whose progress is being reported.
+    /// computation whose progress is being reported. Setting the draw delta will override
+    /// the draw rate, setting it to `0`.
     ///
     /// If `n` is greater than 0, operations that change the progress bar such as
     /// [`ProgressBar::tick()`], [`ProgressBar::set_message()`] and [`ProgressBar::set_length()`]
@@ -173,12 +174,17 @@ impl ProgressBar {
     pub fn set_draw_delta(&self, n: u64) {
         let mut state = self.state.lock().unwrap();
         state.state.draw_delta = n;
+        state.state.draw_rate = 0;
         state.state.draw_next = state.state.pos.saturating_add(state.state.draw_delta);
     }
 
     /// Sets the refresh rate of progress bar to `n` updates per seconds
     ///
-    /// This is similar to `set_draw_delta` but automatically adapts to a constant refresh rate
+    /// By default, the progress bar will redraw at most 100 times per second. To disable
+    /// this behavior, set the draw rate to 0. The draw rate will be ignored if the draw
+    /// delta is set.
+    ///
+    /// This setting automatically adapts the progress bar to a constant refresh rate
     /// regardless of how consistent the progress is.
     ///
     /// This parameter takes precedence on `set_draw_delta` if different from 0.

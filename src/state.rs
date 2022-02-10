@@ -168,7 +168,7 @@ impl ProgressState {
             len,
             tick: 0,
             draw_delta: 0,
-            draw_rate: 0,
+            draw_rate: 100,
             draw_next: 0,
             status: Status::InProgress,
             started: Instant::now(),
