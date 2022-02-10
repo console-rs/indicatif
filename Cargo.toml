@@ -30,6 +30,3 @@ tokio = { version = "1", features = ["time", "rt"] }
 default = ["unicode-width", "console/unicode-width"]
 improved_unicode = ["unicode-segmentation", "unicode-width", "console/unicode-width"]
 in_memory = ["vt100"]
-
-# Legacy alias for `rayon`
-with_rayon = ["rayon"]
