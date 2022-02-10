@@ -156,7 +156,7 @@ impl ProgressDrawTarget {
     }
 
     /// Apply the given draw state (draws it).
-    pub(crate) fn drawable(&mut self) -> Option<Drawable<'_>> {
+    pub(crate) fn drawable(&mut self, force_draw: bool) -> Option<Drawable<'_>> {
         match &mut self.kind {
             ProgressDrawTargetKind::Term {
                 term,
@@ -169,7 +169,8 @@ impl ProgressDrawTarget {
                     .map(|b| b.try_add_work())
                     .unwrap_or(true);
 
-                match draw_state.force_draw || has_capacity {
+                draw_state.force_draw = force_draw;
+                match force_draw || has_capacity {
                     true => Some(Drawable::Term {
                         term,
                         last_line_count,
@@ -183,18 +184,21 @@ impl ProgressDrawTarget {
                 Some(Drawable::Multi {
                     idx: *idx,
                     state,
-                    force_draw: false,
+                    force_draw,
                 })
             }
             ProgressDrawTargetKind::TermLike {
                 inner,
                 last_line_count,
                 draw_state,
-            } => Some(Drawable::TermLike {
-                term_like: &**inner,
-                last_line_count,
-                draw_state,
-            }),
+            } => {
+                draw_state.force_draw = force_draw;
+                Some(Drawable::TermLike {
+                    term_like: &**inner,
+                    last_line_count,
+                    draw_state,
+                })
+            }
             // Hidden, finished, or no need to refresh yet
             _ => None,
         }
@@ -209,7 +213,7 @@ impl ProgressDrawTarget {
                 let _ = Drawable::Multi {
                     state,
                     idx,
-                    force_draw: false,
+                    force_draw: true,
                 }
                 .clear();
             }
@@ -265,24 +269,19 @@ pub(crate) enum Drawable<'a> {
 }
 
 impl<'a> Drawable<'a> {
-    pub(crate) fn state(&mut self, force_draw: bool) -> DrawStateWrapper<'_> {
+    pub(crate) fn state(&mut self) -> DrawStateWrapper<'_> {
         let mut state = match self {
             Drawable::Term { draw_state, .. } => DrawStateWrapper::for_term(draw_state),
-            Drawable::Multi {
-                state,
-                idx,
-                force_draw,
-            } => state.draw_state(*idx, force_draw),
+            Drawable::Multi { state, idx, .. } => state.draw_state(*idx),
             Drawable::TermLike { draw_state, .. } => DrawStateWrapper::for_term(draw_state),
         };
 
         state.reset();
-        state.force_draw = force_draw;
         state
     }
 
     pub(crate) fn clear(mut self) -> io::Result<()> {
-        let state = self.state(true);
+        let state = self.state();
         drop(state);
         self.draw()
     }
@@ -310,22 +309,24 @@ impl<'a> Drawable<'a> {
 
 pub(crate) struct DrawStateWrapper<'a> {
     state: &'a mut ProgressDrawState,
-    extra: Option<(&'a mut Vec<String>, &'a mut bool)>,
+    orphan_lines: Option<&'a mut Vec<String>>,
 }
 
 impl<'a> DrawStateWrapper<'a> {
     pub(crate) fn for_term(state: &'a mut ProgressDrawState) -> Self {
-        Self { state, extra: None }
+        Self {
+            state,
+            orphan_lines: None,
+        }
     }
 
     pub(crate) fn for_multi(
         state: &'a mut ProgressDrawState,
         orphan_lines: &'a mut Vec<String>,
-        force_draw: &'a mut bool,
     ) -> Self {
         Self {
             state,
-            extra: Some((orphan_lines, force_draw)),
+            orphan_lines: Some(orphan_lines),
         }
     }
 }
@@ -346,10 +347,9 @@ impl std::ops::DerefMut for DrawStateWrapper<'_> {
 
 impl Drop for DrawStateWrapper<'_> {
     fn drop(&mut self) {
-        if let Some((orphan_lines, force_draw)) = &mut self.extra {
-            orphan_lines.extend(self.state.lines.drain(..self.state.orphan_lines));
+        if let Some(orphaned) = &mut self.orphan_lines {
+            orphaned.extend(self.state.lines.drain(..self.state.orphan_lines));
             self.state.orphan_lines = 0;
-            **force_draw = self.state.force_draw;
         }
     }
 }
@@ -466,6 +466,5 @@ impl ProgressDrawState {
     fn reset(&mut self) {
         self.lines.clear();
         self.orphan_lines = 0;
-        self.force_draw = false;
     }
 }

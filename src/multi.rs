@@ -167,19 +167,20 @@ impl MultiProgressState {
         }
     }
 
-    pub(crate) fn draw(&mut self, force_draw: bool) -> io::Result<()> {
+    pub(crate) fn draw(&mut self, mut force_draw: bool) -> io::Result<()> {
         // the rest from here is only drawing, we can skip it.
         if self.draw_target.is_hidden() {
             return Ok(());
         }
 
-        let mut drawable = match self.draw_target.drawable() {
+        let orphan_lines_count = self.orphan_lines.len();
+        force_draw |= orphan_lines_count > 0;
+        let mut drawable = match self.draw_target.drawable(force_draw) {
             Some(drawable) => drawable,
             None => return Ok(()),
         };
 
-        let orphan_lines_count = self.orphan_lines.len();
-        let mut draw_state = drawable.state(force_draw || orphan_lines_count > 0);
+        let mut draw_state = drawable.state();
         draw_state.orphan_lines = orphan_lines_count;
 
         // Make orphaned lines appear at the top, so they can be properly forgotten.
@@ -195,11 +196,7 @@ impl MultiProgressState {
         drawable.draw()
     }
 
-    pub(crate) fn draw_state<'a>(
-        &'a mut self,
-        idx: usize,
-        force_draw: &'a mut bool,
-    ) -> DrawStateWrapper<'a> {
+    pub(crate) fn draw_state(&mut self, idx: usize) -> DrawStateWrapper<'_> {
         let (states, orphans) = (&mut self.draw_states, &mut self.orphan_lines);
         let state = match states.get_mut(idx) {
             Some(Some(draw_state)) => draw_state,
@@ -213,7 +210,7 @@ impl MultiProgressState {
             _ => unreachable!(),
         };
 
-        DrawStateWrapper::for_multi(state, orphans, force_draw)
+        DrawStateWrapper::for_multi(state, orphans)
     }
 
     pub(crate) fn width(&self) -> usize {
@@ -263,7 +260,7 @@ impl MultiProgressState {
     }
 
     fn clear(&mut self) -> io::Result<()> {
-        match self.draw_target.drawable() {
+        match self.draw_target.drawable(true) {
             Some(drawable) => drawable.clear(),
             None => Ok(()),
         }

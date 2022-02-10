@@ -101,21 +101,22 @@ impl BarState {
         self.draw(true).ok();
     }
 
-    pub(crate) fn draw(&mut self, force_draw: bool) -> io::Result<()> {
+    pub(crate) fn draw(&mut self, mut force_draw: bool) -> io::Result<()> {
         // we can bail early if the draw target is hidden.
         if self.draw_target.is_hidden() {
             return Ok(());
         }
 
         let width = self.draw_target.width();
-        let mut drawable = match self.draw_target.drawable() {
+        force_draw |= self.state.is_finished();
+        let mut drawable = match self.draw_target.drawable(force_draw) {
             Some(drawable) => drawable,
             None => return Ok(()),
         };
 
         // `|| self.is_finished()` should not be needed here, but we used to always for draw for
         // finished progress bar, so it's kept as to not cause compatibility issues in weird cases.
-        let mut draw_state = drawable.state(force_draw || self.state.is_finished());
+        let mut draw_state = drawable.state();
 
         if self.state.should_render() {
             self.state

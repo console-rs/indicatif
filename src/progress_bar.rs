@@ -247,12 +247,12 @@ impl ProgressBar {
         let (draw_target, state) = (&mut state.draw_target, &state.state);
         let width = draw_target.width();
 
-        let mut drawable = match draw_target.drawable() {
+        let mut drawable = match draw_target.drawable(true) {
             Some(drawable) => drawable,
             None => return,
         };
 
-        let mut draw_state = drawable.state(true);
+        let mut draw_state = drawable.state();
         draw_state.move_cursor = false;
         draw_state.alignment = Default::default();
 
@@ -437,7 +437,7 @@ impl ProgressBar {
     /// ```
     pub fn suspend<F: FnOnce() -> R, R>(&self, f: F) -> R {
         let mut state = self.state.lock().unwrap();
-        if let Some(drawable) = state.draw_target.drawable() {
+        if let Some(drawable) = state.draw_target.drawable(true) {
             let _ = drawable.clear();
         }
 
