@@ -12,13 +12,13 @@ color support, but there are bigger plans for the future of this!
 ## Examples
 
 [examples/yarnish.rs](examples/yarnish.rs)
-<img src="https://github.com/mitsuhiko/indicatif/blob/main/screenshots/yarn.gif?raw=true">
+<img src="https://github.com/console-rs/indicatif/blob/main/screenshots/yarn.gif?raw=true">
 
 [examples/download.rs](examples/download.rs)
-<img src="https://github.com/mitsuhiko/indicatif/blob/main/screenshots/download.gif?raw=true">
+<img src="https://github.com/console-rs/indicatif/blob/main/screenshots/download.gif?raw=true">
 
 [examples/multi.rs](examples/multi.rs)
-<img src="https://github.com/mitsuhiko/indicatif/blob/main/screenshots/multi-progress.gif?raw=true">
+<img src="https://github.com/console-rs/indicatif/blob/main/screenshots/multi-progress.gif?raw=true">
 
 [examples/single.rs](examples/single.rs)
-<img src="https://github.com/mitsuhiko/indicatif/blob/main/screenshots/single.gif?raw=true">
+<img src="https://github.com/console-rs/indicatif/blob/main/screenshots/single.gif?raw=true">

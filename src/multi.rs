@@ -352,7 +352,7 @@ mod tests {
         let pb = ProgressBar::new(10);
         let mpb = MultiProgress::new();
         // This clone call is required to trigger a now fixed bug.
-        // See <https://github.com/mitsuhiko/indicatif/pull/141> for context
+        // See <https://github.com/console-rs/indicatif/pull/141> for context
         #[allow(clippy::redundant_clone)]
         mpb.add(pb.clone());
     }
