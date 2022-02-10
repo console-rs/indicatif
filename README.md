@@ -1,9 +1,8 @@
 # indicatif
 
-[![build status](https://travis-ci.org/mitsuhiko/indicatif.svg?branch=main)](https://travis-ci.org/mitsuhiko/indicatif)
+[![Documentation](https://docs.rs/indicatif/badge.svg)](https://docs.rs/indicatif/)
 [![Crates.io](https://img.shields.io/crates/v/indicatif.svg)](https://crates.io/crates/indicatif)
-
-[Documentation](https://docs.rs/indicatif)
+[![Build status](https://github.com/console-rs/indicatif/workflows/CI/badge.svg)](https://github.com/console-rs/indicatif/actions/workflows/rust.yml)
 
 A Rust library for indicating progress in command line applications to users.
 
