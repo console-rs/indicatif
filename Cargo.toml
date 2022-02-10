@@ -1,7 +1,7 @@
 [package]
 name = "indicatif"
 description = "A progress bar and cli reporting library for Rust"
-version = "0.17.0-rc.2"
+version = "0.17.0-rc.3"
 keywords = ["cli", "progress", "pb", "colors", "progressbar"]
 categories = ["command-line-interface"]
 license = "MIT"
