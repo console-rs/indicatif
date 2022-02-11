@@ -7,7 +7,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::draw_target::ProgressDrawTarget;
-use crate::state::{BarState, ProgressState, Status};
+use crate::state::{BarState, Limit, ProgressState, Status};
 use crate::style::ProgressStyle;
 use crate::{ProgressBarIter, ProgressIterator};
 
@@ -171,11 +171,9 @@ impl ProgressBar {
     /// ```
     ///
     /// Note that `ProgressDrawTarget` may impose additional buffering of redraws.
-    pub fn set_draw_delta(&self, n: u64) {
+    pub fn set_draw_delta(&self, gap: u64) {
         let mut state = self.state.lock().unwrap();
-        state.state.draw_delta = n;
-        state.state.draw_rate = 0;
-        state.state.draw_next = state.state.pos.saturating_add(state.state.draw_delta);
+        state.state.draw_limit = Limit::Units(gap);
     }
 
     /// Sets the refresh rate of progress bar to `n` updates per seconds
@@ -199,11 +197,8 @@ impl ProgressBar {
     /// Note that the [`ProgressDrawTarget`] may impose additional buffering of redraws.
     pub fn set_draw_rate(&self, n: u64) {
         let mut state = self.state.lock().unwrap();
-        state.state.draw_rate = n;
-        state.state.draw_next = state
-            .state
-            .pos
-            .saturating_add((state.state.per_sec() / n as f64) as u64);
+        let interval = Duration::from_nanos(1_000_000_000 / n);
+        state.state.draw_limit = Limit::Rate(interval);
     }
 
     /// Manually ticks the spinner or progress bar
@@ -279,7 +274,6 @@ impl ProgressBar {
     /// Sets the position of the progress bar
     pub fn set_position(&self, pos: u64) {
         self.update_and_draw(Instant::now(), |state| {
-            state.draw_next = pos;
             state.pos = pos;
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
@@ -359,8 +353,8 @@ impl ProgressBar {
         self.reset_eta();
         self.reset_elapsed();
         self.update_and_draw(Instant::now(), |state| {
-            state.draw_next = 0;
             state.pos = 0;
+            state.last_draw = None;
             state.status = Status::InProgress;
         });
     }
