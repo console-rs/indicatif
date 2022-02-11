@@ -156,7 +156,7 @@ impl ProgressDrawTarget {
     }
 
     /// Apply the given draw state (draws it).
-    pub(crate) fn drawable(&mut self, force_draw: bool) -> Option<Drawable<'_>> {
+    pub(crate) fn drawable(&mut self, force_draw: bool, now: Instant) -> Option<Drawable<'_>> {
         match &mut self.kind {
             ProgressDrawTargetKind::Term {
                 term,
@@ -166,7 +166,7 @@ impl ProgressDrawTarget {
             } => {
                 let has_capacity = leaky_bucket
                     .as_mut()
-                    .map(|b| b.try_add_work())
+                    .map(|b| b.try_add_work(now))
                     .unwrap_or(true);
 
                 draw_state.force_draw = force_draw;
@@ -185,6 +185,7 @@ impl ProgressDrawTarget {
                     idx: *idx,
                     state,
                     force_draw,
+                    now,
                 })
             }
             ProgressDrawTargetKind::TermLike {
@@ -205,7 +206,7 @@ impl ProgressDrawTarget {
     }
 
     /// Properly disconnects from the draw target
-    pub(crate) fn disconnect(&self) {
+    pub(crate) fn disconnect(&self, now: Instant) {
         match self.kind {
             ProgressDrawTargetKind::Term { .. } => {}
             ProgressDrawTargetKind::Remote { idx, ref state, .. } => {
@@ -214,6 +215,7 @@ impl ProgressDrawTarget {
                     state,
                     idx,
                     force_draw: true,
+                    now,
                 }
                 .clear();
             }
@@ -260,6 +262,7 @@ pub(crate) enum Drawable<'a> {
         state: RwLockWriteGuard<'a, MultiProgressState>,
         idx: usize,
         force_draw: bool,
+        now: Instant,
     },
     TermLike {
         term_like: &'a dyn TermLike,
@@ -296,8 +299,9 @@ impl<'a> Drawable<'a> {
             Drawable::Multi {
                 mut state,
                 force_draw,
+                now,
                 ..
-            } => state.draw(force_draw),
+            } => state.draw(force_draw, now),
             Drawable::TermLike {
                 term_like,
                 last_line_count,
@@ -365,8 +369,8 @@ struct LeakyBucket {
 impl LeakyBucket {
     /// try to add some work to the bucket
     /// return false if the bucket is already full and the work should be skipped
-    fn try_add_work(&mut self) -> bool {
-        self.leak();
+    fn try_add_work(&mut self, now: Instant) -> bool {
+        self.leak(now);
         if self.bucket < MAX_GROUP_SIZE {
             self.bucket += 1.0;
             true
@@ -375,13 +379,13 @@ impl LeakyBucket {
         }
     }
 
-    fn leak(&mut self) {
-        let ticks = self.last_update.elapsed().as_secs_f64() * self.leak_rate;
+    fn leak(&mut self, now: Instant) {
+        let ticks = (now - self.last_update).as_secs_f64() * self.leak_rate;
         self.bucket -= ticks;
         if self.bucket < 0.0 {
             self.bucket = 0.0;
         }
-        self.last_update = Instant::now();
+        self.last_update = now;
     }
 }
 

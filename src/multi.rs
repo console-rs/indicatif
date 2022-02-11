@@ -1,5 +1,6 @@
 use std::io;
 use std::sync::{Arc, RwLock};
+use std::time::Instant;
 
 use crate::draw_target::{DrawStateWrapper, ProgressDrawState, ProgressDrawTarget};
 use crate::progress_bar::ProgressBar;
@@ -36,7 +37,7 @@ impl MultiProgress {
     /// Sets a different draw target for the multiprogress bar.
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
         let mut state = self.state.write().unwrap();
-        state.draw_target.disconnect();
+        state.draw_target.disconnect(Instant::now());
         state.draw_target = target;
     }
 
@@ -131,7 +132,7 @@ impl MultiProgress {
     }
 
     pub fn clear(&self) -> io::Result<()> {
-        self.state.write().unwrap().clear()
+        self.state.write().unwrap().clear(Instant::now())
     }
 }
 
@@ -167,7 +168,7 @@ impl MultiProgressState {
         }
     }
 
-    pub(crate) fn draw(&mut self, mut force_draw: bool) -> io::Result<()> {
+    pub(crate) fn draw(&mut self, mut force_draw: bool, now: Instant) -> io::Result<()> {
         // the rest from here is only drawing, we can skip it.
         if self.draw_target.is_hidden() {
             return Ok(());
@@ -175,7 +176,7 @@ impl MultiProgressState {
 
         let orphan_lines_count = self.orphan_lines.len();
         force_draw |= orphan_lines_count > 0;
-        let mut drawable = match self.draw_target.drawable(force_draw) {
+        let mut drawable = match self.draw_target.drawable(force_draw, now) {
             Some(drawable) => drawable,
             None => return Ok(()),
         };
@@ -259,8 +260,8 @@ impl MultiProgressState {
         idx
     }
 
-    fn clear(&mut self) -> io::Result<()> {
-        match self.draw_target.drawable(true) {
+    fn clear(&mut self, now: Instant) -> io::Result<()> {
+        match self.draw_target.drawable(true, now) {
             Some(drawable) => drawable.clear(),
             None => Ok(()),
         }
