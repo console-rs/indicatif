@@ -99,7 +99,6 @@ impl BarState {
         f: F,
     ) {
         self.state.update(now, |state| {
-            state.draw_next = state.pos;
             f(state);
         });
         self.draw(true, now).ok();
@@ -129,6 +128,7 @@ impl BarState {
         }
 
         drop(draw_state);
+        self.state.last_draw = Some((self.state.pos, now));
         drawable.draw()
     }
 }
@@ -153,9 +153,8 @@ pub struct ProgressState {
     pub(crate) started: Instant,
     pub(crate) message: Cow<'static, str>,
     pub(crate) prefix: Cow<'static, str>,
-    pub(crate) draw_delta: u64,
-    pub(crate) draw_rate: u64,
-    pub(crate) draw_next: u64,
+    pub(crate) draw_limit: Limit,
+    pub(crate) last_draw: Option<(u64, Instant)>,
     pub(crate) status: Status,
     pub(crate) est: Estimate,
     pub(crate) tick_thread: Option<thread::JoinHandle<()>>,
@@ -171,9 +170,8 @@ impl ProgressState {
             pos: 0,
             len,
             tick: 0,
-            draw_delta: 0,
-            draw_rate: 100,
-            draw_next: 0,
+            draw_limit: Limit::Rate(Duration::from_millis(10)),
+            last_draw: None,
             status: Status::InProgress,
             started: Instant::now(),
             est: Estimate::new(),
@@ -258,15 +256,15 @@ impl ProgressState {
         if new_pos != old_pos {
             self.est.record_step(new_pos, now);
         }
-        if new_pos >= self.draw_next {
-            self.draw_next = new_pos.saturating_add(if self.draw_rate != 0 {
-                (self.per_sec() / self.draw_rate as f64) as u64
-            } else {
-                self.draw_delta
-            });
-            true
-        } else {
-            false
+
+        let (last_pos, last_time) = match self.last_draw {
+            Some((pos, last_draw)) => (pos, last_draw),
+            None => return true,
+        };
+
+        match self.draw_limit {
+            Limit::Rate(interval) => (now - last_time) >= interval,
+            Limit::Units(gap) => (new_pos - last_pos) >= gap,
         }
     }
 }
@@ -396,6 +394,11 @@ pub(crate) enum Status {
     InProgress,
     DoneVisible,
     DoneHidden,
+}
+
+pub(crate) enum Limit {
+    Rate(Duration),
+    Units(u64),
 }
 
 #[cfg(test)]
