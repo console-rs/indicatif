@@ -139,7 +139,7 @@ impl ProgressBar {
                 }
                 ms = state.state.steady_tick;
 
-                state.draw(false).ok();
+                state.draw(false, Instant::now()).ok();
             } else {
                 break;
             }
@@ -210,7 +210,7 @@ impl ProgressBar {
     ///
     /// This automatically happens on any other change to a progress bar.
     pub fn tick(&self) {
-        self.update_and_draw(|state| {
+        self.update_and_draw(Instant::now(), |state| {
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
             }
@@ -219,7 +219,7 @@ impl ProgressBar {
 
     /// Advances the position of the progress bar by `delta`
     pub fn inc(&self, delta: u64) {
-        self.update_and_draw(|state| {
+        self.update_and_draw(Instant::now(), |state| {
             state.pos = state.pos.saturating_add(delta);
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
@@ -253,7 +253,7 @@ impl ProgressBar {
         let (draw_target, state) = (&mut state.draw_target, &state.state);
         let width = draw_target.width();
 
-        let mut drawable = match draw_target.drawable(true) {
+        let mut drawable = match draw_target.drawable(true, Instant::now()) {
             Some(drawable) => drawable,
             None => return,
         };
@@ -278,7 +278,7 @@ impl ProgressBar {
 
     /// Sets the position of the progress bar
     pub fn set_position(&self, pos: u64) {
-        self.update_and_draw(|state| {
+        self.update_and_draw(Instant::now(), |state| {
             state.draw_next = pos;
             state.pos = pos;
             if state.steady_tick == 0 || state.tick == 0 {
@@ -289,14 +289,14 @@ impl ProgressBar {
 
     /// Sets the length of the progress bar
     pub fn set_length(&self, len: u64) {
-        self.update_and_draw(|state| {
+        self.update_and_draw(Instant::now(), |state| {
             state.len = len;
         })
     }
 
     /// Increase the length of the progress bar
     pub fn inc_length(&self, delta: u64) {
-        self.update_and_draw(|state| {
+        self.update_and_draw(Instant::now(), |state| {
             state.len = state.len.saturating_add(delta);
         })
     }
@@ -307,7 +307,7 @@ impl ProgressBar {
     /// (see [`ProgressStyle`]).
     pub fn set_prefix(&self, prefix: impl Into<Cow<'static, str>>) {
         let prefix = prefix.into();
-        self.update_and_draw(|state| {
+        self.update_and_draw(Instant::now(), |state| {
             state.prefix = prefix;
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
@@ -321,7 +321,7 @@ impl ProgressBar {
     /// [`ProgressStyle`]).
     pub fn set_message(&self, msg: impl Into<Cow<'static, str>>) {
         let msg = msg.into();
-        self.update_and_draw(|state| {
+        self.update_and_draw(Instant::now(), |state| {
             state.message = msg;
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
@@ -341,15 +341,16 @@ impl ProgressBar {
     /// This can be useful if the progress bars made a large jump or was paused for a prolonged
     /// time.
     pub fn reset_eta(&self) {
-        self.update_and_draw(|state| {
+        self.update_and_draw(Instant::now(), |state| {
             state.est.reset(state.pos);
         });
     }
 
     /// Resets elapsed time
     pub fn reset_elapsed(&self) {
-        self.update_and_draw(|state| {
-            state.started = Instant::now();
+        let now = Instant::now();
+        self.update_and_draw(now, |state| {
+            state.started = now;
         });
     }
 
@@ -357,7 +358,7 @@ impl ProgressBar {
     pub fn reset(&self) {
         self.reset_eta();
         self.reset_elapsed();
-        self.update_and_draw(|state| {
+        self.update_and_draw(Instant::now(), |state| {
             state.draw_next = 0;
             state.pos = 0;
             state.status = Status::InProgress;
@@ -366,12 +367,15 @@ impl ProgressBar {
 
     /// Finishes the progress bar and leaves the current message
     pub fn finish(&self) {
-        self.state.lock().unwrap().finish();
+        self.state.lock().unwrap().finish(Instant::now());
     }
 
     /// Finishes the progress bar at current position and leaves the current message
     pub fn finish_at_current_pos(&self) {
-        self.state.lock().unwrap().finish_at_current_pos();
+        self.state
+            .lock()
+            .unwrap()
+            .finish_at_current_pos(Instant::now());
     }
 
     /// Finishes the progress bar and sets a message
@@ -379,17 +383,20 @@ impl ProgressBar {
     /// For the message to be visible, the `{msg}` placeholder must be present in the template (see
     /// [`ProgressStyle`]).
     pub fn finish_with_message(&self, msg: impl Into<Cow<'static, str>>) {
-        self.state.lock().unwrap().finish_with_message(msg);
+        self.state
+            .lock()
+            .unwrap()
+            .finish_with_message(msg, Instant::now());
     }
 
     /// Finishes the progress bar and completely clears it
     pub fn finish_and_clear(&self) {
-        self.state.lock().unwrap().finish_and_clear();
+        self.state.lock().unwrap().finish_and_clear(Instant::now());
     }
 
     /// Finishes the progress bar and leaves the current message and progress
     pub fn abandon(&self) {
-        self.state.lock().unwrap().abandon();
+        self.state.lock().unwrap().abandon(Instant::now());
     }
 
     /// Finishes the progress bar and sets a message, and leaves the current progress
@@ -397,14 +404,20 @@ impl ProgressBar {
     /// For the message to be visible, the `{msg}` placeholder must be present in the template (see
     /// [`ProgressStyle`]).
     pub fn abandon_with_message(&self, msg: impl Into<Cow<'static, str>>) {
-        self.state.lock().unwrap().abandon_with_message(msg);
+        self.state
+            .lock()
+            .unwrap()
+            .abandon_with_message(msg, Instant::now());
     }
 
     /// Finishes the progress bar using the behavior stored in the [`ProgressStyle`]
     ///
     /// See [`ProgressStyle::on_finish()`].
     pub fn finish_using_style(&self) {
-        self.state.lock().unwrap().finish_using_style();
+        self.state
+            .lock()
+            .unwrap()
+            .finish_using_style(Instant::now());
     }
 
     /// Sets a different draw target for the progress bar
@@ -422,7 +435,7 @@ impl ProgressBar {
     /// behavior, call [`MultiProgress::set_draw_target`] instead.
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
         let mut state = self.state.lock().unwrap();
-        state.draw_target.disconnect();
+        state.draw_target.disconnect(Instant::now());
         state.draw_target = target;
     }
 
@@ -443,12 +456,13 @@ impl ProgressBar {
     /// ```
     pub fn suspend<F: FnOnce() -> R, R>(&self, f: F) -> R {
         let mut state = self.state.lock().unwrap();
-        if let Some(drawable) = state.draw_target.drawable(true) {
+        let now = Instant::now();
+        if let Some(drawable) = state.draw_target.drawable(true, now) {
             let _ = drawable.clear();
         }
 
         let ret = f();
-        let _ = state.draw(true);
+        let _ = state.draw(true, now);
         ret
     }
 
@@ -554,10 +568,10 @@ impl ProgressBar {
         }
     }
 
-    fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, f: F) {
+    fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, now: Instant, f: F) {
         // Delegate to the wrapped state.
         let mut state = self.state.lock().unwrap();
-        state.update_and_draw(f);
+        state.update_and_draw(now, f);
     }
 
     /// Returns the current position
