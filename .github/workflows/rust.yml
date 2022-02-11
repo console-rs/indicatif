@@ -98,6 +98,10 @@ jobs:
         with:
           command: clippy
           args: --workspace --all-targets --all-features -- -D warnings
+      - name: doc
+        run: cargo doc --no-deps --document-private-items
+        env:
+          RUSTDOCFLAGS: -Dwarnings
 
   audit:
     runs-on: ubuntu-latest
