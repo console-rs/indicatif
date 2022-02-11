@@ -6,7 +6,7 @@ use std::io;
 ///
 /// Anything that implements this trait can be used a draw target via [`ProgressDrawTarget::term_like`].
 ///
-/// See [`InMemoryTerm`] as an example.
+/// [`ProgressDrawTarget::term_like`]: crate::ProgressDrawTarget::term_like
 pub trait TermLike: Debug + Send + Sync {
     /// Return the terminal width
     fn width(&self) -> usize;

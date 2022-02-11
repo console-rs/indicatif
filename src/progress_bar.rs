@@ -242,6 +242,7 @@ impl ProgressBar {
     /// printed above all other progress bars.
     ///
     /// [`suspend`]: ProgressBar::suspend
+    /// [`MultiProgress`]: crate::MultiProgress
     pub fn println<I: AsRef<str>>(&self, msg: I) {
         let state = &mut *self.state.lock().unwrap();
         let draw_lines = state.state.should_render() && !state.draw_target.is_hidden();
@@ -427,6 +428,10 @@ impl ProgressBar {
     /// **Note:** Calling this method on a [`ProgressBar`] linked with a [`MultiProgress`] (after
     /// running [`MultiProgress::add`]) will unlink this progress bar. If you don't want this
     /// behavior, call [`MultiProgress::set_draw_target`] instead.
+    ///
+    /// [`MultiProgress`]: crate::MultiProgress
+    /// [`MultiProgress::add`]: crate::MultiProgress::add
+    /// [`MultiProgress::set_draw_target`]: crate::MultiProgress::set_draw_target
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
         let mut state = self.state.lock().unwrap();
         state.draw_target.disconnect(Instant::now());
