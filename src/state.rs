@@ -182,7 +182,7 @@ impl ProgressState {
 
     /// Returns the string that should be drawn for the
     /// current spinner string.
-    pub fn current_tick_str(&self) -> &str {
+    pub(crate) fn current_tick_str(&self) -> &str {
         self.style.current_tick_str(self)
     }
 
@@ -197,7 +197,7 @@ impl ProgressState {
 
     /// Returns `false` if the progress bar should no longer be
     /// drawn.
-    pub fn should_render(&self) -> bool {
+    pub(crate) fn should_render(&self) -> bool {
         !matches!(self.status, Status::DoneHidden)
     }
 
@@ -212,12 +212,12 @@ impl ProgressState {
     }
 
     /// Returns the current message of the progress bar.
-    pub fn message(&self) -> &str {
+    pub(crate) fn message(&self) -> &str {
         &self.message
     }
 
     /// Returns the current prefix of the progress bar.
-    pub fn prefix(&self) -> &str {
+    pub(crate) fn prefix(&self) -> &str {
         &self.prefix
     }
 
@@ -231,7 +231,7 @@ impl ProgressState {
     }
 
     /// The expected total duration (that is, elapsed time + expected ETA)
-    pub fn duration(&self) -> Duration {
+    pub(crate) fn duration(&self) -> Duration {
         if self.len == !0 || self.is_finished() {
             return Duration::new(0, 0);
         }
@@ -239,7 +239,7 @@ impl ProgressState {
     }
 
     /// The number of steps per second
-    pub fn per_sec(&self) -> f64 {
+    pub(crate) fn per_sec(&self) -> f64 {
         let per_sec = 1.0 / self.est.seconds_per_step();
         if per_sec.is_nan() {
             0.0
@@ -249,7 +249,7 @@ impl ProgressState {
     }
 
     /// Call the provided `FnOnce` to update the state. If a draw should be run, returns `true`.
-    pub fn update<F: FnOnce(&mut ProgressState)>(&mut self, now: Instant, f: F) -> bool {
+    pub(crate) fn update<F: FnOnce(&mut ProgressState)>(&mut self, now: Instant, f: F) -> bool {
         let old_pos = self.pos;
         f(self);
         let new_pos = self.pos;
