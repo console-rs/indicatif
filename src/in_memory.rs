@@ -139,6 +139,80 @@ mod test {
     use super::*;
     use crate::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressFinish, ProgressStyle};
 
+    fn cursor_pos(in_mem: &InMemoryTerm) -> (u16, u16) {
+        in_mem
+            .state
+            .lock()
+            .unwrap()
+            .parser
+            .screen()
+            .cursor_position()
+    }
+
+    #[test]
+    fn line_wrapping() {
+        let in_mem = InMemoryTerm::new(10, 5);
+        assert_eq!(cursor_pos(&in_mem), (0, 0));
+
+        in_mem.write_str("ABCDE").unwrap();
+        assert_eq!(in_mem.contents(), "ABCDE");
+        assert_eq!(cursor_pos(&in_mem), (0, 5));
+
+        // Should wrap onto next line
+        in_mem.write_str("FG").unwrap();
+        assert_eq!(in_mem.contents(), "ABCDE\nFG");
+        assert_eq!(cursor_pos(&in_mem), (1, 2));
+
+        in_mem.write_str("HIJ").unwrap();
+        assert_eq!(in_mem.contents(), "ABCDE\nFGHIJ");
+        assert_eq!(cursor_pos(&in_mem), (1, 5));
+    }
+
+    #[test]
+    fn write_line() {
+        let in_mem = InMemoryTerm::new(10, 5);
+        assert_eq!(cursor_pos(&in_mem), (0, 0));
+
+        in_mem.write_line("A").unwrap();
+        assert_eq!(in_mem.contents(), "A");
+        assert_eq!(cursor_pos(&in_mem), (1, 0));
+
+        in_mem.write_line("B").unwrap();
+        assert_eq!(in_mem.contents(), "A\nB");
+        assert_eq!(cursor_pos(&in_mem), (2, 0));
+
+        in_mem.write_line("Longer than cols").unwrap();
+        assert_eq!(in_mem.contents(), "A\nB\nLonge\nr tha\nn col\ns");
+        assert_eq!(cursor_pos(&in_mem), (6, 0));
+    }
+
+    #[test]
+    fn basic_functionality() {
+        let in_mem = InMemoryTerm::new(10, 80);
+
+        in_mem.write_line("This is a test line").unwrap();
+        assert_eq!(in_mem.contents(), "This is a test line");
+
+        in_mem.write_line("And another line!").unwrap();
+        assert_eq!(in_mem.contents(), "This is a test line\nAnd another line!");
+
+        in_mem.move_cursor_up(1).unwrap();
+        in_mem.write_str("TEST").unwrap();
+
+        assert_eq!(in_mem.contents(), "This is a test line\nTESTanother line!");
+    }
+
+    #[test]
+    fn newlines() {
+        let in_mem = InMemoryTerm::new(10, 10);
+        in_mem.write_line("LINE ONE").unwrap();
+        in_mem.write_line("LINE TWO").unwrap();
+        in_mem.write_line("").unwrap();
+        in_mem.write_line("LINE FOUR").unwrap();
+
+        assert_eq!(in_mem.contents(), "LINE ONE\nLINE TWO\n\nLINE FOUR");
+    }
+
     #[test]
     fn basic_progress_bar() {
         let in_mem = InMemoryTerm::new(10, 80);
