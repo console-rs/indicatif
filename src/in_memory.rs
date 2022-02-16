@@ -83,12 +83,18 @@ impl TermLike for InMemoryTerm {
 
     fn write_line(&self, s: &str) -> std::io::Result<()> {
         let mut state = self.state.lock().unwrap();
+
+        // Don't try to handle writing lines with additional newlines embedded in them - it's not
+        // worth the extra code for something that indicatif doesn't even do. May revisit in future.
+        debug_assert!(
+            s.lines().count() <= 1,
+            "calling write_line with embedded newlines is not allowed"
+        );
+
+        // vte100 needs the full \r\n sequence to jump to the next line and reset the cursor to
+        // the beginning of the line. Be flexible and take either \n or \r\n
         state.write_str(s)?;
-        if (s.len() < state.width as usize) && !s.ends_with('\n') {
-            state.write_str("\n")
-        } else {
-            Ok(())
-        }
+        state.write_str("\r\n")
     }
 
     fn write_str(&self, s: &str) -> std::io::Result<()> {
