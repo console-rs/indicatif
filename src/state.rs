@@ -18,12 +18,12 @@ impl BarState {
     /// in the [`ProgressStyle`].
     pub(crate) fn finish_using_style(&mut self, now: Instant) {
         match self.style.get_on_finish() {
-            ProgressFinish::AndLeave => self.finish(now),
+            ProgressFinish::AndLeave => self.finish_and_leave(now),
             ProgressFinish::AtCurrentPos => self.finish_at_current_pos(now),
             ProgressFinish::WithMessage(msg) => {
                 // Equivalent to `self.finish_with_message` but avoids borrow checker error
                 self.state.message.clone_from(msg);
-                self.finish(now);
+                self.finish_and_leave(now);
             }
             ProgressFinish::AndClear => self.finish_and_clear(now),
             ProgressFinish::Abandon => self.abandon(now),
@@ -36,7 +36,7 @@ impl BarState {
     }
 
     /// Finishes the progress bar and leaves the current message.
-    pub(crate) fn finish(&mut self, now: Instant) {
+    pub(crate) fn finish_and_leave(&mut self, now: Instant) {
         self.update(now, true, |state| {
             state.pos = state.len;
             state.status = Status::DoneVisible;
