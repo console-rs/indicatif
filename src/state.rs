@@ -50,16 +50,6 @@ impl BarState {
         });
     }
 
-    /// Finishes the progress bar and sets a message.
-    pub(crate) fn finish_with_message(&mut self, msg: impl Into<Cow<'static, str>>, now: Instant) {
-        let msg = msg.into();
-        self.update(now, true, |state| {
-            state.message = msg;
-            state.pos = state.len;
-            state.status = Status::DoneVisible;
-        });
-    }
-
     /// Finishes the progress bar and completely clears it.
     pub(crate) fn finish_and_clear(&mut self, now: Instant) {
         self.update(now, true, |state| {
@@ -71,15 +61,6 @@ impl BarState {
     /// Finishes the progress bar and leaves the current message and progress.
     pub(crate) fn abandon(&mut self, now: Instant) {
         self.update(now, true, |state| {
-            state.status = Status::DoneVisible;
-        });
-    }
-
-    /// Finishes the progress bar and sets a message, and leaves the current progress.
-    pub(crate) fn abandon_with_message(&mut self, msg: impl Into<Cow<'static, str>>, now: Instant) {
-        let msg = msg.into();
-        self.update(now, true, |state| {
-            state.message = msg;
             state.status = Status::DoneVisible;
         });
     }
