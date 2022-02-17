@@ -172,12 +172,6 @@ impl ProgressState {
         }
     }
 
-    /// Returns the string that should be drawn for the
-    /// current spinner string.
-    pub(crate) fn current_tick_str(&self) -> &str {
-        self.style.current_tick_str(self)
-    }
-
     /// Indicates that the progress bar finished.
     pub fn is_finished(&self) -> bool {
         match self.status {
