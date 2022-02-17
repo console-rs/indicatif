@@ -7,7 +7,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::draw_target::ProgressDrawTarget;
-use crate::state::{BarState, Limit, ProgressState, Status};
+use crate::state::{BarState, Limit, ProgressFinish, ProgressState, Status};
 use crate::style::ProgressStyle;
 use crate::{ProgressBarIter, ProgressIterator};
 
@@ -49,6 +49,7 @@ impl ProgressBar {
         ProgressBar {
             state: Arc::new(Mutex::new(BarState {
                 draw_target,
+                on_finish: ProgressFinish::default(),
                 style: ProgressStyle::default_bar(),
                 state: ProgressState::new(len),
             })),
@@ -82,6 +83,22 @@ impl ProgressBar {
     /// A convenience builder-like function for a progress bar with a given elapsed time
     pub fn with_elapsed(self, elapsed: Duration) -> ProgressBar {
         self.state.lock().unwrap().state.started = Instant::now() - elapsed;
+        self
+    }
+
+    /// Sets the finish behavior for the progress bar
+    ///
+    /// This behavior is invoked when [`ProgressBar`] or
+    /// [`ProgressBarIter`] completes and
+    /// [`ProgressBar::is_finished()`] is false.
+    /// If you don't want the progress bar to be automatically finished then
+    /// call `on_finish(None)`.
+    ///
+    /// [`ProgressBar`]: crate::ProgressBar
+    /// [`ProgressBarIter`]: crate::ProgressBarIter
+    /// [`ProgressBar::is_finished()`]: crate::ProgressBar::is_finished
+    pub fn with_finish(self, finish: ProgressFinish) -> ProgressBar {
+        self.state().on_finish = finish;
         self
     }
 
@@ -405,7 +422,7 @@ impl ProgressBar {
 
     /// Finishes the progress bar using the behavior stored in the [`ProgressStyle`]
     ///
-    /// See [`ProgressStyle::on_finish()`].
+    /// See [`ProgressBar::with_finish()`].
     pub fn finish_using_style(&self) {
         self.state
             .lock()

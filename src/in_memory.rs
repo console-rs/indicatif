@@ -131,7 +131,7 @@ impl Debug for InMemoryTermState {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressFinish, ProgressStyle};
+    use crate::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressFinish};
 
     #[test]
     fn basic_progress_bar() {
@@ -163,10 +163,7 @@ mod test {
             in_mem.clone(),
         )));
 
-        let pb1 = mp.add(
-            ProgressBar::new(10)
-                .with_style(ProgressStyle::default_bar().on_finish(ProgressFinish::AndLeave)),
-        );
+        let pb1 = mp.add(ProgressBar::new(10).with_finish(ProgressFinish::AndLeave));
         let pb2 = mp.add(ProgressBar::new(5));
         let pb3 = mp.add(ProgressBar::new(100));
 
