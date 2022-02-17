@@ -236,8 +236,8 @@ pub use crate::in_memory::InMemoryTerm;
 pub use crate::iter::{ProgressBarIter, ProgressIterator};
 pub use crate::multi::{MultiProgress, MultiProgressAlignment};
 pub use crate::progress_bar::{ProgressBar, WeakProgressBar};
-pub use crate::state::ProgressState;
-pub use crate::style::{ProgressFinish, ProgressStyle};
+pub use crate::state::{ProgressFinish, ProgressState};
+pub use crate::style::ProgressStyle;
 pub use crate::term_like::TermLike;
 
 #[cfg(feature = "rayon")]

@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{self, Write};
 use std::mem;
@@ -18,7 +17,6 @@ pub struct ProgressStyle {
     tick_strings: Vec<Box<str>>,
     progress_chars: Vec<Box<str>>,
     template: Template,
-    on_finish: ProgressFinish,
     // how unicode-big each char in progress_chars is
     char_width: usize,
     format_map: HashMap<&'static str, fn(&ProgressState) -> String>,
@@ -83,7 +81,6 @@ impl ProgressStyle {
             progress_chars,
             char_width,
             template: Template::from_str(template),
-            on_finish: ProgressFinish::default(),
             format_map: HashMap::default(),
         }
     }
@@ -142,22 +139,6 @@ impl ProgressStyle {
         self
     }
 
-    /// Sets the finish behavior for the progress bar
-    ///
-    /// This behavior is invoked when [`ProgressBar`] or
-    /// [`ProgressBarIter`] completes and
-    /// [`ProgressBar::is_finished()`] is false.
-    /// If you don't want the progress bar to be automatically finished then
-    /// call `on_finish(None)`.
-    ///
-    /// [`ProgressBar`]: crate::ProgressBar
-    /// [`ProgressBarIter`]: crate::ProgressBarIter
-    /// [`ProgressBar::is_finished()`]: crate::ProgressBar::is_finished
-    pub fn on_finish(mut self, finish: ProgressFinish) -> ProgressStyle {
-        self.on_finish = finish;
-        self
-    }
-
     pub(crate) fn current_tick_str(&self, state: &ProgressState) -> &str {
         match state.is_finished() {
             true => self.get_final_tick_str(),
@@ -173,11 +154,6 @@ impl ProgressStyle {
     /// Returns the tick string for the finished state
     pub fn get_final_tick_str(&self) -> &str {
         &self.tick_strings[self.tick_strings.len() - 1]
-    }
-
-    /// Returns the finish behavior
-    pub fn get_on_finish(&self) -> &ProgressFinish {
-        &self.on_finish
     }
 
     fn format_bar(&self, fract: f32, width: usize, alt_style: Option<&Style>) -> BarDisplay<'_> {
@@ -651,48 +627,6 @@ impl<'a> fmt::Display for PaddedStringDisplay<'a> {
             f.write_char(' ')?;
         }
         Ok(())
-    }
-}
-
-/// Behavior of a progress bar when it is finished
-///
-/// This is invoked when a [`ProgressBar`] or [`ProgressBarIter`] completes and
-/// [`ProgressBar::is_finished`] is false.
-///
-/// [`ProgressBar`]: crate::ProgressBar
-/// [`ProgressBarIter`]: crate::ProgressBarIter
-/// [`ProgressBar::is_finished`]: crate::ProgressBar::is_finished
-#[derive(Clone, Debug)]
-pub enum ProgressFinish {
-    /// Finishes the progress bar and leaves the current message
-    ///
-    /// Same behavior as calling [`ProgressBar::finish()`](crate::ProgressBar::finish).
-    AndLeave,
-    /// Finishes the progress bar at current position and leaves the current message
-    ///
-    /// Same behavior as calling [`ProgressBar::finish_at_current_pos()`](crate::ProgressBar::finish_at_current_pos).
-    AtCurrentPos,
-    /// Finishes the progress bar and sets a message
-    ///
-    /// Same behavior as calling [`ProgressBar::finish_with_message()`](crate::ProgressBar::finish_with_message).
-    WithMessage(Cow<'static, str>),
-    /// Finishes the progress bar and completely clears it (this is the default)
-    ///
-    /// Same behavior as calling [`ProgressBar::finish_and_clear()`](crate::ProgressBar::finish_and_clear).
-    AndClear,
-    /// Finishes the progress bar and leaves the current message and progress
-    ///
-    /// Same behavior as calling [`ProgressBar::abandon()`](crate::ProgressBar::abandon).
-    Abandon,
-    /// Finishes the progress bar and sets a message, and leaves the current progress
-    ///
-    /// Same behavior as calling [`ProgressBar::abandon_with_message()`](crate::ProgressBar::abandon_with_message).
-    AbandonWithMessage(Cow<'static, str>),
-}
-
-impl Default for ProgressFinish {
-    fn default() -> Self {
-        Self::AndClear
     }
 }
 
