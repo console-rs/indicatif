@@ -49,6 +49,7 @@ impl ProgressBar {
         ProgressBar {
             state: Arc::new(Mutex::new(BarState {
                 draw_target,
+                style: ProgressStyle::default_bar(),
                 state: ProgressState::new(len),
             })),
         }
@@ -56,7 +57,7 @@ impl ProgressBar {
 
     /// A convenience builder-like function for a progress bar with a given style
     pub fn with_style(self, style: ProgressStyle) -> ProgressBar {
-        self.state.lock().unwrap().state.style = style;
+        self.state.lock().unwrap().style = style;
         self
     }
 
@@ -97,7 +98,7 @@ impl ProgressBar {
     ///
     /// This does not redraw the bar. Call [`ProgressBar::tick()`] to force it.
     pub fn set_style(&self, style: ProgressStyle) {
-        self.state.lock().unwrap().state.style = style;
+        self.state.lock().unwrap().style = style;
     }
 
     /// Spawns a background thread to tick the progress bar
@@ -246,7 +247,7 @@ impl ProgressBar {
     pub fn println<I: AsRef<str>>(&self, msg: I) {
         let state = &mut *self.state.lock().unwrap();
         let draw_lines = state.state.should_render() && !state.draw_target.is_hidden();
-        let (draw_target, state) = (&mut state.draw_target, &state.state);
+        let (draw_target, style, state) = (&mut state.draw_target, &state.style, &state.state);
         let width = draw_target.width();
 
         let mut drawable = match draw_target.drawable(true, Instant::now()) {
@@ -263,9 +264,7 @@ impl ProgressBar {
             .extend(msg.as_ref().lines().map(Into::into));
         draw_state.orphan_lines = draw_state.lines.len();
         if draw_lines {
-            state
-                .style
-                .format_state(state, &mut draw_state.lines, width);
+            style.format_state(state, &mut draw_state.lines, width);
         }
 
         drop(draw_state);
