@@ -206,11 +206,15 @@ impl ProgressState {
 
     /// The number of steps per second
     pub(crate) fn per_sec(&self) -> f64 {
-        let per_sec = 1.0 / self.est.seconds_per_step();
-        if per_sec.is_nan() {
-            0.0
+        if matches!(&self.status, Status::InProgress) {
+            let per_sec = 1.0 / self.est.seconds_per_step();
+            if per_sec.is_nan() {
+                0.0
+            } else {
+                per_sec
+            }
         } else {
-            per_sec
+            self.len as f64 / self.started.elapsed().as_secs_f64()
         }
     }
 
