@@ -205,7 +205,7 @@ impl ProgressBar {
     ///
     /// This automatically happens on any other change to a progress bar.
     pub fn tick(&self) {
-        self.update_and_draw(Instant::now(), |state| {
+        self.state().update(Instant::now(), false, |state| {
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
             }
@@ -214,7 +214,7 @@ impl ProgressBar {
 
     /// Advances the position of the progress bar by `delta`
     pub fn inc(&self, delta: u64) {
-        self.update_and_draw(Instant::now(), |state| {
+        self.state().update(Instant::now(), false, |state| {
             state.pos = state.pos.saturating_add(delta);
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
@@ -274,7 +274,7 @@ impl ProgressBar {
 
     /// Sets the position of the progress bar
     pub fn set_position(&self, pos: u64) {
-        self.update_and_draw(Instant::now(), |state| {
+        self.state().update(Instant::now(), false, |state| {
             state.pos = pos;
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
@@ -284,14 +284,14 @@ impl ProgressBar {
 
     /// Sets the length of the progress bar
     pub fn set_length(&self, len: u64) {
-        self.update_and_draw(Instant::now(), |state| {
+        self.state().update(Instant::now(), false, |state| {
             state.len = len;
         })
     }
 
     /// Increase the length of the progress bar
     pub fn inc_length(&self, delta: u64) {
-        self.update_and_draw(Instant::now(), |state| {
+        self.state().update(Instant::now(), false, |state| {
             state.len = state.len.saturating_add(delta);
         })
     }
@@ -301,9 +301,8 @@ impl ProgressBar {
     /// For the prefix to be visible, the `{prefix}` placeholder must be present in the template
     /// (see [`ProgressStyle`]).
     pub fn set_prefix(&self, prefix: impl Into<Cow<'static, str>>) {
-        let prefix = prefix.into();
-        self.update_and_draw(Instant::now(), |state| {
-            state.prefix = prefix;
+        self.state().update(Instant::now(), false, |state| {
+            state.prefix = prefix.into();
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
             }
@@ -315,9 +314,8 @@ impl ProgressBar {
     /// For the message to be visible, the `{msg}` placeholder must be present in the template (see
     /// [`ProgressStyle`]).
     pub fn set_message(&self, msg: impl Into<Cow<'static, str>>) {
-        let msg = msg.into();
-        self.update_and_draw(Instant::now(), |state| {
-            state.message = msg;
+        self.state().update(Instant::now(), false, |state| {
+            state.message = msg.into();
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
             }
@@ -336,7 +334,7 @@ impl ProgressBar {
     /// This can be useful if the progress bars made a large jump or was paused for a prolonged
     /// time.
     pub fn reset_eta(&self) {
-        self.update_and_draw(Instant::now(), |state| {
+        self.state().update(Instant::now(), false, |state| {
             state.est.reset(state.pos);
         });
     }
@@ -344,7 +342,7 @@ impl ProgressBar {
     /// Resets elapsed time
     pub fn reset_elapsed(&self) {
         let now = Instant::now();
-        self.update_and_draw(now, |state| {
+        self.state().update(now, false, |state| {
             state.started = now;
         });
     }
@@ -353,7 +351,7 @@ impl ProgressBar {
     pub fn reset(&self) {
         self.reset_eta();
         self.reset_elapsed();
-        self.update_and_draw(Instant::now(), |state| {
+        self.state().update(Instant::now(), false, |state| {
             state.pos = 0;
             state.last_draw = None;
             state.status = Status::InProgress;
@@ -565,12 +563,6 @@ impl ProgressBar {
             progress: self.clone(),
             it: write,
         }
-    }
-
-    fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, now: Instant, f: F) {
-        // Delegate to the wrapped state.
-        let mut state = self.state.lock().unwrap();
-        state.update(now, false, f);
     }
 
     /// Returns the current position
