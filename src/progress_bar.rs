@@ -359,7 +359,7 @@ impl ProgressBar {
 
     /// Finishes the progress bar and leaves the current message
     pub fn finish(&self) {
-        self.state.lock().unwrap().finish(Instant::now());
+        self.state.lock().unwrap().finish_and_leave(Instant::now());
     }
 
     /// Finishes the progress bar at current position and leaves the current message
