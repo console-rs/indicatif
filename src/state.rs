@@ -36,7 +36,7 @@ impl BarState {
 
     /// Finishes the progress bar and leaves the current message.
     pub(crate) fn finish(&mut self, now: Instant) {
-        self.update_and_force_draw(now, |state| {
+        self.update(now, true, |state| {
             state.pos = state.len;
             state.status = Status::DoneVisible;
         });
@@ -44,7 +44,7 @@ impl BarState {
 
     /// Finishes the progress bar at current position and leaves the current message.
     pub(crate) fn finish_at_current_pos(&mut self, now: Instant) {
-        self.update_and_force_draw(now, |state| {
+        self.update(now, true, |state| {
             state.status = Status::DoneVisible;
         });
     }
@@ -52,7 +52,7 @@ impl BarState {
     /// Finishes the progress bar and sets a message.
     pub(crate) fn finish_with_message(&mut self, msg: impl Into<Cow<'static, str>>, now: Instant) {
         let msg = msg.into();
-        self.update_and_force_draw(now, |state| {
+        self.update(now, true, |state| {
             state.message = msg;
             state.pos = state.len;
             state.status = Status::DoneVisible;
@@ -61,7 +61,7 @@ impl BarState {
 
     /// Finishes the progress bar and completely clears it.
     pub(crate) fn finish_and_clear(&mut self, now: Instant) {
-        self.update_and_force_draw(now, |state| {
+        self.update(now, true, |state| {
             state.pos = state.len;
             state.status = Status::DoneHidden;
         });
@@ -69,7 +69,7 @@ impl BarState {
 
     /// Finishes the progress bar and leaves the current message and progress.
     pub(crate) fn abandon(&mut self, now: Instant) {
-        self.update_and_force_draw(now, |state| {
+        self.update(now, true, |state| {
             state.status = Status::DoneVisible;
         });
     }
@@ -77,31 +77,23 @@ impl BarState {
     /// Finishes the progress bar and sets a message, and leaves the current progress.
     pub(crate) fn abandon_with_message(&mut self, msg: impl Into<Cow<'static, str>>, now: Instant) {
         let msg = msg.into();
-        self.update_and_force_draw(now, |state| {
+        self.update(now, true, |state| {
             state.message = msg;
             state.status = Status::DoneVisible;
         });
     }
 
-    /// Call the provided `FnOnce` to update the state. Then redraw the
-    /// progress bar if the state has changed.
-    pub(crate) fn update_and_draw<F: FnOnce(&mut ProgressState)>(&mut self, now: Instant, f: F) {
-        if self.state.update(now, f) {
-            self.draw(false, now).ok();
-        }
-    }
-
-    /// Call the provided `FnOnce` to update the state. Then unconditionally redraw the
-    /// progress bar.
-    pub(crate) fn update_and_force_draw<F: FnOnce(&mut ProgressState)>(
+    /// Mutate the state, then draw if necessary
+    pub(crate) fn update<F: FnOnce(&mut ProgressState)>(
         &mut self,
         now: Instant,
+        force_draw: bool,
         f: F,
     ) {
-        self.state.update(now, |state| {
-            f(state);
-        });
-        self.draw(true, now).ok();
+        let updated = self.state.update(now, f);
+        if force_draw || updated {
+            self.draw(force_draw, now).ok();
+        }
     }
 
     pub(crate) fn draw(&mut self, mut force_draw: bool, now: Instant) -> io::Result<()> {

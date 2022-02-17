@@ -570,7 +570,7 @@ impl ProgressBar {
     fn update_and_draw<F: FnOnce(&mut ProgressState)>(&self, now: Instant, f: F) {
         // Delegate to the wrapped state.
         let mut state = self.state.lock().unwrap();
-        state.update_and_draw(now, f);
+        state.update(now, false, f);
     }
 
     /// Returns the current position
