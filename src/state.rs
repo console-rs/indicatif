@@ -9,6 +9,7 @@ use crate::style::{ProgressFinish, ProgressStyle};
 
 pub(crate) struct BarState {
     pub(crate) draw_target: ProgressDrawTarget,
+    pub(crate) style: ProgressStyle,
     pub(crate) state: ProgressState,
 }
 
@@ -16,7 +17,7 @@ impl BarState {
     /// Finishes the progress bar using the [`ProgressFinish`] behavior stored
     /// in the [`ProgressStyle`].
     pub(crate) fn finish_using_style(&mut self, now: Instant) {
-        match self.state.style.get_on_finish() {
+        match self.style.get_on_finish() {
             ProgressFinish::AndLeave => self.finish(now),
             ProgressFinish::AtCurrentPos => self.finish_at_current_pos(now),
             ProgressFinish::WithMessage(msg) => {
@@ -114,8 +115,7 @@ impl BarState {
         let mut draw_state = drawable.state();
 
         if self.state.should_render() {
-            self.state
-                .style
+            self.style
                 .format_state(&self.state, &mut draw_state.lines, width);
         }
 
@@ -138,7 +138,6 @@ impl Drop for BarState {
 
 /// The state of a progress bar at a moment in time.
 pub struct ProgressState {
-    pub(crate) style: ProgressStyle,
     pub pos: u64,
     pub len: u64,
     pub(crate) tick: u64,
@@ -156,7 +155,6 @@ pub struct ProgressState {
 impl ProgressState {
     pub(crate) fn new(len: u64) -> Self {
         Self {
-            style: ProgressStyle::default_bar(),
             message: "".into(),
             prefix: "".into(),
             pos: 0,
