@@ -265,7 +265,7 @@ impl ProgressStyle {
                                     )
                                 ))
                                 .unwrap(),
-                            "spinner" => buf.push_str(state.current_tick_str()),
+                            "spinner" => buf.push_str(self.current_tick_str(state)),
                             "wide_msg" => {
                                 wide = Some(WideElement::Message { align });
                                 buf.push('\x00');
