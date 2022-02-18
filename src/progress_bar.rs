@@ -116,34 +116,35 @@ impl ProgressBar {
     /// Spawns a background thread to tick the progress bar
     ///
     /// When this is enabled a background thread will regularly tick the progress bar in the given
-    /// interval (in milliseconds). This is useful to advance progress bars that are very slow by
-    /// themselves.
+    /// interval. This is useful to advance progress bars that are very slow by themselves.
     ///
     /// When steady ticks are enabled, calling [`ProgressBar::tick()`] on a progress bar does not
     /// have any effect.
-    pub fn enable_steady_tick(&self, ms: u64) {
+    pub fn enable_steady_tick(&self, interval: Duration) {
         let mut state = self.state.lock().unwrap();
-        state.state.steady_tick = ms;
+        state.state.steady_tick = interval;
         if state.state.tick_thread.is_some() {
             return;
         }
 
         // Using a weak pointer is required to prevent a potential deadlock. See issue #133
         let state_arc = Arc::downgrade(&self.state);
-        state.state.tick_thread = Some(thread::spawn(move || Self::steady_tick(state_arc, ms)));
+        state.state.tick_thread = Some(thread::spawn(move || {
+            Self::steady_tick(state_arc, interval)
+        }));
 
         ::std::mem::drop(state);
         // use the side effect of tick to force the bar to tick.
         self.tick();
     }
 
-    fn steady_tick(state_arc: Weak<Mutex<BarState>>, mut ms: u64) {
+    fn steady_tick(state_arc: Weak<Mutex<BarState>>, mut ms: Duration) {
         loop {
-            thread::sleep(Duration::from_millis(ms));
+            thread::sleep(ms);
             if let Some(state_arc) = state_arc.upgrade() {
                 let mut state = state_arc.lock().unwrap();
-                if state.state.is_finished() || state.state.steady_tick == 0 {
-                    state.state.steady_tick = 0;
+                if state.state.is_finished() || state.state.steady_tick.is_zero() {
+                    state.state.steady_tick = Duration::ZERO;
                     state.state.tick_thread = None;
                     break;
                 }
@@ -161,7 +162,7 @@ impl ProgressBar {
 
     /// Undoes [`ProgressBar::enable_steady_tick()`]
     pub fn disable_steady_tick(&self) {
-        self.enable_steady_tick(0);
+        self.enable_steady_tick(Duration::ZERO);
     }
 
     /// Manually ticks the spinner or progress bar

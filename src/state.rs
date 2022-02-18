@@ -202,7 +202,7 @@ pub struct ProgressState {
     pub(crate) status: Status,
     pub(crate) est: Estimator,
     pub(crate) tick_thread: Option<thread::JoinHandle<()>>,
-    pub(crate) steady_tick: u64,
+    pub(crate) steady_tick: Duration,
 }
 
 impl ProgressState {
@@ -215,12 +215,12 @@ impl ProgressState {
             started: Instant::now(),
             est: Estimator::new(Instant::now()),
             tick_thread: None,
-            steady_tick: 0,
+            steady_tick: Duration::ZERO,
         }
     }
 
     fn tick(&mut self) {
-        if self.steady_tick == 0 || self.tick == 0 {
+        if self.steady_tick.is_zero() || self.tick == 0 {
             self.tick = self.tick.saturating_add(1);
         }
     }
