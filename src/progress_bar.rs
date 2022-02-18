@@ -198,30 +198,7 @@ impl ProgressBar {
     /// [`suspend`]: ProgressBar::suspend
     /// [`MultiProgress`]: crate::MultiProgress
     pub fn println<I: AsRef<str>>(&self, msg: I) {
-        let state = &mut *self.state.lock().unwrap();
-        let draw_lines = state.state.should_render() && !state.draw_target.is_hidden();
-        let (draw_target, style, state) = (&mut state.draw_target, &state.style, &state.state);
-        let width = draw_target.width();
-
-        let mut drawable = match draw_target.drawable(true, Instant::now()) {
-            Some(drawable) => drawable,
-            None => return,
-        };
-
-        let mut draw_state = drawable.state();
-        draw_state.move_cursor = false;
-        draw_state.alignment = Default::default();
-
-        draw_state
-            .lines
-            .extend(msg.as_ref().lines().map(Into::into));
-        draw_state.orphan_lines = draw_state.lines.len();
-        if draw_lines {
-            style.format_state(state, &mut draw_state.lines, width);
-        }
-
-        drop(draw_state);
-        let _ = drawable.draw();
+        self.state().println(Instant::now(), msg.as_ref())
     }
 
     /// Sets the position of the progress bar
@@ -366,15 +343,7 @@ impl ProgressBar {
     /// })
     /// ```
     pub fn suspend<F: FnOnce() -> R, R>(&self, f: F) -> R {
-        let mut state = self.state.lock().unwrap();
-        let now = Instant::now();
-        if let Some(drawable) = state.draw_target.drawable(true, now) {
-            let _ = drawable.clear();
-        }
-
-        let ret = f();
-        let _ = state.draw(true, now);
-        ret
+        self.state().suspend(Instant::now(), f)
     }
 
     /// Wraps an [`Iterator`] with the progress bar

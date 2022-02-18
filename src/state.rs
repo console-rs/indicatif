@@ -137,6 +137,40 @@ impl BarState {
         }
     }
 
+    pub(crate) fn println(&mut self, now: Instant, msg: &str) {
+        let draw_lines = self.state.should_render() && !self.draw_target.is_hidden();
+        let (draw_target, style, state) = (&mut self.draw_target, &self.style, &self.state);
+        let width = draw_target.width();
+
+        let mut drawable = match draw_target.drawable(true, now) {
+            Some(drawable) => drawable,
+            None => return,
+        };
+
+        let mut draw_state = drawable.state();
+        draw_state.move_cursor = false;
+        draw_state.alignment = Default::default();
+
+        draw_state.lines.extend(msg.lines().map(Into::into));
+        draw_state.orphan_lines = draw_state.lines.len();
+        if draw_lines {
+            style.format_state(state, &mut draw_state.lines, width);
+        }
+
+        drop(draw_state);
+        let _ = drawable.draw();
+    }
+
+    pub(crate) fn suspend<F: FnOnce() -> R, R>(&mut self, now: Instant, f: F) -> R {
+        if let Some(drawable) = self.draw_target.drawable(true, now) {
+            let _ = drawable.clear();
+        }
+
+        let ret = f();
+        let _ = self.draw(true, now);
+        ret
+    }
+
     pub(crate) fn draw(&mut self, mut force_draw: bool, now: Instant) -> io::Result<()> {
         // we can bail early if the draw target is hidden.
         if self.draw_target.is_hidden() {
