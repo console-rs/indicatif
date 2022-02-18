@@ -7,7 +7,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::draw_target::ProgressDrawTarget;
-use crate::state::{BarState, Limit, ProgressFinish, ProgressState, Status};
+use crate::state::{BarState, ProgressFinish, ProgressState, Status};
 use crate::style::ProgressStyle;
 use crate::{ProgressBarIter, ProgressIterator};
 
@@ -169,56 +169,6 @@ impl ProgressBar {
         self.enable_steady_tick(0);
     }
 
-    /// Limit redrawing of progress bar to every `n` steps
-    ///
-    /// By default, the progress bar will redraw whenever its state advances. This setting is
-    /// helpful in situations where the overhead of redrawing the progress bar dominates the
-    /// computation whose progress is being reported. Setting the draw delta will override
-    /// the draw rate, setting it to `0`.
-    ///
-    /// If `n` is greater than 0, operations that change the progress bar such as
-    /// [`ProgressBar::tick()`], [`ProgressBar::set_message()`] and [`ProgressBar::set_length()`]
-    /// will no longer cause the progress bar to be redrawn, and will only be shown once the
-    /// position advances by `n` steps.
-    ///
-    /// ```rust,no_run
-    /// # use indicatif::ProgressBar;
-    /// let n = 1_000_000;
-    /// let pb = ProgressBar::new(n);
-    /// pb.set_draw_delta(n / 100); // redraw every 1% of additional progress
-    /// ```
-    ///
-    /// Note that `ProgressDrawTarget` may impose additional buffering of redraws.
-    pub fn set_draw_delta(&self, gap: u64) {
-        let mut state = self.state.lock().unwrap();
-        state.state.draw_limit = Limit::Units(gap);
-    }
-
-    /// Sets the refresh rate of progress bar to `n` updates per seconds
-    ///
-    /// By default, the progress bar will redraw at most 100 times per second. To disable
-    /// this behavior, set the draw rate to 0. The draw rate will be ignored if the draw
-    /// delta is set.
-    ///
-    /// This setting automatically adapts the progress bar to a constant refresh rate
-    /// regardless of how consistent the progress is.
-    ///
-    /// This parameter takes precedence on `set_draw_delta` if different from 0.
-    ///
-    /// ```rust,no_run
-    /// # use indicatif::ProgressBar;
-    /// let n = 1_000_000;
-    /// let pb = ProgressBar::new(n);
-    /// pb.set_draw_rate(25); // aims at redrawing at most 25 times per seconds.
-    /// ```
-    ///
-    /// Note that the [`ProgressDrawTarget`] may impose additional buffering of redraws.
-    pub fn set_draw_rate(&self, n: u64) {
-        let mut state = self.state.lock().unwrap();
-        let interval = Duration::from_nanos(1_000_000_000 / n);
-        state.state.draw_limit = Limit::Rate(interval);
-    }
-
     /// Manually ticks the spinner or progress bar
     ///
     /// This automatically happens on any other change to a progress bar.
@@ -369,7 +319,6 @@ impl ProgressBar {
         self.reset_elapsed();
         self.state().update(Instant::now(), false, |state| {
             state.pos = 0;
-            state.last_draw = None;
             state.status = Status::InProgress;
         });
     }

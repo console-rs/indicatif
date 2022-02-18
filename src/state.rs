@@ -102,7 +102,6 @@ impl BarState {
         }
 
         drop(draw_state);
-        self.state.last_draw = Some((self.state.pos, now));
         drawable.draw()
     }
 }
@@ -126,8 +125,6 @@ pub struct ProgressState {
     pub(crate) started: Instant,
     pub(crate) message: Cow<'static, str>,
     pub(crate) prefix: Cow<'static, str>,
-    pub(crate) draw_limit: Limit,
-    pub(crate) last_draw: Option<(u64, Instant)>,
     pub(crate) status: Status,
     pub(crate) est: Estimate,
     pub(crate) tick_thread: Option<thread::JoinHandle<()>>,
@@ -142,8 +139,6 @@ impl ProgressState {
             pos: 0,
             len,
             tick: 0,
-            draw_limit: Limit::Rate(Duration::from_millis(10)),
-            last_draw: None,
             status: Status::InProgress,
             started: Instant::now(),
             est: Estimate::new(),
@@ -220,22 +215,14 @@ impl ProgressState {
 
     /// Call the provided `FnOnce` to update the state. If a draw should be run, returns `true`.
     pub(crate) fn update<F: FnOnce(&mut ProgressState)>(&mut self, now: Instant, f: F) -> bool {
-        let old_pos = self.pos;
+        let old = (self.pos, self.tick);
         f(self);
-        let new_pos = self.pos;
-        if new_pos != old_pos {
-            self.est.record_step(new_pos, now);
+        let new = (self.pos, self.tick);
+        if new.0 != old.0 {
+            self.est.record_step(new.0, now);
         }
 
-        let (last_pos, last_time) = match self.last_draw {
-            Some((pos, last_draw)) => (pos, last_draw),
-            None => return true,
-        };
-
-        match self.draw_limit {
-            Limit::Rate(interval) => (now - last_time) >= interval,
-            Limit::Units(gap) => (new_pos - last_pos) >= gap,
-        }
+        old != new
     }
 }
 
@@ -406,11 +393,6 @@ pub(crate) enum Status {
     InProgress,
     DoneVisible,
     DoneHidden,
-}
-
-pub(crate) enum Limit {
-    Rate(Duration),
-    Units(u64),
 }
 
 #[cfg(test)]

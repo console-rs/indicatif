@@ -328,24 +328,6 @@ mod tests {
     use crate::{MultiProgress, ProgressBar, ProgressDrawTarget};
 
     #[test]
-    fn test_draw_delta_deadlock() {
-        // see issue #187
-        let mpb = MultiProgress::new();
-        let pb = mpb.add(ProgressBar::new(1));
-        pb.set_draw_delta(2);
-        drop(pb);
-    }
-
-    #[test]
-    fn test_abandon_deadlock() {
-        let mpb = MultiProgress::new();
-        let pb = mpb.add(ProgressBar::new(1));
-        pb.set_draw_delta(2);
-        pb.abandon();
-        drop(pb);
-    }
-
-    #[test]
     fn late_pb_drop() {
         let pb = ProgressBar::new(10);
         let mpb = MultiProgress::new();
