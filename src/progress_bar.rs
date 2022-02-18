@@ -336,11 +336,8 @@ impl ProgressBar {
     /// For the message to be visible, the `{msg}` placeholder must be present in the template (see
     /// [`ProgressStyle`]).
     pub fn finish_with_message(&self, msg: impl Into<Cow<'static, str>>) {
-        self.state().update(Instant::now(), true, |state| {
-            state.message = msg.into();
-            state.pos = state.len;
-            state.status = Status::DoneVisible;
-        });
+        self.state()
+            .finish_using_style(Instant::now(), ProgressFinish::WithMessage(msg.into()))
     }
 
     /// Finishes the progress bar and completely clears it
@@ -360,10 +357,10 @@ impl ProgressBar {
     /// For the message to be visible, the `{msg}` placeholder must be present in the template (see
     /// [`ProgressStyle`]).
     pub fn abandon_with_message(&self, msg: impl Into<Cow<'static, str>>) {
-        self.state().update(Instant::now(), true, |state| {
-            state.message = msg.into();
-            state.status = Status::DoneVisible;
-        });
+        self.state().finish_using_style(
+            Instant::now(),
+            ProgressFinish::AbandonWithMessage(msg.into()),
+        )
     }
 
     /// Finishes the progress bar using the behavior stored in the [`ProgressStyle`]
