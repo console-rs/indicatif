@@ -321,15 +321,14 @@ impl ProgressBar {
 
     /// Finishes the progress bar and leaves the current message
     pub fn finish(&self) {
-        self.state.lock().unwrap().finish_and_leave(Instant::now());
+        self.state()
+            .finish_using_style(Instant::now(), ProgressFinish::AndLeave);
     }
 
     /// Finishes the progress bar at current position and leaves the current message
     pub fn finish_at_current_pos(&self) {
-        self.state
-            .lock()
-            .unwrap()
-            .finish_at_current_pos(Instant::now());
+        self.state()
+            .finish_using_style(Instant::now(), ProgressFinish::AtCurrentPos);
     }
 
     /// Finishes the progress bar and sets a message
@@ -346,12 +345,14 @@ impl ProgressBar {
 
     /// Finishes the progress bar and completely clears it
     pub fn finish_and_clear(&self) {
-        self.state.lock().unwrap().finish_and_clear(Instant::now());
+        self.state()
+            .finish_using_style(Instant::now(), ProgressFinish::AndClear);
     }
 
     /// Finishes the progress bar and leaves the current message and progress
     pub fn abandon(&self) {
-        self.state.lock().unwrap().abandon(Instant::now());
+        self.state()
+            .finish_using_style(Instant::now(), ProgressFinish::Abandon);
     }
 
     /// Finishes the progress bar and sets a message, and leaves the current progress
