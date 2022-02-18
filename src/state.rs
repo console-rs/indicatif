@@ -15,6 +15,15 @@ pub(crate) struct BarState {
 }
 
 impl BarState {
+    pub(crate) fn new(len: u64, draw_target: ProgressDrawTarget) -> Self {
+        Self {
+            draw_target,
+            on_finish: ProgressFinish::default(),
+            style: ProgressStyle::default_bar(),
+            state: ProgressState::new(len),
+        }
+    }
+
     /// Finishes the progress bar using the [`ProgressFinish`] behavior stored
     /// in the [`ProgressStyle`].
     pub(crate) fn finish_using_style(&mut self, now: Instant) {

@@ -7,7 +7,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::draw_target::ProgressDrawTarget;
-use crate::state::{BarState, ProgressFinish, ProgressState, Status};
+use crate::state::{BarState, ProgressFinish, Status};
 use crate::style::ProgressStyle;
 use crate::{ProgressBarIter, ProgressIterator};
 
@@ -47,12 +47,7 @@ impl ProgressBar {
     /// Creates a new progress bar with a given length and draw target
     pub fn with_draw_target(len: u64, draw_target: ProgressDrawTarget) -> ProgressBar {
         ProgressBar {
-            state: Arc::new(Mutex::new(BarState {
-                draw_target,
-                on_finish: ProgressFinish::default(),
-                style: ProgressStyle::default_bar(),
-                state: ProgressState::new(len),
-            })),
+            state: Arc::new(Mutex::new(BarState::new(len, draw_target))),
         }
     }
 
