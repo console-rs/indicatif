@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::fmt;
 use std::io;
+use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -155,7 +156,7 @@ impl BarState {
         ret
     }
 
-    pub(crate) fn draw(&mut self, mut force_draw: bool, now: Instant) -> io::Result<()> {
+    fn draw(&mut self, mut force_draw: bool, now: Instant) -> io::Result<()> {
         // we can bail early if the draw target is hidden.
         if self.draw_target.is_hidden() {
             return Ok(());
@@ -278,6 +279,54 @@ impl ProgressState {
             }
         } else {
             self.len as f64 / self.started.elapsed().as_secs_f64()
+        }
+    }
+}
+
+pub(crate) struct Ticker {
+    weak: Weak<Mutex<BarState>>,
+    interval: Duration,
+}
+
+impl Ticker {
+    pub(crate) fn spawn(arc: &Arc<Mutex<BarState>>, interval: Duration) {
+        let mut state = arc.lock().unwrap();
+        state.state.steady_tick = interval;
+        if state.state.tick_thread.is_some() {
+            return;
+        }
+
+        let ticker = Self {
+            // Using a weak pointer is required to prevent a potential deadlock. See issue #133
+            weak: Arc::downgrade(arc),
+            interval,
+        };
+
+        state.state.tick_thread = Some(thread::spawn(move || ticker.run()));
+        drop(state);
+        // use the side effect of tick to force the bar to tick.
+        arc.lock().unwrap().tick(Instant::now());
+    }
+
+    fn run(mut self) {
+        loop {
+            thread::sleep(self.interval);
+            if let Some(state_arc) = self.weak.upgrade() {
+                let mut state = state_arc.lock().unwrap();
+                if state.state.is_finished() || state.state.steady_tick.is_zero() {
+                    state.state.steady_tick = Duration::ZERO;
+                    state.state.tick_thread = None;
+                    break;
+                }
+
+                if state.state.tick != 0 {
+                    state.state.tick = state.state.tick.saturating_add(1);
+                }
+                self.interval = state.state.steady_tick;
+                state.draw(false, Instant::now()).ok();
+            } else {
+                break;
+            }
         }
     }
 }
