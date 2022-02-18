@@ -89,11 +89,7 @@ impl ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Term {
                 term,
                 last_line_count: 0,
-                rate_limiter: refresh_rate.into().map(|rate| RateLimiter {
-                    bucket: MAX_GROUP_SIZE,
-                    leak_rate: rate as f64,
-                    last_update: Instant::now(),
-                }),
+                rate_limiter: refresh_rate.into().map(RateLimiter::new),
                 draw_state: ProgressDrawState::new(Vec::new(), false),
             },
         }
@@ -349,6 +345,14 @@ struct RateLimiter {
 
 /// Rate limit but allow occasional bursts above desired rate
 impl RateLimiter {
+    fn new(leak_rate: u64) -> Self {
+        Self {
+            leak_rate: leak_rate as f64,
+            last_update: Instant::now(),
+            bucket: 0.0,
+        }
+    }
+
     /// try to add some work to the bucket
     /// return false if the bucket is already full and the work should be skipped
     fn allow(&mut self, now: Instant) -> bool {
