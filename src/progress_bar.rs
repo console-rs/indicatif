@@ -300,8 +300,9 @@ impl ProgressBar {
     /// This can be useful if the progress bars made a large jump or was paused for a prolonged
     /// time.
     pub fn reset_eta(&self) {
-        self.state().update(Instant::now(), false, |state| {
-            state.est.reset(state.pos);
+        let now = Instant::now();
+        self.state().update(now, false, |state| {
+            state.est.reset(state.pos, now);
         });
     }
 
