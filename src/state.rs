@@ -32,14 +32,14 @@ impl BarState {
             ProgressFinish::AndLeave => pos = Some(self.state.len),
             ProgressFinish::WithMessage(msg) => {
                 pos = Some(self.state.len);
-                self.state.message = msg;
+                self.style.message = msg;
             }
             ProgressFinish::AndClear => {
                 pos = Some(self.state.len);
                 status = Status::DoneHidden;
             }
             ProgressFinish::Abandon => {}
-            ProgressFinish::AbandonWithMessage(msg) => self.state.message = msg,
+            ProgressFinish::AbandonWithMessage(msg) => self.style.message = msg,
         }
 
         self.update(now, true, |state| {
@@ -98,8 +98,8 @@ impl BarState {
     }
 
     pub(crate) fn set_message(&mut self, now: Instant, msg: Cow<'static, str>) {
+        self.style.message = msg;
         self.update(now, false, |state| {
-            state.message = msg.into();
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
             }
@@ -107,8 +107,8 @@ impl BarState {
     }
 
     pub(crate) fn set_prefix(&mut self, now: Instant, prefix: Cow<'static, str>) {
+        self.style.prefix = prefix;
         self.update(now, false, |state| {
-            state.prefix = prefix.into();
             if state.steady_tick == 0 || state.tick == 0 {
                 state.tick = state.tick.saturating_add(1);
             }
@@ -175,8 +175,6 @@ pub struct ProgressState {
     pub len: u64,
     pub(crate) tick: u64,
     pub(crate) started: Instant,
-    pub(crate) message: Cow<'static, str>,
-    pub(crate) prefix: Cow<'static, str>,
     pub(crate) status: Status,
     pub(crate) est: Estimator,
     pub(crate) tick_thread: Option<thread::JoinHandle<()>>,
@@ -186,8 +184,6 @@ pub struct ProgressState {
 impl ProgressState {
     pub(crate) fn new(len: u64) -> Self {
         Self {
-            message: "".into(),
-            prefix: "".into(),
             pos: 0,
             len,
             tick: 0,
@@ -222,16 +218,6 @@ impl ProgressState {
             (pos, len) => pos as f32 / len as f32,
         };
         pct.max(0.0).min(1.0)
-    }
-
-    /// Returns the current message of the progress bar.
-    pub(crate) fn message(&self) -> &str {
-        &self.message
-    }
-
-    /// Returns the current prefix of the progress bar.
-    pub(crate) fn prefix(&self) -> &str {
-        &self.prefix
     }
 
     /// The expected ETA
