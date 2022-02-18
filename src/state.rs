@@ -125,8 +125,14 @@ impl BarState {
 
     /// Mutate the state, then draw if necessary
     fn update<F: FnOnce(&mut ProgressState)>(&mut self, now: Instant, force_draw: bool, f: F) {
-        let updated = self.state.update(now, f);
-        if force_draw || updated {
+        let old = (self.state.pos, self.state.tick);
+        f(&mut self.state);
+        let new = (self.state.pos, self.state.tick);
+        if new.0 != old.0 {
+            self.state.est.record(new.0, now);
+        }
+
+        if force_draw || old != new {
             self.draw(force_draw, now).ok();
         }
     }
@@ -249,18 +255,6 @@ impl ProgressState {
         } else {
             self.len as f64 / self.started.elapsed().as_secs_f64()
         }
-    }
-
-    /// Call the provided `FnOnce` to update the state. If a draw should be run, returns `true`.
-    pub(crate) fn update<F: FnOnce(&mut ProgressState)>(&mut self, now: Instant, f: F) -> bool {
-        let old = (self.pos, self.tick);
-        f(self);
-        let new = (self.pos, self.tick);
-        if new.0 != old.0 {
-            self.est.record(new.0, now);
-        }
-
-        old != new
     }
 }
 
