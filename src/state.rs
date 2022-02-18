@@ -309,24 +309,22 @@ impl Ticker {
     }
 
     fn run(mut self) {
-        loop {
-            thread::sleep(self.interval);
-            if let Some(state_arc) = self.weak.upgrade() {
-                let mut state = state_arc.lock().unwrap();
-                if state.state.is_finished() || state.state.steady_tick.is_zero() {
-                    state.state.steady_tick = Duration::ZERO;
-                    state.state.tick_thread = None;
-                    break;
-                }
-
-                if state.state.tick != 0 {
-                    state.state.tick = state.state.tick.saturating_add(1);
-                }
-                self.interval = state.state.steady_tick;
-                state.draw(false, Instant::now()).ok();
-            } else {
+        thread::sleep(self.interval);
+        while let Some(arc) = self.weak.upgrade() {
+            let mut state = arc.lock().unwrap();
+            if state.state.is_finished() || state.state.steady_tick.is_zero() {
+                state.state.steady_tick = Duration::ZERO;
+                state.state.tick_thread = None;
                 break;
             }
+
+            if state.state.tick != 0 {
+                state.state.tick = state.state.tick.saturating_add(1);
+            }
+
+            self.interval = state.state.steady_tick;
+            state.draw(false, Instant::now()).ok();
+            thread::sleep(self.interval);
         }
     }
 }
