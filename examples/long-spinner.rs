@@ -5,7 +5,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 fn main() {
     let pb = ProgressBar::new_spinner();
-    pb.enable_steady_tick(120);
+    pb.enable_steady_tick(Duration::from_millis(120));
     pb.set_style(
         ProgressStyle::default_spinner()
             // For more spinners check out the cli-spinners project:
