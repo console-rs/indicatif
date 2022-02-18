@@ -27,36 +27,28 @@ impl BarState {
     /// Finishes the progress bar using the [`ProgressFinish`] behavior stored
     /// in the [`ProgressStyle`].
     pub(crate) fn finish_using_style(&mut self, now: Instant, finish: ProgressFinish) {
+        let (mut pos, mut status) = (None, Status::DoneVisible);
         match finish {
-            ProgressFinish::AndLeave => self.update(now, true, |state| {
-                state.pos = state.len;
-                state.status = Status::DoneVisible;
-            }),
-            ProgressFinish::AtCurrentPos => self.update(now, true, |state| {
-                state.status = Status::DoneVisible;
-            }),
+            ProgressFinish::AndLeave => pos = Some(self.state.len),
+            ProgressFinish::AtCurrentPos => {}
             ProgressFinish::WithMessage(msg) => {
+                pos = Some(self.state.len);
                 self.state.message = msg;
-                self.update(now, true, |state| {
-                    state.pos = state.len;
-                    state.status = Status::DoneVisible;
-                })
             }
-            ProgressFinish::AndClear => self.update(now, true, |state| {
-                state.pos = state.len;
-                state.status = Status::DoneHidden;
-            }),
-            ProgressFinish::Abandon => self.update(now, true, |state| {
-                state.status = Status::DoneVisible;
-            }),
-            ProgressFinish::AbandonWithMessage(msg) => {
-                // Equivalent to `self.abandon_with_message` but avoids borrow checker error
-                self.state.message = msg;
-                self.update(now, true, |state| {
-                    state.status = Status::DoneVisible;
-                });
+            ProgressFinish::AndClear => {
+                pos = Some(self.state.len);
+                status = Status::DoneHidden;
             }
+            ProgressFinish::Abandon => {}
+            ProgressFinish::AbandonWithMessage(msg) => self.state.message = msg,
         }
+
+        self.update(now, true, |state| {
+            if let Some(pos) = pos {
+                state.pos = pos;
+            }
+            state.status = status;
+        });
     }
 
     /// Mutate the state, then draw if necessary
