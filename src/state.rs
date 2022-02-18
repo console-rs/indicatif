@@ -200,10 +200,10 @@ pub struct ProgressState {
     pub len: u64,
     pub(crate) tick: u64,
     pub(crate) started: Instant,
-    pub(crate) status: Status,
-    pub(crate) est: Estimator,
-    pub(crate) tick_thread: Option<thread::JoinHandle<()>>,
-    pub(crate) steady_tick: Duration,
+    status: Status,
+    est: Estimator,
+    tick_thread: Option<thread::JoinHandle<()>>,
+    steady_tick: Duration,
 }
 
 impl ProgressState {
