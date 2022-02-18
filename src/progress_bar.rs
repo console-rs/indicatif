@@ -369,10 +369,9 @@ impl ProgressBar {
     ///
     /// See [`ProgressBar::with_finish()`].
     pub fn finish_using_style(&self) {
-        self.state
-            .lock()
-            .unwrap()
-            .finish_using_style(Instant::now());
+        let mut state = self.state();
+        let finish = state.on_finish.clone();
+        state.finish_using_style(Instant::now(), finish);
     }
 
     /// Sets a different draw target for the progress bar
