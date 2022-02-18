@@ -126,7 +126,7 @@ pub struct ProgressState {
     pub(crate) message: Cow<'static, str>,
     pub(crate) prefix: Cow<'static, str>,
     pub(crate) status: Status,
-    pub(crate) est: Estimate,
+    pub(crate) est: Estimator,
     pub(crate) tick_thread: Option<thread::JoinHandle<()>>,
     pub(crate) steady_tick: u64,
 }
@@ -141,7 +141,7 @@ impl ProgressState {
             tick: 0,
             status: Status::InProgress,
             started: Instant::now(),
-            est: Estimate::new(),
+            est: Estimator::new(Instant::now()),
             tick_thread: None,
             steady_tick: 0,
         }
@@ -219,119 +219,74 @@ impl ProgressState {
         f(self);
         let new = (self.pos, self.tick);
         if new.0 != old.0 {
-            self.est.record_step(new.0, now);
+            self.est.record(new.0, now);
         }
 
         old != new
     }
 }
 
-/// Ring buffer with constant capacity. Used by `ProgressBar`s to display `{eta}`, `{eta_precise}`,
-/// and `{*_per_sec}`.
-pub(crate) struct Estimate {
-    buf: Box<[f64; 15]>,
-    /// Lower 4 bits signify the current length, meaning how many values of `buf` are actually
-    /// meaningful (and not just set to 0 by initialization).
-    ///
-    /// The upper 4 bits signify the last used index in the `buf`. The estimate is currently
-    /// implemented as a ring buffer and when recording a new step the oldest value is overwritten.
-    /// Last index is the most recently used position, and as elements are always stored with
-    /// insertion order, `last_index + 1` is the least recently used position and is the first
-    /// to be overwritten.
-    data: u8,
-    start_time: Instant,
-    start_value: u64,
+/// Estimate the number of seconds per step
+///
+/// Ring buffer with constant capacity. Used by `ProgressBar`s to display `{eta}`,
+/// `{eta_precise}`, and `{*_per_sec}`.
+pub(crate) struct Estimator {
+    steps: [f64; 16],
+    pos: u8,
+    full: bool,
+    prev: (u64, Instant),
 }
 
-impl Estimate {
-    fn len(&self) -> u8 {
-        self.data & 0x0F
-    }
-
-    fn set_len(&mut self, len: u8) {
-        // Sanity check to make sure math is correct as otherwise it could result in unexpected bugs
-        debug_assert!(len < 16);
-        self.data = (self.data & 0xF0) | len;
-    }
-
-    fn last_idx(&self) -> u8 {
-        (self.data & 0xF0) >> 4
-    }
-
-    fn set_last_idx(&mut self, last_idx: u8) {
-        // This will wrap last_idx on overflow (setting to 16 will result in 0); this is fine
-        // because Estimate::buf is 15 elements long and this is a ring buffer, so overwriting
-        // the oldest value is correct
-        self.data = ((last_idx & 0x0F) << 4) | (self.data & 0x0F);
-    }
-
-    fn new() -> Self {
-        let this = Self {
-            buf: Box::new([0.0; 15]),
-            data: 0,
-            start_time: Instant::now(),
-            start_value: 0,
-        };
-        // Make sure not to break anything accidentally as self.data can't handle bufs longer than
-        // 15 elements (not enough space in a u8)
-        debug_assert!(this.buf.len() < 16);
-        this
-    }
-
-    pub(crate) fn reset(&mut self, start_value: u64) {
-        self.start_time = Instant::now();
-        self.start_value = start_value;
-        self.data = 0;
-    }
-
-    fn record_step(&mut self, value: u64, current_time: Instant) {
-        let elapsed = current_time - self.start_time;
-        let item = {
-            let divisor = value.saturating_sub(self.start_value) as f64;
-            if divisor == 0.0 {
-                0.0
-            } else {
-                duration_to_secs(elapsed) / divisor
-            }
-        };
-
-        self.push(item);
-    }
-
-    /// Adds the `value` into the buffer, overwriting the oldest one if full, or increasing length
-    /// by 1 and appending otherwise.
-    fn push(&mut self, value: f64) {
-        let len = self.len();
-        let last_idx = self.last_idx();
-
-        if self.buf.len() > usize::from(len) {
-            // Buffer isn't yet full, increase it's size
-            self.set_len(len + 1);
-            self.buf[usize::from(last_idx)] = value;
-        } else {
-            // Buffer is full, overwrite the oldest value
-            let idx = last_idx % len;
-            self.buf[usize::from(idx)] = value;
+impl Estimator {
+    fn new(now: Instant) -> Self {
+        Self {
+            steps: [0.0; 16],
+            pos: 0,
+            full: false,
+            prev: (0, now),
         }
+    }
 
-        self.set_last_idx(last_idx + 1);
+    fn record(&mut self, value: u64, current_time: Instant) {
+        let elapsed = current_time - self.prev.1;
+        let divisor = value.saturating_sub(self.prev.0) as f64;
+        let mut batch = 0.0;
+        if divisor != 0.0 {
+            batch = duration_to_secs(elapsed) / divisor;
+        };
+
+        self.steps[self.pos as usize] = batch;
+        self.pos = (self.pos + 1) % 16;
+        if !self.full && self.pos == 0 {
+            self.full = true;
+        }
+    }
+
+    pub(crate) fn reset(&mut self, start: u64, now: Instant) {
+        self.pos = 0;
+        self.full = false;
+        self.prev = (start, now);
     }
 
     /// Average time per step in seconds, using rolling buffer of last 15 steps
     fn seconds_per_step(&self) -> f64 {
         let len = self.len();
-        self.buf[0..usize::from(len)].iter().sum::<f64>() / f64::from(len)
+        self.steps[0..len].iter().sum::<f64>() / len as f64
+    }
+
+    fn len(&self) -> usize {
+        match self.full {
+            true => 16,
+            false => self.pos as usize,
+        }
     }
 }
 
-impl fmt::Debug for Estimate {
+impl fmt::Debug for Estimator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Estimate")
-            .field("buf", &self.buf)
-            .field("len", &self.len())
-            .field("last_idx", &self.last_idx())
-            .field("start_time", &self.start_time)
-            .field("start_value", &self.start_value)
+            .field("steps", &&self.steps[..self.len()])
+            .field("prev", &self.prev)
             .finish()
     }
 }
@@ -402,13 +357,13 @@ mod tests {
     #[test]
     fn test_time_per_step() {
         let test_rate = |items_per_second| {
-            let mut est = Estimate::new();
-            let mut current_time = est.start_time;
+            let mut est = Estimator::new(Instant::now());
+            let mut current_time = est.prev.1;
             let mut current_value = 0;
-            for _ in 0..est.buf.len() {
+            for _ in 0..est.steps.len() {
                 current_value += items_per_second;
                 current_time += Duration::from_secs(1);
-                est.record_step(current_value, current_time);
+                est.record(current_value, current_time);
             }
             let avg_seconds_per_step = est.seconds_per_step();
 
