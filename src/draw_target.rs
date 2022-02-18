@@ -48,28 +48,6 @@ impl ProgressDrawTarget {
         ProgressDrawTarget::term(Term::buffered_stderr(), refresh_rate)
     }
 
-    /// Draw to a buffered stdout terminal without max framerate.
-    ///
-    /// This is useful when data is known to come in very slowly and
-    /// not rendering some updates would be a problem (for instance
-    /// when messages are used extensively).
-    ///
-    /// For more information see `ProgressDrawTarget::to_term`.
-    pub fn stdout_nohz() -> ProgressDrawTarget {
-        ProgressDrawTarget::term(Term::buffered_stdout(), None)
-    }
-
-    /// Draw to a buffered stderr terminal without max framerate.
-    ///
-    /// This is useful when data is known to come in very slowly and
-    /// not rendering some updates would be a problem (for instance
-    /// when messages are used extensively).
-    ///
-    /// For more information see `ProgressDrawTarget::to_term`.
-    pub fn stderr_nohz() -> ProgressDrawTarget {
-        ProgressDrawTarget::term(Term::buffered_stderr(), None)
-    }
-
     pub(crate) fn new_remote(state: Arc<RwLock<MultiProgressState>>, idx: usize) -> Self {
         Self {
             kind: ProgressDrawTargetKind::Remote { state, idx },
@@ -84,12 +62,12 @@ impl ProgressDrawTarget {
     /// useless escape codes in that file.
     ///
     /// Will panic if refresh_rate is `Some(0)`. To disable rate limiting use `None` instead.
-    pub fn term(term: Term, refresh_rate: impl Into<Option<u64>>) -> ProgressDrawTarget {
+    pub fn term(term: Term, refresh_rate: u64) -> ProgressDrawTarget {
         ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Term {
                 term,
                 last_line_count: 0,
-                rate_limiter: refresh_rate.into().map(RateLimiter::new),
+                rate_limiter: RateLimiter::new(refresh_rate),
                 draw_state: ProgressDrawState::new(Vec::new(), false),
             },
         }
@@ -146,9 +124,8 @@ impl ProgressDrawTarget {
                 rate_limiter,
                 draw_state,
             } => {
-                let has_capacity = rate_limiter.as_mut().map(|b| b.allow(now)).unwrap_or(true);
                 draw_state.force_draw = force_draw;
-                match force_draw || has_capacity {
+                match force_draw || rate_limiter.allow(now) {
                     true => Some(Drawable::Term {
                         term,
                         last_line_count,
@@ -215,7 +192,7 @@ enum ProgressDrawTargetKind {
     Term {
         term: Term,
         last_line_count: usize,
-        rate_limiter: Option<RateLimiter>,
+        rate_limiter: RateLimiter,
         draw_state: ProgressDrawState,
     },
     Remote {
