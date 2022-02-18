@@ -164,11 +164,7 @@ impl ProgressDrawTarget {
                 rate_limiter,
                 draw_state,
             } => {
-                let has_capacity = rate_limiter
-                    .as_mut()
-                    .map(|b| b.try_add_work(now))
-                    .unwrap_or(true);
-
+                let has_capacity = rate_limiter.as_mut().map(|b| b.allow(now)).unwrap_or(true);
                 draw_state.force_draw = force_draw;
                 match force_draw || has_capacity {
                     true => Some(Drawable::Term {
@@ -369,7 +365,7 @@ struct RateLimiter {
 impl RateLimiter {
     /// try to add some work to the bucket
     /// return false if the bucket is already full and the work should be skipped
-    fn try_add_work(&mut self, now: Instant) -> bool {
+    fn allow(&mut self, now: Instant) -> bool {
         let ticks = (now - self.last_update).as_secs_f64() * self.leak_rate;
         self.bucket -= ticks;
         if self.bucket < 0.0 {
