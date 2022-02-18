@@ -1,6 +1,6 @@
 use std::io;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use console::Term;
 
@@ -23,7 +23,7 @@ impl ProgressDrawTarget {
     ///
     /// For more information see `ProgressDrawTarget::to_term`.
     pub fn stdout() -> ProgressDrawTarget {
-        ProgressDrawTarget::term(Term::buffered_stdout(), 15)
+        ProgressDrawTarget::term(Term::buffered_stdout(), 20)
     }
 
     /// Draw to a buffered stderr terminal at a max of 15 times a second.
@@ -31,20 +31,20 @@ impl ProgressDrawTarget {
     /// This is the default draw target for progress bars.  For more
     /// information see `ProgressDrawTarget::to_term`.
     pub fn stderr() -> ProgressDrawTarget {
-        ProgressDrawTarget::term(Term::buffered_stderr(), 15)
+        ProgressDrawTarget::term(Term::buffered_stderr(), 20)
     }
 
     /// Draw to a buffered stdout terminal at a max of `refresh_rate` times a second.
     ///
     /// For more information see `ProgressDrawTarget::to_term`.
-    pub fn stdout_with_hz(refresh_rate: u64) -> ProgressDrawTarget {
+    pub fn stdout_with_hz(refresh_rate: u8) -> ProgressDrawTarget {
         ProgressDrawTarget::term(Term::buffered_stdout(), refresh_rate)
     }
 
     /// Draw to a buffered stderr terminal at a max of `refresh_rate` times a second.
     ///
     /// For more information see `ProgressDrawTarget::to_term`.
-    pub fn stderr_with_hz(refresh_rate: u64) -> ProgressDrawTarget {
+    pub fn stderr_with_hz(refresh_rate: u8) -> ProgressDrawTarget {
         ProgressDrawTarget::term(Term::buffered_stderr(), refresh_rate)
     }
 
@@ -62,7 +62,7 @@ impl ProgressDrawTarget {
     /// useless escape codes in that file.
     ///
     /// Will panic if refresh_rate is `Some(0)`. To disable rate limiting use `None` instead.
-    pub fn term(term: Term, refresh_rate: u64) -> ProgressDrawTarget {
+    pub fn term(term: Term, refresh_rate: u8) -> ProgressDrawTarget {
         ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Term {
                 term,
@@ -315,41 +315,39 @@ impl Drop for DrawStateWrapper<'_> {
 
 #[derive(Debug)]
 struct RateLimiter {
-    leak_rate: f64,
-    last_update: Instant,
-    bucket: f64,
+    interval: u16, // in milliseconds
+    capacity: u8,
+    prev: Instant,
 }
 
 /// Rate limit but allow occasional bursts above desired rate
 impl RateLimiter {
-    fn new(leak_rate: u64) -> Self {
+    fn new(rate: u8) -> Self {
         Self {
-            leak_rate: leak_rate as f64,
-            last_update: Instant::now(),
-            bucket: 0.0,
+            interval: 1000 / (rate as u16), // between 3 and 1000 milliseconds
+            capacity: MAX_BURST,
+            prev: Instant::now(),
         }
     }
 
-    /// try to add some work to the bucket
-    /// return false if the bucket is already full and the work should be skipped
     fn allow(&mut self, now: Instant) -> bool {
-        let ticks = (now - self.last_update).as_secs_f64() * self.leak_rate;
-        self.bucket -= ticks;
-        if self.bucket < 0.0 {
-            self.bucket = 0.0;
-        }
-        self.last_update = now;
+        let elapsed = now - self.prev;
+        let remaining = (MAX_BURST - self.capacity) as u128;
+        self.capacity += Ord::min(remaining, elapsed.as_millis() / self.interval as u128) as u8;
+        let interval_nanos = self.interval as u128 * 1_000_000;
+        self.prev = now - Duration::from_nanos((elapsed.as_nanos() % interval_nanos) as u64);
 
-        if self.bucket < MAX_GROUP_SIZE {
-            self.bucket += 1.0;
-            true
-        } else {
-            false
+        match self.capacity.checked_sub(1) {
+            Some(new) => {
+                self.capacity = new;
+                true
+            }
+            None => false,
         }
     }
 }
 
-const MAX_GROUP_SIZE: f64 = 32.0;
+const MAX_BURST: u8 = 20;
 
 /// The drawn state of an element.
 #[derive(Clone, Debug)]
