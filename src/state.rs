@@ -70,18 +70,14 @@ impl BarState {
     pub(crate) fn set_position(&mut self, now: Instant, pos: u64) {
         self.update(now, false, |state| {
             state.pos = pos;
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
+            state.tick();
         })
     }
 
     pub(crate) fn inc(&mut self, now: Instant, delta: u64) {
         self.update(now, false, |state| {
             state.pos = state.pos.saturating_add(delta);
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
+            state.tick();
         })
     }
 
@@ -99,28 +95,16 @@ impl BarState {
 
     pub(crate) fn set_message(&mut self, now: Instant, msg: Cow<'static, str>) {
         self.style.message = msg;
-        self.update(now, false, |state| {
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
-        })
+        self.tick(now);
     }
 
     pub(crate) fn set_prefix(&mut self, now: Instant, prefix: Cow<'static, str>) {
         self.style.prefix = prefix;
-        self.update(now, false, |state| {
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
-        })
+        self.tick(now);
     }
 
     pub(crate) fn tick(&mut self, now: Instant) {
-        self.update(now, false, |state| {
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
-        });
+        self.update(now, false, ProgressState::tick);
     }
 
     /// Mutate the state, then draw if necessary
@@ -232,6 +216,12 @@ impl ProgressState {
             est: Estimator::new(Instant::now()),
             tick_thread: None,
             steady_tick: 0,
+        }
+    }
+
+    fn tick(&mut self) {
+        if self.steady_tick == 0 || self.tick == 0 {
+            self.tick = self.tick.saturating_add(1);
         }
     }
 
