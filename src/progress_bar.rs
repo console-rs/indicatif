@@ -7,7 +7,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::draw_target::ProgressDrawTarget;
-use crate::state::{BarState, ProgressFinish, Status};
+use crate::state::{BarState, ProgressFinish};
 use crate::style::ProgressStyle;
 use crate::{ProgressBarIter, ProgressIterator};
 
@@ -168,21 +168,12 @@ impl ProgressBar {
     ///
     /// This automatically happens on any other change to a progress bar.
     pub fn tick(&self) {
-        self.state().update(Instant::now(), false, |state| {
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
-        });
+        self.state().tick(Instant::now())
     }
 
     /// Advances the position of the progress bar by `delta`
     pub fn inc(&self, delta: u64) {
-        self.state().update(Instant::now(), false, |state| {
-            state.pos = state.pos.saturating_add(delta);
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
-        })
+        self.state().inc(Instant::now(), delta)
     }
 
     /// A quick convenience check if the progress bar is hidden
@@ -235,26 +226,17 @@ impl ProgressBar {
 
     /// Sets the position of the progress bar
     pub fn set_position(&self, pos: u64) {
-        self.state().update(Instant::now(), false, |state| {
-            state.pos = pos;
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
-        })
+        self.state().set_position(Instant::now(), pos)
     }
 
     /// Sets the length of the progress bar
     pub fn set_length(&self, len: u64) {
-        self.state().update(Instant::now(), false, |state| {
-            state.len = len;
-        })
+        self.state().set_length(Instant::now(), len)
     }
 
     /// Increase the length of the progress bar
     pub fn inc_length(&self, delta: u64) {
-        self.state().update(Instant::now(), false, |state| {
-            state.len = state.len.saturating_add(delta);
-        })
+        self.state().inc_length(Instant::now(), delta)
     }
 
     /// Sets the current prefix of the progress bar
@@ -262,12 +244,7 @@ impl ProgressBar {
     /// For the prefix to be visible, the `{prefix}` placeholder must be present in the template
     /// (see [`ProgressStyle`]).
     pub fn set_prefix(&self, prefix: impl Into<Cow<'static, str>>) {
-        self.state().update(Instant::now(), false, |state| {
-            state.prefix = prefix.into();
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
-        })
+        self.state().set_prefix(Instant::now(), prefix.into());
     }
 
     /// Sets the current message of the progress bar
@@ -275,12 +252,7 @@ impl ProgressBar {
     /// For the message to be visible, the `{msg}` placeholder must be present in the template (see
     /// [`ProgressStyle`]).
     pub fn set_message(&self, msg: impl Into<Cow<'static, str>>) {
-        self.state().update(Instant::now(), false, |state| {
-            state.message = msg.into();
-            if state.steady_tick == 0 || state.tick == 0 {
-                state.tick = state.tick.saturating_add(1);
-            }
-        })
+        self.state().set_message(Instant::now(), msg.into())
     }
 
     /// Creates a new weak reference to this `ProgressBar`
@@ -295,28 +267,17 @@ impl ProgressBar {
     /// This can be useful if the progress bars made a large jump or was paused for a prolonged
     /// time.
     pub fn reset_eta(&self) {
-        let now = Instant::now();
-        self.state().update(now, false, |state| {
-            state.est.reset(state.pos, now);
-        });
+        self.state().reset(Instant::now(), true, false, false)
     }
 
     /// Resets elapsed time
     pub fn reset_elapsed(&self) {
-        let now = Instant::now();
-        self.state().update(now, false, |state| {
-            state.started = now;
-        });
+        self.state().reset(Instant::now(), false, true, false)
     }
 
     /// Resets all of the progress bar state
     pub fn reset(&self) {
-        self.reset_eta();
-        self.reset_elapsed();
-        self.state().update(Instant::now(), false, |state| {
-            state.pos = 0;
-            state.status = Status::InProgress;
-        });
+        self.state().reset(Instant::now(), true, true, true)
     }
 
     /// Finishes the progress bar and leaves the current message

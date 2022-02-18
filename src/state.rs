@@ -50,13 +50,81 @@ impl BarState {
         });
     }
 
+    pub(crate) fn reset(&mut self, now: Instant, eta: bool, elapsed: bool, rest: bool) {
+        self.update(Instant::now(), false, |state| {
+            if eta {
+                state.est.reset(state.pos, now);
+            }
+
+            if elapsed {
+                state.started = now;
+            }
+
+            if rest {
+                state.pos = 0;
+                state.status = Status::InProgress;
+            }
+        });
+    }
+
+    pub(crate) fn set_position(&mut self, now: Instant, pos: u64) {
+        self.update(now, false, |state| {
+            state.pos = pos;
+            if state.steady_tick == 0 || state.tick == 0 {
+                state.tick = state.tick.saturating_add(1);
+            }
+        })
+    }
+
+    pub(crate) fn inc(&mut self, now: Instant, delta: u64) {
+        self.update(now, false, |state| {
+            state.pos = state.pos.saturating_add(delta);
+            if state.steady_tick == 0 || state.tick == 0 {
+                state.tick = state.tick.saturating_add(1);
+            }
+        })
+    }
+
+    pub(crate) fn set_length(&mut self, now: Instant, len: u64) {
+        self.update(now, false, |state| {
+            state.len = len;
+        })
+    }
+
+    pub(crate) fn inc_length(&mut self, now: Instant, delta: u64) {
+        self.update(now, false, |state| {
+            state.len = state.len.saturating_add(delta);
+        })
+    }
+
+    pub(crate) fn set_message(&mut self, now: Instant, msg: Cow<'static, str>) {
+        self.update(now, false, |state| {
+            state.message = msg.into();
+            if state.steady_tick == 0 || state.tick == 0 {
+                state.tick = state.tick.saturating_add(1);
+            }
+        })
+    }
+
+    pub(crate) fn set_prefix(&mut self, now: Instant, prefix: Cow<'static, str>) {
+        self.update(now, false, |state| {
+            state.prefix = prefix.into();
+            if state.steady_tick == 0 || state.tick == 0 {
+                state.tick = state.tick.saturating_add(1);
+            }
+        })
+    }
+
+    pub(crate) fn tick(&mut self, now: Instant) {
+        self.update(now, false, |state| {
+            if state.steady_tick == 0 || state.tick == 0 {
+                state.tick = state.tick.saturating_add(1);
+            }
+        });
+    }
+
     /// Mutate the state, then draw if necessary
-    pub(crate) fn update<F: FnOnce(&mut ProgressState)>(
-        &mut self,
-        now: Instant,
-        force_draw: bool,
-        f: F,
-    ) {
+    fn update<F: FnOnce(&mut ProgressState)>(&mut self, now: Instant, force_draw: bool, f: F) {
         let updated = self.state.update(now, f);
         if force_draw || updated {
             self.draw(force_draw, now).ok();
