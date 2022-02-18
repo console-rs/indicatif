@@ -59,13 +59,13 @@ impl ProgressBar {
 
     /// A convenience builder-like function for a progress bar with a given prefix
     pub fn with_prefix(self, prefix: impl Into<Cow<'static, str>>) -> ProgressBar {
-        self.state.lock().unwrap().state.prefix = prefix.into();
+        self.state().style.prefix = prefix.into();
         self
     }
 
     /// A convenience builder-like function for a progress bar with a given message
     pub fn with_message(self, message: impl Into<Cow<'static, str>>) -> ProgressBar {
-        self.state.lock().unwrap().state.message = message.into();
+        self.state().style.message = message.into();
         self
     }
 

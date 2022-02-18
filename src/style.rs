@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{self, Write};
 use std::mem;
@@ -14,6 +15,8 @@ use crate::state::ProgressState;
 /// Controls the rendering style of progress bars
 #[derive(Clone)]
 pub struct ProgressStyle {
+    pub(crate) message: Cow<'static, str>,
+    pub(crate) prefix: Cow<'static, str>,
     tick_strings: Vec<Box<str>>,
     progress_chars: Vec<Box<str>>,
     template: Template,
@@ -73,7 +76,9 @@ impl ProgressStyle {
     fn new(template: &str) -> Self {
         let progress_chars = segment("█░");
         let char_width = width(&progress_chars);
-        ProgressStyle {
+        Self {
+            message: "".into(),
+            prefix: "".into(),
             tick_strings: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
                 .chars()
                 .map(|c| c.to_string().into())
@@ -246,8 +251,8 @@ impl ProgressStyle {
                                 wide = Some(WideElement::Message { align });
                                 buf.push('\x00');
                             }
-                            "msg" => buf.push_str(state.message()),
-                            "prefix" => buf.push_str(state.prefix()),
+                            "msg" => buf.push_str(&self.message),
+                            "prefix" => buf.push_str(&self.prefix),
                             "pos" => buf.write_fmt(format_args!("{}", state.pos)).unwrap(),
                             "human_pos" => buf
                                 .write_fmt(format_args!("{}", HumanCount(state.pos)))
@@ -388,7 +393,7 @@ impl<'a> WideElement<'a> {
                 buf.write_fmt(format_args!(
                     "{}",
                     PaddedStringDisplay {
-                        str: state.message(),
+                        str: &style.message,
                         width: left,
                         align: *align,
                         truncate: true,
