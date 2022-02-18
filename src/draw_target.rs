@@ -84,20 +84,6 @@ impl ProgressDrawTarget {
     /// useless escape codes in that file.
     ///
     /// Will panic if refresh_rate is `Some(0)`. To disable rate limiting use `None` instead.
-    #[allow(clippy::wrong_self_convention)]
-    #[deprecated(since = "0.16.0", note = "Use `ProgressDrawTarget::term` instead")]
-    pub fn to_term(term: Term, refresh_rate: impl Into<Option<u64>>) -> ProgressDrawTarget {
-        ProgressDrawTarget::term(term, refresh_rate)
-    }
-
-    /// Draw to a terminal, optionally with a specific refresh rate.
-    ///
-    /// Progress bars are by default drawn to terminals however if the
-    /// terminal is not user attended the entire progress bar will be
-    /// hidden.  This is done so that piping to a file will not produce
-    /// useless escape codes in that file.
-    ///
-    /// Will panic if refresh_rate is `Some(0)`. To disable rate limiting use `None` instead.
     pub fn term(term: Term, refresh_rate: impl Into<Option<u64>>) -> ProgressDrawTarget {
         ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Term {
