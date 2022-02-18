@@ -370,22 +370,19 @@ impl LeakyBucket {
     /// try to add some work to the bucket
     /// return false if the bucket is already full and the work should be skipped
     fn try_add_work(&mut self, now: Instant) -> bool {
-        self.leak(now);
-        if self.bucket < MAX_GROUP_SIZE {
-            self.bucket += 1.0;
-            true
-        } else {
-            false
-        }
-    }
-
-    fn leak(&mut self, now: Instant) {
         let ticks = (now - self.last_update).as_secs_f64() * self.leak_rate;
         self.bucket -= ticks;
         if self.bucket < 0.0 {
             self.bucket = 0.0;
         }
         self.last_update = now;
+
+        if self.bucket < MAX_GROUP_SIZE {
+            self.bucket += 1.0;
+            true
+        } else {
+            false
+        }
     }
 }
 
