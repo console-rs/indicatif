@@ -103,7 +103,7 @@ impl ProgressDrawTarget {
             kind: ProgressDrawTargetKind::Term {
                 term,
                 last_line_count: 0,
-                leaky_bucket: refresh_rate.into().map(|rate| LeakyBucket {
+                rate_limiter: refresh_rate.into().map(|rate| RateLimiter {
                     bucket: MAX_GROUP_SIZE,
                     leak_rate: rate as f64,
                     last_update: Instant::now(),
@@ -161,10 +161,10 @@ impl ProgressDrawTarget {
             ProgressDrawTargetKind::Term {
                 term,
                 last_line_count,
-                leaky_bucket,
+                rate_limiter,
                 draw_state,
             } => {
-                let has_capacity = leaky_bucket
+                let has_capacity = rate_limiter
                     .as_mut()
                     .map(|b| b.try_add_work(now))
                     .unwrap_or(true);
@@ -237,7 +237,7 @@ enum ProgressDrawTargetKind {
     Term {
         term: Term,
         last_line_count: usize,
-        leaky_bucket: Option<LeakyBucket>,
+        rate_limiter: Option<RateLimiter>,
         draw_state: ProgressDrawState,
     },
     Remote {
@@ -359,14 +359,14 @@ impl Drop for DrawStateWrapper<'_> {
 }
 
 #[derive(Debug)]
-struct LeakyBucket {
+struct RateLimiter {
     leak_rate: f64,
     last_update: Instant,
     bucket: f64,
 }
 
 /// Rate limit but allow occasional bursts above desired rate
-impl LeakyBucket {
+impl RateLimiter {
     /// try to add some work to the bucket
     /// return false if the bucket is already full and the work should be skipped
     fn try_add_work(&mut self, now: Instant) -> bool {
