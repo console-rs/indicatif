@@ -29,12 +29,4 @@ fn main() {
     // Perform a long sequence of many simple computations monitored by a
     // default progress bar.
     many_units_of_easy_work(N, "Default progress bar ");
-
-    // Perform the same sequence of many simple computations, but only redraw
-    // after each 0.005% of additional progress.
-    many_units_of_easy_work(N, "Draw delta is 0.005% ");
-
-    // Perform the same sequence of many simple computations, but only redraw
-    // after each 0.01% of additional progress.
-    many_units_of_easy_work(N, "Draw delta is 0.01%  ");
 }
