@@ -3,11 +3,10 @@ use std::fmt;
 use std::io;
 use std::sync::MutexGuard;
 use std::sync::{Arc, Mutex, Weak};
-use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::draw_target::ProgressDrawTarget;
-use crate::state::{BarState, ProgressFinish};
+use crate::state::{BarState, ProgressFinish, Ticker};
 use crate::style::ProgressStyle;
 use crate::{ProgressBarIter, ProgressIterator};
 
@@ -121,43 +120,7 @@ impl ProgressBar {
     /// When steady ticks are enabled, calling [`ProgressBar::tick()`] on a progress bar does not
     /// have any effect.
     pub fn enable_steady_tick(&self, interval: Duration) {
-        let mut state = self.state.lock().unwrap();
-        state.state.steady_tick = interval;
-        if state.state.tick_thread.is_some() {
-            return;
-        }
-
-        // Using a weak pointer is required to prevent a potential deadlock. See issue #133
-        let state_arc = Arc::downgrade(&self.state);
-        state.state.tick_thread = Some(thread::spawn(move || {
-            Self::steady_tick(state_arc, interval)
-        }));
-
-        ::std::mem::drop(state);
-        // use the side effect of tick to force the bar to tick.
-        self.tick();
-    }
-
-    fn steady_tick(state_arc: Weak<Mutex<BarState>>, mut ms: Duration) {
-        loop {
-            thread::sleep(ms);
-            if let Some(state_arc) = state_arc.upgrade() {
-                let mut state = state_arc.lock().unwrap();
-                if state.state.is_finished() || state.state.steady_tick.is_zero() {
-                    state.state.steady_tick = Duration::ZERO;
-                    state.state.tick_thread = None;
-                    break;
-                }
-                if state.state.tick != 0 {
-                    state.state.tick = state.state.tick.saturating_add(1);
-                }
-                ms = state.state.steady_tick;
-
-                state.draw(false, Instant::now()).ok();
-            } else {
-                break;
-            }
-        }
+        Ticker::spawn(&self.state, interval)
     }
 
     /// Undoes [`ProgressBar::enable_steady_tick()`]
