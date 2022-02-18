@@ -2,11 +2,8 @@ use std::time::Instant;
 
 use indicatif::{HumanDuration, ProgressBar};
 
-fn many_units_of_easy_work(n: u64, label: &str, draw_delta: Option<u64>) {
+fn many_units_of_easy_work(n: u64, label: &str) {
     let pb = ProgressBar::new(n);
-    if let Some(v) = draw_delta {
-        pb.set_draw_delta(v);
-    }
 
     let mut sum = 0;
     let started = Instant::now();
@@ -31,13 +28,13 @@ fn main() {
 
     // Perform a long sequence of many simple computations monitored by a
     // default progress bar.
-    many_units_of_easy_work(N, "Default progress bar ", None);
+    many_units_of_easy_work(N, "Default progress bar ");
 
     // Perform the same sequence of many simple computations, but only redraw
     // after each 0.005% of additional progress.
-    many_units_of_easy_work(N, "Draw delta is 0.005% ", Some(N / (5 * 100000)));
+    many_units_of_easy_work(N, "Draw delta is 0.005% ");
 
     // Perform the same sequence of many simple computations, but only redraw
     // after each 0.01% of additional progress.
-    many_units_of_easy_work(N, "Draw delta is 0.01%  ", Some(N / 10000));
+    many_units_of_easy_work(N, "Draw delta is 0.01%  ");
 }
