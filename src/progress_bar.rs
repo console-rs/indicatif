@@ -325,12 +325,6 @@ impl ProgressBar {
             .finish_using_style(Instant::now(), ProgressFinish::AndLeave);
     }
 
-    /// Finishes the progress bar at current position and leaves the current message
-    pub fn finish_at_current_pos(&self) {
-        self.state()
-            .finish_using_style(Instant::now(), ProgressFinish::AtCurrentPos);
-    }
-
     /// Finishes the progress bar and sets a message
     ///
     /// For the message to be visible, the `{msg}` placeholder must be present in the template (see

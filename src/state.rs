@@ -30,7 +30,6 @@ impl BarState {
         let (mut pos, mut status) = (None, Status::DoneVisible);
         match finish {
             ProgressFinish::AndLeave => pos = Some(self.state.len),
-            ProgressFinish::AtCurrentPos => {}
             ProgressFinish::WithMessage(msg) => {
                 pos = Some(self.state.len);
                 self.state.message = msg;
@@ -290,10 +289,6 @@ pub enum ProgressFinish {
     ///
     /// Same behavior as calling [`ProgressBar::finish()`](crate::ProgressBar::finish).
     AndLeave,
-    /// Finishes the progress bar at current position and leaves the current message
-    ///
-    /// Same behavior as calling [`ProgressBar::finish_at_current_pos()`](crate::ProgressBar::finish_at_current_pos).
-    AtCurrentPos,
     /// Finishes the progress bar and sets a message
     ///
     /// Same behavior as calling [`ProgressBar::finish_with_message()`](crate::ProgressBar::finish_with_message).
