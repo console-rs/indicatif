@@ -28,51 +28,35 @@ impl BarState {
     /// in the [`ProgressStyle`].
     pub(crate) fn finish_using_style(&mut self, now: Instant, finish: ProgressFinish) {
         match finish {
-            ProgressFinish::AndLeave => self.finish_and_leave(now),
-            ProgressFinish::AtCurrentPos => self.finish_at_current_pos(now),
+            ProgressFinish::AndLeave => self.update(now, true, |state| {
+                state.pos = state.len;
+                state.status = Status::DoneVisible;
+            }),
+            ProgressFinish::AtCurrentPos => self.update(now, true, |state| {
+                state.status = Status::DoneVisible;
+            }),
             ProgressFinish::WithMessage(msg) => {
-                // Equivalent to `self.finish_with_message` but avoids borrow checker error
                 self.state.message = msg;
-                self.finish_and_leave(now);
+                self.update(now, true, |state| {
+                    state.pos = state.len;
+                    state.status = Status::DoneVisible;
+                })
             }
-            ProgressFinish::AndClear => self.finish_and_clear(now),
-            ProgressFinish::Abandon => self.abandon(now),
+            ProgressFinish::AndClear => self.update(now, true, |state| {
+                state.pos = state.len;
+                state.status = Status::DoneHidden;
+            }),
+            ProgressFinish::Abandon => self.update(now, true, |state| {
+                state.status = Status::DoneVisible;
+            }),
             ProgressFinish::AbandonWithMessage(msg) => {
                 // Equivalent to `self.abandon_with_message` but avoids borrow checker error
                 self.state.message = msg;
-                self.abandon(now);
+                self.update(now, true, |state| {
+                    state.status = Status::DoneVisible;
+                });
             }
         }
-    }
-
-    /// Finishes the progress bar and leaves the current message.
-    pub(crate) fn finish_and_leave(&mut self, now: Instant) {
-        self.update(now, true, |state| {
-            state.pos = state.len;
-            state.status = Status::DoneVisible;
-        });
-    }
-
-    /// Finishes the progress bar at current position and leaves the current message.
-    pub(crate) fn finish_at_current_pos(&mut self, now: Instant) {
-        self.update(now, true, |state| {
-            state.status = Status::DoneVisible;
-        });
-    }
-
-    /// Finishes the progress bar and completely clears it.
-    pub(crate) fn finish_and_clear(&mut self, now: Instant) {
-        self.update(now, true, |state| {
-            state.pos = state.len;
-            state.status = Status::DoneHidden;
-        });
-    }
-
-    /// Finishes the progress bar and leaves the current message and progress.
-    pub(crate) fn abandon(&mut self, now: Instant) {
-        self.update(now, true, |state| {
-            state.status = Status::DoneVisible;
-        });
     }
 
     /// Mutate the state, then draw if necessary
