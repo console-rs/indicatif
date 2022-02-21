@@ -645,13 +645,11 @@ enum Alignment {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::draw_target::ProgressDrawTarget;
     use crate::state::ProgressState;
 
     #[test]
     fn test_expand_template() {
-        let draw_target = ProgressDrawTarget::stdout();
-        let width = draw_target.width();
+        const WIDTH: usize = 80;
         let state = ProgressState::new(10);
         let mut buf = Vec::new();
 
@@ -660,12 +658,12 @@ mod tests {
         style.format_map.insert("bar", |_| "BAR".into());
 
         style.template = Template::from_str("{{ {foo} {bar} }}");
-        style.format_state(&state, &mut buf, width);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "{ FOO BAR }");
 
         buf.clear();
         style.template = Template::from_str(r#"{ "foo": "{foo}", "bar": {bar} }"#);
-        style.format_state(&state, &mut buf, width);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], r#"{ "foo": "FOO", "bar": BAR }"#);
     }
 
@@ -674,8 +672,7 @@ mod tests {
         use console::set_colors_enabled;
         set_colors_enabled(true);
 
-        let draw_target = ProgressDrawTarget::stdout();
-        let width = draw_target.width();
+        const WIDTH: usize = 80;
         let state = ProgressState::new(10);
         let mut buf = Vec::new();
 
@@ -683,22 +680,22 @@ mod tests {
         style.format_map.insert("foo", |_| "XXX".into());
 
         style.template = Template::from_str("{foo:5}");
-        style.format_state(&state, &mut buf, width);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "XXX  ");
 
         buf.clear();
         style.template = Template::from_str("{foo:.red.on_blue}");
-        style.format_state(&state, &mut buf, width);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44mXXX\u{1b}[0m");
 
         buf.clear();
         style.template = Template::from_str("{foo:^5.red.on_blue}");
-        style.format_state(&state, &mut buf, width);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
 
         buf.clear();
         style.template = Template::from_str("{foo:^5.red.on_blue/green.on_cyan}");
-        style.format_state(&state, &mut buf, width);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
     }
 }
