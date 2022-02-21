@@ -123,11 +123,8 @@ impl BarState {
     }
 
     pub(crate) fn println(&mut self, now: Instant, msg: &str) {
-        let draw_lines = self.state.should_render() && !self.draw_target.is_hidden();
-        let (draw_target, style, state) = (&mut self.draw_target, &self.style, &self.state);
-        let width = draw_target.width();
-
-        let mut drawable = match draw_target.drawable(true, now) {
+        let (width, hidden) = (self.draw_target.width(), self.draw_target.is_hidden());
+        let mut drawable = match self.draw_target.drawable(true, now) {
             Some(drawable) => drawable,
             None => return,
         };
@@ -138,8 +135,9 @@ impl BarState {
 
         draw_state.lines.extend(msg.lines().map(Into::into));
         draw_state.orphan_lines = draw_state.lines.len();
-        if draw_lines {
-            style.format_state(state, &mut draw_state.lines, width);
+        if self.state.should_render() && !hidden {
+            self.style
+                .format_state(&self.state, &mut draw_state.lines, width);
         }
 
         drop(draw_state);
