@@ -265,7 +265,7 @@ impl Ticker {
     pub(crate) fn spawn(arc: &Arc<Mutex<BarState>>, interval: Duration) {
         let mut state = arc.lock().unwrap();
         state.state.steady_tick = interval;
-        if state.state.tick_thread.is_some() {
+        if interval.is_zero() || state.state.tick_thread.is_some() {
             return;
         }
 
