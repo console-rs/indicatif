@@ -13,6 +13,7 @@ pub(crate) struct BarState {
     pub(crate) on_finish: ProgressFinish,
     pub(crate) style: ProgressStyle,
     pub(crate) state: ProgressState,
+    pub(crate) ticker: Option<(Duration, thread::JoinHandle<()>)>,
 }
 
 impl BarState {
@@ -22,6 +23,7 @@ impl BarState {
             on_finish: ProgressFinish::default(),
             style: ProgressStyle::default_bar(),
             state: ProgressState::new(len),
+            ticker: None,
         }
     }
 
@@ -101,7 +103,7 @@ impl BarState {
     }
 
     pub(crate) fn tick(&mut self, now: Instant) {
-        if self.state.ticker.is_none() || self.state.tick == 0 {
+        if self.ticker.is_none() || self.state.tick == 0 {
             self.state.tick = self.state.tick.saturating_add(1);
         }
 
@@ -184,7 +186,6 @@ pub struct ProgressState {
     pub(crate) started: Instant,
     status: Status,
     est: Estimator,
-    pub(crate) ticker: Option<(Duration, thread::JoinHandle<()>)>,
 }
 
 impl ProgressState {
@@ -196,7 +197,6 @@ impl ProgressState {
             status: Status::InProgress,
             started: Instant::now(),
             est: Estimator::new(Instant::now()),
-            ticker: None,
         }
     }
 
@@ -264,7 +264,7 @@ impl Ticker {
         let mut state = arc.lock().unwrap();
         if interval.is_zero() {
             return;
-        } else if let Some((old, _)) = &mut state.state.ticker {
+        } else if let Some((old, _)) = &mut state.ticker {
             *old = interval;
             return;
         }
@@ -276,7 +276,7 @@ impl Ticker {
         };
 
         let handle = thread::spawn(move || ticker.run());
-        state.state.ticker = Some((interval, handle));
+        state.ticker = Some((interval, handle));
         drop(state);
         // use the side effect of tick to force the bar to tick.
         arc.lock().unwrap().tick(Instant::now());
@@ -286,7 +286,7 @@ impl Ticker {
         thread::sleep(self.interval);
         while let Some(arc) = self.weak.upgrade() {
             let mut state = arc.lock().unwrap();
-            let interval = match state.state.ticker {
+            let interval = match state.ticker {
                 Some((interval, _)) if !state.state.is_finished() => interval,
                 _ => return,
             };
