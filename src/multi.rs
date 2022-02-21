@@ -209,7 +209,7 @@ impl MultiProgressState {
         DrawStateWrapper::for_multi(state, orphans)
     }
 
-    pub(crate) fn width(&self) -> usize {
+    pub(crate) fn width(&self) -> u16 {
         self.draw_target.width()
     }
 

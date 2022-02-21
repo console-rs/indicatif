@@ -106,9 +106,9 @@ impl ProgressDrawTarget {
     }
 
     /// Returns the current width of the draw target.
-    pub(crate) fn width(&self) -> usize {
+    pub(crate) fn width(&self) -> u16 {
         match self.kind {
-            ProgressDrawTargetKind::Term { ref term, .. } => term.size().1 as usize,
+            ProgressDrawTargetKind::Term { ref term, .. } => term.size().1,
             ProgressDrawTargetKind::Remote { ref state, .. } => state.read().unwrap().width(),
             ProgressDrawTargetKind::Hidden => 0,
             ProgressDrawTargetKind::TermLike { ref inner, .. } => inner.width(),
@@ -403,8 +403,9 @@ impl ProgressDrawState {
                 term.write_str(line)?;
                 // Keep the cursor on the right terminal side
                 // So that next user writes/prints will happen on the next line
+                let term_width = term.width() as usize;
                 let line_width = console::measure_text_width(line);
-                term.write_str(&" ".repeat(term.width().saturating_sub(line_width)))?;
+                term.write_str(&" ".repeat(term_width.saturating_sub(line_width)))?;
             }
         }
 

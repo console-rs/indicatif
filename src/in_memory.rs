@@ -49,8 +49,8 @@ impl InMemoryTerm {
 }
 
 impl TermLike for InMemoryTerm {
-    fn width(&self) -> usize {
-        self.state.lock().unwrap().width as usize
+    fn width(&self) -> u16 {
+        self.state.lock().unwrap().width
     }
 
     fn move_cursor_up(&self, n: usize) -> std::io::Result<()> {
