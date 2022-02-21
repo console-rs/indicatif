@@ -68,7 +68,7 @@ impl ProgressDrawTarget {
                 term,
                 last_line_count: 0,
                 rate_limiter: RateLimiter::new(refresh_rate),
-                draw_state: ProgressDrawState::new(Vec::new(), false),
+                draw_state: ProgressDrawState::default(),
             },
         }
     }
@@ -79,7 +79,7 @@ impl ProgressDrawTarget {
             kind: ProgressDrawTargetKind::TermLike {
                 inner: term_like,
                 last_line_count: 0,
-                draw_state: ProgressDrawState::new(Vec::new(), false),
+                draw_state: ProgressDrawState::default(),
             },
         }
     }
@@ -128,7 +128,6 @@ impl ProgressDrawTarget {
                     return None;
                 }
 
-                draw_state.force_draw = force_draw;
                 match force_draw || rate_limiter.allow(now) {
                     true => Some(Drawable::Term {
                         term,
@@ -151,14 +150,11 @@ impl ProgressDrawTarget {
                 inner,
                 last_line_count,
                 draw_state,
-            } => {
-                draw_state.force_draw = force_draw;
-                Some(Drawable::TermLike {
-                    term_like: &**inner,
-                    last_line_count,
-                    draw_state,
-                })
-            }
+            } => Some(Drawable::TermLike {
+                term_like: &**inner,
+                last_line_count,
+                draw_state,
+            }),
             // Hidden, finished, or no need to refresh yet
             _ => None,
         }
@@ -354,14 +350,12 @@ impl RateLimiter {
 const MAX_BURST: u8 = 20;
 
 /// The drawn state of an element.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct ProgressDrawState {
     /// The lines to print (can contain ANSI codes)
     pub(crate) lines: Vec<String>,
     /// The number of lines that shouldn't be reaped by the next tick.
     pub(crate) orphan_lines: usize,
-    /// True if drawing should be forced.
-    force_draw: bool,
     /// True if we should move the cursor up when possible instead of clearing lines.
     pub(crate) move_cursor: bool,
     /// Controls how the multi progress is aligned if some of its progress bars get removed, default is `Top`
@@ -369,16 +363,6 @@ pub(crate) struct ProgressDrawState {
 }
 
 impl ProgressDrawState {
-    pub(crate) fn new(lines: Vec<String>, force_draw: bool) -> Self {
-        Self {
-            lines,
-            orphan_lines: 0,
-            force_draw,
-            move_cursor: false,
-            alignment: Default::default(),
-        }
-    }
-
     fn draw_to_term(
         &mut self,
         term: &(impl TermLike + ?Sized),
