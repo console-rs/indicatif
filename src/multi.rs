@@ -169,11 +169,6 @@ impl MultiProgressState {
     }
 
     pub(crate) fn draw(&mut self, mut force_draw: bool, now: Instant) -> io::Result<()> {
-        // the rest from here is only drawing, we can skip it.
-        if self.draw_target.is_hidden() {
-            return Ok(());
-        }
-
         let orphan_lines_count = self.orphan_lines.len();
         force_draw |= orphan_lines_count > 0;
         let mut drawable = match self.draw_target.drawable(force_draw, now) {

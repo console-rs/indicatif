@@ -124,6 +124,10 @@ impl ProgressDrawTarget {
                 rate_limiter,
                 draw_state,
             } => {
+                if !term.is_term() {
+                    return None;
+                }
+
                 draw_state.force_draw = force_draw;
                 match force_draw || rate_limiter.allow(now) {
                     true => Some(Drawable::Term {
