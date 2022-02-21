@@ -67,12 +67,11 @@ impl BarState {
     pub(crate) fn set_position(&mut self, now: Instant, pos: u64) {
         let prev = self.state.pos;
         self.state.pos = pos;
-        self.state.tick();
         if prev != pos {
             self.state.est.record(self.state.pos, now);
         }
 
-        let _ = self.draw(false, now);
+        self.tick(now);
     }
 
     pub(crate) fn inc(&mut self, now: Instant, delta: u64) {
@@ -102,7 +101,10 @@ impl BarState {
     }
 
     pub(crate) fn tick(&mut self, now: Instant) {
-        self.state.tick();
+        if self.state.steady_tick.is_zero() || self.state.tick == 0 {
+            self.state.tick = self.state.tick.saturating_add(1);
+        }
+
         let _ = self.draw(false, now);
     }
 
@@ -197,12 +199,6 @@ impl ProgressState {
             est: Estimator::new(Instant::now()),
             tick_thread: None,
             steady_tick: Duration::ZERO,
-        }
-    }
-
-    fn tick(&mut self) {
-        if self.steady_tick.is_zero() || self.tick == 0 {
-            self.tick = self.tick.saturating_add(1);
         }
     }
 
