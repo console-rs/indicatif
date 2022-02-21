@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 
 use crate::draw_target::ProgressDrawTarget;
-use crate::state::{BarState, ProgressFinish, Ticker};
+use crate::state::{BarState, ProgressFinish, Reset, Ticker};
 use crate::style::ProgressStyle;
 use crate::{ProgressBarIter, ProgressIterator};
 
@@ -208,17 +208,17 @@ impl ProgressBar {
     /// This can be useful if the progress bars made a large jump or was paused for a prolonged
     /// time.
     pub fn reset_eta(&self) {
-        self.state().reset(Instant::now(), true, false, false)
+        self.state().reset(Instant::now(), Reset::Eta)
     }
 
     /// Resets elapsed time
     pub fn reset_elapsed(&self) {
-        self.state().reset(Instant::now(), false, true, false)
+        self.state().reset(Instant::now(), Reset::Elapsed)
     }
 
     /// Resets all of the progress bar state
     pub fn reset(&self) {
-        self.state().reset(Instant::now(), true, true, true)
+        self.state().reset(Instant::now(), Reset::All)
     }
 
     /// Finishes the progress bar and leaves the current message
