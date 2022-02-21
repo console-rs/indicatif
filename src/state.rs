@@ -28,70 +28,67 @@ impl BarState {
     /// Finishes the progress bar using the [`ProgressFinish`] behavior stored
     /// in the [`ProgressStyle`].
     pub(crate) fn finish_using_style(&mut self, now: Instant, finish: ProgressFinish) {
-        let (mut pos, mut status) = (None, Status::DoneVisible);
+        self.state.status = Status::DoneVisible;
         match finish {
-            ProgressFinish::AndLeave => pos = Some(self.state.len),
+            ProgressFinish::AndLeave => self.state.pos = self.state.len,
             ProgressFinish::WithMessage(msg) => {
-                pos = Some(self.state.len);
+                self.state.pos = self.state.len;
                 self.style.message = msg;
             }
             ProgressFinish::AndClear => {
-                pos = Some(self.state.len);
-                status = Status::DoneHidden;
+                self.state.pos = self.state.len;
+                self.state.status = Status::DoneHidden;
             }
             ProgressFinish::Abandon => {}
             ProgressFinish::AbandonWithMessage(msg) => self.style.message = msg,
         }
 
-        self.update(now, true, |state| {
-            if let Some(pos) = pos {
-                state.pos = pos;
-            }
-            state.status = status;
-        });
+        // There's no need to update the estimate here; once the `status` is no longer
+        // `InProgress`, we will use the length and elapsed time to estimate.
+        let _ = self.draw(true, now);
     }
 
     pub(crate) fn reset(&mut self, now: Instant, mode: Reset) {
-        self.update(Instant::now(), false, |state| {
-            if let Reset::Eta | Reset::All = mode {
-                state.est.reset(state.pos, now);
-            }
+        if let Reset::Eta | Reset::All = mode {
+            self.state.est.reset(self.state.pos, now);
+        }
 
-            if let Reset::Elapsed | Reset::All = mode {
-                state.started = now;
-            }
+        if let Reset::Elapsed | Reset::All = mode {
+            self.state.started = now;
+        }
 
-            if let Reset::All = mode {
-                state.pos = 0;
-                state.status = Status::InProgress;
-            }
-        });
+        if let Reset::All = mode {
+            self.state.pos = 0;
+            self.state.status = Status::InProgress;
+            let _ = self.draw(false, now);
+        }
     }
 
     pub(crate) fn set_position(&mut self, now: Instant, pos: u64) {
-        self.update(now, false, |state| {
-            state.pos = pos;
-            state.tick();
-        })
+        let prev = self.state.pos;
+        self.state.pos = pos;
+        self.state.tick();
+        if prev != pos {
+            self.state.est.record(self.state.pos, now);
+        }
+
+        let _ = self.draw(false, now);
     }
 
     pub(crate) fn inc(&mut self, now: Instant, delta: u64) {
-        self.update(now, false, |state| {
-            state.pos = state.pos.saturating_add(delta);
-            state.tick();
-        })
+        self.state.pos = self.state.pos.saturating_add(delta);
+        self.state.est.record(self.state.pos, now);
+        let _ = self.draw(false, now);
     }
 
     pub(crate) fn set_length(&mut self, now: Instant, len: u64) {
-        self.update(now, false, |state| {
-            state.len = len;
-        })
+        self.state.len = len;
+        let _ = self.draw(false, now);
     }
 
     pub(crate) fn inc_length(&mut self, now: Instant, delta: u64) {
-        self.update(now, false, |state| {
-            state.len = state.len.saturating_add(delta);
-        })
+        self.state.len = self.state.len.saturating_add(delta);
+        let _ = self.draw(false, now);
     }
 
     pub(crate) fn set_message(&mut self, now: Instant, msg: Cow<'static, str>) {
@@ -105,21 +102,8 @@ impl BarState {
     }
 
     pub(crate) fn tick(&mut self, now: Instant) {
-        self.update(now, false, ProgressState::tick);
-    }
-
-    /// Mutate the state, then draw if necessary
-    fn update<F: FnOnce(&mut ProgressState)>(&mut self, now: Instant, force_draw: bool, f: F) {
-        let old = (self.state.pos, self.state.tick);
-        f(&mut self.state);
-        let new = (self.state.pos, self.state.tick);
-        if new.0 != old.0 {
-            self.state.est.record(new.0, now);
-        }
-
-        if force_draw || old != new {
-            self.draw(force_draw, now).ok();
-        }
+        self.state.tick();
+        let _ = self.draw(false, now);
     }
 
     pub(crate) fn println(&mut self, now: Instant, msg: &str) {
