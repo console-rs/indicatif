@@ -101,7 +101,7 @@ impl BarState {
     }
 
     pub(crate) fn tick(&mut self, now: Instant) {
-        if self.state.steady_tick.is_zero() || self.state.tick == 0 {
+        if self.state.ticker.is_none() || self.state.tick == 0 {
             self.state.tick = self.state.tick.saturating_add(1);
         }
 
@@ -184,8 +184,7 @@ pub struct ProgressState {
     pub(crate) started: Instant,
     status: Status,
     est: Estimator,
-    tick_thread: Option<thread::JoinHandle<()>>,
-    steady_tick: Duration,
+    pub(crate) ticker: Option<(Duration, thread::JoinHandle<()>)>,
 }
 
 impl ProgressState {
@@ -197,8 +196,7 @@ impl ProgressState {
             status: Status::InProgress,
             started: Instant::now(),
             est: Estimator::new(Instant::now()),
-            tick_thread: None,
-            steady_tick: Duration::ZERO,
+            ticker: None,
         }
     }
 
@@ -264,8 +262,10 @@ pub(crate) struct Ticker {
 impl Ticker {
     pub(crate) fn spawn(arc: &Arc<Mutex<BarState>>, interval: Duration) {
         let mut state = arc.lock().unwrap();
-        state.state.steady_tick = interval;
-        if interval.is_zero() || state.state.tick_thread.is_some() {
+        if interval.is_zero() {
+            return;
+        } else if let Some((old, _)) = &mut state.state.ticker {
+            *old = interval;
             return;
         }
 
@@ -275,7 +275,8 @@ impl Ticker {
             interval,
         };
 
-        state.state.tick_thread = Some(thread::spawn(move || ticker.run()));
+        let handle = thread::spawn(move || ticker.run());
+        state.state.ticker = Some((interval, handle));
         drop(state);
         // use the side effect of tick to force the bar to tick.
         arc.lock().unwrap().tick(Instant::now());
@@ -285,17 +286,16 @@ impl Ticker {
         thread::sleep(self.interval);
         while let Some(arc) = self.weak.upgrade() {
             let mut state = arc.lock().unwrap();
-            if state.state.is_finished() || state.state.steady_tick.is_zero() {
-                state.state.steady_tick = Duration::ZERO;
-                state.state.tick_thread = None;
-                break;
-            }
+            let interval = match state.state.ticker {
+                Some((interval, _)) if !state.state.is_finished() => interval,
+                _ => return,
+            };
 
             if state.state.tick != 0 {
                 state.state.tick = state.state.tick.saturating_add(1);
             }
 
-            self.interval = state.state.steady_tick;
+            self.interval = interval;
             state.draw(false, Instant::now()).ok();
             thread::sleep(self.interval);
         }

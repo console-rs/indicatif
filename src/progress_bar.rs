@@ -125,7 +125,7 @@ impl ProgressBar {
 
     /// Undoes [`ProgressBar::enable_steady_tick()`]
     pub fn disable_steady_tick(&self) {
-        self.enable_steady_tick(Duration::ZERO);
+        self.state().state.ticker = None;
     }
 
     /// Manually ticks the spinner or progress bar
