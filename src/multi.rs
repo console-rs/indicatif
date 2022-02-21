@@ -197,7 +197,7 @@ impl MultiProgressState {
         let state = match states.get_mut(idx) {
             Some(Some(draw_state)) => draw_state,
             Some(inner) => {
-                *inner = Some(ProgressDrawState::new(Vec::new(), false));
+                *inner = Some(ProgressDrawState::default());
                 let state = inner.as_mut().unwrap();
                 state.move_cursor = self.move_cursor;
                 state.alignment = self.alignment;
