@@ -77,17 +77,17 @@ impl BarState {
     pub(crate) fn inc(&mut self, now: Instant, delta: u64) {
         self.state.pos = self.state.pos.saturating_add(delta);
         self.state.est.record(self.state.pos, now);
-        let _ = self.draw(false, now);
+        self.tick(now);
     }
 
     pub(crate) fn set_length(&mut self, now: Instant, len: u64) {
         self.state.len = len;
-        let _ = self.draw(false, now);
+        self.tick(now);
     }
 
     pub(crate) fn inc_length(&mut self, now: Instant, delta: u64) {
         self.state.len = self.state.len.saturating_add(delta);
-        let _ = self.draw(false, now);
+        self.tick(now);
     }
 
     pub(crate) fn set_message(&mut self, now: Instant, msg: Cow<'static, str>) {
