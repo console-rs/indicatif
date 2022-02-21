@@ -130,9 +130,6 @@ impl BarState {
         };
 
         let mut draw_state = drawable.state();
-        draw_state.move_cursor = false;
-        draw_state.alignment = Default::default();
-
         draw_state.lines.extend(msg.lines().map(Into::into));
         draw_state.orphan_lines = draw_state.lines.len();
         if self.state.should_render() && !hidden {
