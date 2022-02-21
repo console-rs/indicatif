@@ -212,7 +212,7 @@ impl ProgressStyle {
         &self,
         state: &ProgressState,
         lines: &mut Vec<String>,
-        target_width: usize,
+        target_width: u16,
     ) {
         let mut cur = String::new();
         let mut buf = String::new();
@@ -377,9 +377,9 @@ impl<'a> WideElement<'a> {
         style: &ProgressStyle,
         state: &ProgressState,
         buf: &mut String,
-        width: usize,
+        width: u16,
     ) -> String {
-        let left = width.saturating_sub(measure_text_width(&*cur.replace("\x00", "")));
+        let left = (width as usize).saturating_sub(measure_text_width(&*cur.replace("\x00", "")));
         match self {
             Self::Bar { alt_style } => cur.replace(
                 "\x00",
@@ -649,7 +649,7 @@ mod tests {
 
     #[test]
     fn test_expand_template() {
-        const WIDTH: usize = 80;
+        const WIDTH: u16 = 80;
         let state = ProgressState::new(10);
         let mut buf = Vec::new();
 
@@ -672,7 +672,7 @@ mod tests {
         use console::set_colors_enabled;
         set_colors_enabled(true);
 
-        const WIDTH: usize = 80;
+        const WIDTH: u16 = 80;
         let state = ProgressState::new(10);
         let mut buf = Vec::new();
 

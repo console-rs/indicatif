@@ -9,7 +9,7 @@ use std::io;
 /// [`ProgressDrawTarget::term_like`]: crate::ProgressDrawTarget::term_like
 pub trait TermLike: Debug + Send + Sync {
     /// Return the terminal width
-    fn width(&self) -> usize;
+    fn width(&self) -> u16;
 
     /// Move the cursor up by `n` lines
     fn move_cursor_up(&self, n: usize) -> io::Result<()>;
@@ -31,8 +31,8 @@ pub trait TermLike: Debug + Send + Sync {
 }
 
 impl TermLike for Term {
-    fn width(&self) -> usize {
-        self.size().1 as usize
+    fn width(&self) -> u16 {
+        self.size().1
     }
 
     fn move_cursor_up(&self, n: usize) -> io::Result<()> {
