@@ -51,17 +51,17 @@ impl BarState {
         });
     }
 
-    pub(crate) fn reset(&mut self, now: Instant, eta: bool, elapsed: bool, rest: bool) {
+    pub(crate) fn reset(&mut self, now: Instant, mode: Reset) {
         self.update(Instant::now(), false, |state| {
-            if eta {
+            if let Reset::Eta | Reset::All = mode {
                 state.est.reset(state.pos, now);
             }
 
-            if elapsed {
+            if let Reset::Elapsed | Reset::All = mode {
                 state.started = now;
             }
 
-            if rest {
+            if let Reset::All = mode {
                 state.pos = 0;
                 state.status = Status::InProgress;
             }
@@ -187,6 +187,12 @@ impl Drop for BarState {
 
         self.finish_using_style(Instant::now(), self.on_finish.clone());
     }
+}
+
+pub(crate) enum Reset {
+    Eta,
+    Elapsed,
+    All,
 }
 
 /// The state of a progress bar at a moment in time.
