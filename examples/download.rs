@@ -9,8 +9,7 @@ fn main() {
     let total_size = 231231231;
 
     let pb = ProgressBar::new(total_size);
-    pb.set_style(ProgressStyle::default_bar()
-        .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+    pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
         .unwrap()
         .with_key("eta", |state| format!("{:.1}s", state.eta().as_secs_f64()))
         .progress_chars("#>-"));

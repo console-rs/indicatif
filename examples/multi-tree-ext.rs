@@ -184,15 +184,10 @@ pub fn main() {
         MultiProgressAlignment::Top
     };
     mp.set_alignment(alignment);
-    let sty_main = ProgressStyle::default_bar()
-        .template("{bar:40.green/yellow} {pos:>4}/{len:4}")
-        .unwrap();
-    let sty_aux = ProgressStyle::default_bar()
-        .template("[{pos:>2}/{len:2}] {prefix}{spinner:.green} {msg}")
-        .unwrap();
-    let sty_fin = ProgressStyle::default_bar()
-        .template("[{pos:>2}/{len:2}] {prefix}{msg}")
-        .unwrap();
+    let sty_main = ProgressStyle::with_template("{bar:40.green/yellow} {pos:>4}/{len:4}").unwrap();
+    let sty_aux =
+        ProgressStyle::with_template("[{pos:>2}/{len:2}] {prefix}{spinner:.green} {msg}").unwrap();
+    let sty_fin = ProgressStyle::with_template("[{pos:>2}/{len:2}] {prefix}{msg}").unwrap();
 
     let pb_main = mp.add(ProgressBar::new(
         ELEMENTS

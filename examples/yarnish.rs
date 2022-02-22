@@ -35,10 +35,9 @@ static SPARKLE: Emoji<'_, '_> = Emoji("✨ ", ":-)");
 pub fn main() {
     let mut rng = rand::thread_rng();
     let started = Instant::now();
-    let spinner_style = ProgressStyle::default_spinner()
-        .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
-        .template("{prefix:.bold.dim} {spinner} {wide_msg}")
-        .unwrap();
+    let spinner_style = ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {wide_msg}")
+        .unwrap()
+        .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ");
 
     println!(
         "{} {}Resolving packages...",

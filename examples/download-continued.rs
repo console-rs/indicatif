@@ -10,10 +10,11 @@ fn main() {
 
     let pb = ProgressBar::new(total_size);
     pb.set_style(
-        ProgressStyle::default_bar()
-            .template("{spinner:.green} [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
-            .unwrap()
-            .progress_chars("#>-"),
+        ProgressStyle::with_template(
+            "{spinner:.green} [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
     );
     pb.set_position(downloaded);
     pb.reset_eta();

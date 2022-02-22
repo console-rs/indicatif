@@ -12,10 +12,9 @@ pub fn main() {
     let pb = ProgressBar::new_spinner();
     pb.enable_steady_tick(Duration::from_millis(200));
     pb.set_style(
-        ProgressStyle::default_spinner()
-            .tick_chars("/|\\- ")
-            .template("{spinner:.dim.bold} cargo: {wide_msg}")
-            .unwrap(),
+        ProgressStyle::with_template("{spinner:.dim.bold} cargo: {wide_msg}")
+            .unwrap()
+            .tick_chars("/|\\- "),
     );
 
     let mut p = process::Command::new("cargo")

@@ -42,16 +42,17 @@ fn main() {
     // mimic cargo progress bar although it behaves a bit different
     let pb = ProgressBar::new(CRATES.len() as u64);
     pb.set_style(
-        ProgressStyle::default_bar()
+        ProgressStyle::with_template(
             // note that bar size is fixed unlike cargo which is dynamic
             // and also the truncation in cargo uses trailers (`...`)
-            .template(if Term::stdout().size().1 > 80 {
+            if Term::stdout().size().1 > 80 {
                 "{prefix:>12.cyan.bold} [{bar:57}] {pos}/{len} {wide_msg}"
             } else {
                 "{prefix:>12.cyan.bold} [{bar:57}] {pos}/{len}"
-            })
-            .unwrap()
-            .progress_chars("=> "),
+            },
+        )
+        .unwrap()
+        .progress_chars("=> "),
     );
     pb.set_prefix("Building");
 

@@ -7,7 +7,8 @@ fn main() {
     let pb = ProgressBar::new_spinner();
     pb.enable_steady_tick(Duration::from_millis(120));
     pb.set_style(
-        ProgressStyle::default_spinner()
+        ProgressStyle::with_template("{spinner:.blue} {msg}")
+            .unwrap()
             // For more spinners check out the cli-spinners project:
             // https://github.com/sindresorhus/cli-spinners/blob/master/spinners.json
             .tick_strings(&[
@@ -18,9 +19,7 @@ fn main() {
                 "▹▹▹▸▹",
                 "▹▹▹▹▸",
                 "▪▪▪▪▪",
-            ])
-            .template("{spinner:.blue} {msg}")
-            .unwrap(),
+            ]),
     );
     pb.set_message("Calculating...");
     thread::sleep(Duration::from_secs(5));

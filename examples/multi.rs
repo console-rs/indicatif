@@ -5,10 +5,11 @@ use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 fn main() {
     let m = MultiProgress::new();
-    let sty = ProgressStyle::default_bar()
-        .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-        .unwrap()
-        .progress_chars("##-");
+    let sty = ProgressStyle::with_template(
+        "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+    )
+    .unwrap()
+    .progress_chars("##-");
 
     let pb = m.add(ProgressBar::new(128));
     pb.set_style(sty.clone());

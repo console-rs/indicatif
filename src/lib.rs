@@ -151,8 +151,7 @@
 //! ```rust
 //! # use indicatif::{ProgressBar, ProgressStyle};
 //! # let bar = ProgressBar::new(0);
-//! bar.set_style(ProgressStyle::default_bar()
-//!     .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+//! bar.set_style(ProgressStyle::with_template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
 //!     .unwrap()
 //!     .progress_chars("##-"));
 //! ```

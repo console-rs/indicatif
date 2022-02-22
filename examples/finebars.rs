@@ -20,8 +20,7 @@ fn main() {
         .map(|s| {
             let pb = m.add(ProgressBar::new(512));
             pb.set_style(
-                ProgressStyle::default_bar()
-                    .template(&format!("{{prefix:.bold}}▕{{bar:.{}}}▏{{msg}}", s.2))
+                ProgressStyle::with_template(&format!("{{prefix:.bold}}▕{{bar:.{}}}▏{{msg}}", s.2))
                     .unwrap()
                     .progress_chars(s.1),
             );

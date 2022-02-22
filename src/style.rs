@@ -65,15 +65,19 @@ fn width(c: &[Box<str>]) -> usize {
 impl ProgressStyle {
     /// Returns the default progress bar style for bars
     pub fn default_bar() -> ProgressStyle {
-        Self::new("{wide_bar} {pos}/{len}")
+        Self::new(Template::from_str("{wide_bar} {pos}/{len}").unwrap())
     }
 
     /// Returns the default progress bar style for spinners
     pub fn default_spinner() -> Self {
-        Self::new("{spinner} {msg}")
+        Self::new(Template::from_str("{spinner} {msg}").unwrap())
     }
 
-    fn new(template: &str) -> Self {
+    pub fn with_template(template: &str) -> Result<Self, TemplateError> {
+        Ok(Self::new(Template::from_str(template)?))
+    }
+
+    fn new(template: Template) -> Self {
         let progress_chars = segment("█░");
         let char_width = width(&progress_chars);
         Self {
@@ -85,7 +89,7 @@ impl ProgressStyle {
                 .collect(),
             progress_chars,
             char_width,
-            template: Template::from_str(template).unwrap(),
+            template,
             format_map: HashMap::default(),
         }
     }
