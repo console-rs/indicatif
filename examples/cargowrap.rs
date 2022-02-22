@@ -14,7 +14,8 @@ pub fn main() {
     pb.set_style(
         ProgressStyle::default_spinner()
             .tick_chars("/|\\- ")
-            .template("{spinner:.dim.bold} cargo: {wide_msg}"),
+            .template("{spinner:.dim.bold} cargo: {wide_msg}")
+            .unwrap(),
     );
 
     let mut p = process::Command::new("cargo")

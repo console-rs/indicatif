@@ -19,7 +19,8 @@ fn main() {
                 "▹▹▹▹▸",
                 "▪▪▪▪▪",
             ])
-            .template("{spinner:.blue} {msg}"),
+            .template("{spinner:.blue} {msg}")
+            .unwrap(),
     );
     pb.set_message("Calculating...");
     thread::sleep(Duration::from_secs(5));

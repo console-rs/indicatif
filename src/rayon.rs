@@ -227,7 +227,9 @@ mod test {
         });
 
         wrap({
-            let style = ProgressStyle::default_bar().template("{wide_bar:.red} {percent}/100%");
+            let style = ProgressStyle::default_bar()
+                .template("{wide_bar:.red} {percent}/100%")
+                .unwrap();
             v.par_iter().progress_with_style(style)
         });
     }

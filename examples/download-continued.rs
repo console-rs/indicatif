@@ -12,6 +12,7 @@ fn main() {
     pb.set_style(
         ProgressStyle::default_bar()
             .template("{spinner:.green} [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+            .unwrap()
             .progress_chars("#>-"),
     );
     pb.set_position(downloaded);

@@ -50,6 +50,7 @@ fn main() {
             } else {
                 "{prefix:>12.cyan.bold} [{bar:57}] {pos}/{len}"
             })
+            .unwrap()
             .progress_chars("=> "),
     );
     pb.set_prefix("Building");

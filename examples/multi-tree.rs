@@ -86,8 +86,12 @@ static ELEMENTS: Lazy<[Elem; 9]> = Lazy::new(|| {
 /// complete, the function returns `None`, which finishes the loop.
 fn main() {
     let mp = Arc::new(MultiProgress::new());
-    let sty_main = ProgressStyle::default_bar().template("{bar:40.green/yellow} {pos:>4}/{len:4}");
-    let sty_aux = ProgressStyle::default_bar().template("{spinner:.green} {msg} {pos:>4}/{len:4}");
+    let sty_main = ProgressStyle::default_bar()
+        .template("{bar:40.green/yellow} {pos:>4}/{len:4}")
+        .unwrap();
+    let sty_aux = ProgressStyle::default_bar()
+        .template("{spinner:.green} {msg} {pos:>4}/{len:4}")
+        .unwrap();
 
     let pb_main = mp.add(ProgressBar::new(
         ELEMENTS.iter().map(|e| e.progress_bar.length()).sum(),

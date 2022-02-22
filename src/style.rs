@@ -85,7 +85,7 @@ impl ProgressStyle {
                 .collect(),
             progress_chars,
             char_width,
-            template: Template::from_str(template),
+            template: Template::from_str(template).unwrap(),
             format_map: HashMap::default(),
         }
     }
@@ -139,9 +139,9 @@ impl ProgressStyle {
     /// Sets the template string for the progress bar
     ///
     /// Review the [list of template keys](./index.html#templates) for more information.
-    pub fn template(mut self, s: &str) -> ProgressStyle {
-        self.template = Template::from_str(s);
-        self
+    pub fn template(mut self, s: &str) -> Result<ProgressStyle, TemplateError> {
+        self.template = Template::from_str(s)?;
+        Ok(self)
     }
 
     pub(crate) fn current_tick_str(&self, state: &ProgressState) -> &str {
@@ -412,7 +412,7 @@ struct Template {
 }
 
 impl Template {
-    fn from_str(s: &str) -> Self {
+    fn from_str(s: &str) -> Result<Self, TemplateError> {
         use State::*;
         let (mut state, mut parts, mut buf) = (Literal, vec![], String::new());
         for c in s.chars() {
@@ -483,7 +483,7 @@ impl Template {
                 (FirstStyle, c) => (FirstStyle, Some(c)),
                 (AltStyle, '}') => (Literal, None),
                 (AltStyle, c) => (AltStyle, Some(c)),
-                (st, c) => panic!("unreachable state: {:?} @ {:?}", c, st),
+                (st, c) => return Err(TemplateError { next: c, state: st }),
             };
 
             match (state, new.0) {
@@ -531,9 +531,27 @@ impl Template {
             parts.push(TemplatePart::Literal(buf));
         }
 
-        Self { parts }
+        Ok(Self { parts })
     }
 }
+
+#[derive(Debug)]
+pub struct TemplateError {
+    state: State,
+    next: char,
+}
+
+impl fmt::Display for TemplateError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "TemplateError: unexpected character {:?} in state {:?}",
+            self.next, self.state
+        )
+    }
+}
+
+impl std::error::Error for TemplateError {}
 
 #[derive(Clone, Debug, PartialEq)]
 enum TemplatePart {
@@ -651,12 +669,12 @@ mod tests {
         style.format_map.insert("foo", |_| "FOO".into());
         style.format_map.insert("bar", |_| "BAR".into());
 
-        style.template = Template::from_str("{{ {foo} {bar} }}");
+        style.template = Template::from_str("{{ {foo} {bar} }}").unwrap();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "{ FOO BAR }");
 
         buf.clear();
-        style.template = Template::from_str(r#"{ "foo": "{foo}", "bar": {bar} }"#);
+        style.template = Template::from_str(r#"{ "foo": "{foo}", "bar": {bar} }"#).unwrap();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], r#"{ "foo": "FOO", "bar": BAR }"#);
     }
@@ -673,22 +691,22 @@ mod tests {
         let mut style = ProgressStyle::default_bar();
         style.format_map.insert("foo", |_| "XXX".into());
 
-        style.template = Template::from_str("{foo:5}");
+        style.template = Template::from_str("{foo:5}").unwrap();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "XXX  ");
 
         buf.clear();
-        style.template = Template::from_str("{foo:.red.on_blue}");
+        style.template = Template::from_str("{foo:.red.on_blue}").unwrap();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44mXXX\u{1b}[0m");
 
         buf.clear();
-        style.template = Template::from_str("{foo:^5.red.on_blue}");
+        style.template = Template::from_str("{foo:^5.red.on_blue}").unwrap();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
 
         buf.clear();
-        style.template = Template::from_str("{foo:^5.red.on_blue/green.on_cyan}");
+        style.template = Template::from_str("{foo:^5.red.on_blue/green.on_cyan}").unwrap();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
     }

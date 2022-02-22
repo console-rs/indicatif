@@ -22,6 +22,7 @@ fn main() {
             pb.set_style(
                 ProgressStyle::default_bar()
                     .template(&format!("{{prefix:.bold}}▕{{bar:.{}}}▏{{msg}}", s.2))
+                    .unwrap()
                     .progress_chars(s.1),
             );
             pb.set_prefix(s.0);

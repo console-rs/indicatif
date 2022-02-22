@@ -37,7 +37,8 @@ pub fn main() {
     let started = Instant::now();
     let spinner_style = ProgressStyle::default_spinner()
         .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
-        .template("{prefix:.bold.dim} {spinner} {wide_msg}");
+        .template("{prefix:.bold.dim} {spinner} {wide_msg}")
+        .unwrap();
 
     println!(
         "{} {}Resolving packages...",
