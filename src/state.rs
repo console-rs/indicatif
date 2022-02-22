@@ -235,7 +235,7 @@ impl ProgressState {
     }
 
     /// The expected total duration (that is, elapsed time + expected ETA)
-    pub(crate) fn duration(&self) -> Duration {
+    pub fn duration(&self) -> Duration {
         if self.len == !0 || self.is_finished() {
             return Duration::new(0, 0);
         }
@@ -243,7 +243,7 @@ impl ProgressState {
     }
 
     /// The number of steps per second
-    pub(crate) fn per_sec(&self) -> f64 {
+    pub fn per_sec(&self) -> f64 {
         match self.status {
             Status::InProgress => match 1.0 / self.est.seconds_per_step() {
                 per_sec if per_sec.is_nan() => 0.0,
