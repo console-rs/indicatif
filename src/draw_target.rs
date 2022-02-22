@@ -68,7 +68,7 @@ impl ProgressDrawTarget {
                 term,
                 last_line_count: 0,
                 rate_limiter: RateLimiter::new(refresh_rate),
-                draw_state: ProgressDrawState::default(),
+                draw_state: DrawState::default(),
             },
         }
     }
@@ -79,7 +79,7 @@ impl ProgressDrawTarget {
             kind: TargetKind::TermLike {
                 inner: term_like,
                 last_line_count: 0,
-                draw_state: ProgressDrawState::default(),
+                draw_state: DrawState::default(),
             },
         }
     }
@@ -193,7 +193,7 @@ enum TargetKind {
         term: Term,
         last_line_count: usize,
         rate_limiter: RateLimiter,
-        draw_state: ProgressDrawState,
+        draw_state: DrawState,
     },
     Multi {
         state: Arc<RwLock<MultiProgressState>>,
@@ -203,7 +203,7 @@ enum TargetKind {
     TermLike {
         inner: Box<dyn TermLike>,
         last_line_count: usize,
-        draw_state: ProgressDrawState,
+        draw_state: DrawState,
     },
 }
 
@@ -211,7 +211,7 @@ pub(crate) enum Drawable<'a> {
     Term {
         term: &'a Term,
         last_line_count: &'a mut usize,
-        draw_state: &'a mut ProgressDrawState,
+        draw_state: &'a mut DrawState,
     },
     Multi {
         state: RwLockWriteGuard<'a, MultiProgressState>,
@@ -222,7 +222,7 @@ pub(crate) enum Drawable<'a> {
     TermLike {
         term_like: &'a dyn TermLike,
         last_line_count: &'a mut usize,
-        draw_state: &'a mut ProgressDrawState,
+        draw_state: &'a mut DrawState,
     },
 }
 
@@ -267,12 +267,12 @@ impl<'a> Drawable<'a> {
 }
 
 pub(crate) struct DrawStateWrapper<'a> {
-    state: &'a mut ProgressDrawState,
+    state: &'a mut DrawState,
     orphan_lines: Option<&'a mut Vec<String>>,
 }
 
 impl<'a> DrawStateWrapper<'a> {
-    pub(crate) fn for_term(state: &'a mut ProgressDrawState) -> Self {
+    pub(crate) fn for_term(state: &'a mut DrawState) -> Self {
         Self {
             state,
             orphan_lines: None,
@@ -280,7 +280,7 @@ impl<'a> DrawStateWrapper<'a> {
     }
 
     pub(crate) fn for_multi(
-        state: &'a mut ProgressDrawState,
+        state: &'a mut DrawState,
         orphan_lines: &'a mut Vec<String>,
     ) -> Self {
         Self {
@@ -291,7 +291,7 @@ impl<'a> DrawStateWrapper<'a> {
 }
 
 impl std::ops::Deref for DrawStateWrapper<'_> {
-    type Target = ProgressDrawState;
+    type Target = DrawState;
 
     fn deref(&self) -> &Self::Target {
         self.state
@@ -351,7 +351,7 @@ const MAX_BURST: u8 = 20;
 
 /// The drawn state of an element.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct ProgressDrawState {
+pub(crate) struct DrawState {
     /// The lines to print (can contain ANSI codes)
     pub(crate) lines: Vec<String>,
     /// The number of lines that shouldn't be reaped by the next tick.
@@ -362,7 +362,7 @@ pub(crate) struct ProgressDrawState {
     pub(crate) alignment: MultiProgressAlignment,
 }
 
-impl ProgressDrawState {
+impl DrawState {
     fn draw_to_term(
         &mut self,
         term: &(impl TermLike + ?Sized),

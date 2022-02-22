@@ -2,7 +2,7 @@ use std::io;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
-use crate::draw_target::{DrawStateWrapper, ProgressDrawState, ProgressDrawTarget};
+use crate::draw_target::{DrawStateWrapper, DrawState, ProgressDrawTarget};
 use crate::progress_bar::ProgressBar;
 
 /// Manages multiple progress bars from different threads
@@ -140,7 +140,7 @@ impl MultiProgress {
 pub(crate) struct MultiProgressState {
     /// The collection of states corresponding to progress bars
     /// the state is None for bars that have not yet been drawn or have been removed
-    draw_states: Vec<Option<ProgressDrawState>>,
+    draw_states: Vec<Option<DrawState>>,
     /// Set of removed bars, should have corresponding `None` elements in the `draw_states` vector
     free_set: Vec<usize>,
     /// Indices to the `draw_states` to maintain correct visual order
@@ -197,7 +197,7 @@ impl MultiProgressState {
         let state = match states.get_mut(idx) {
             Some(Some(draw_state)) => draw_state,
             Some(inner) => {
-                *inner = Some(ProgressDrawState::default());
+                *inner = Some(DrawState::default());
                 let state = inner.as_mut().unwrap();
                 state.move_cursor = self.move_cursor;
                 state.alignment = self.alignment;
