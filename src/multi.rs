@@ -2,7 +2,7 @@ use std::io;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
-use crate::draw_target::{DrawStateWrapper, DrawState, ProgressDrawTarget};
+use crate::draw_target::{DrawState, DrawStateWrapper, ProgressDrawTarget};
 use crate::progress_bar::ProgressBar;
 
 /// Manages multiple progress bars from different threads

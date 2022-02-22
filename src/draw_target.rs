@@ -279,10 +279,7 @@ impl<'a> DrawStateWrapper<'a> {
         }
     }
 
-    pub(crate) fn for_multi(
-        state: &'a mut DrawState,
-        orphan_lines: &'a mut Vec<String>,
-    ) -> Self {
+    pub(crate) fn for_multi(state: &'a mut DrawState, orphan_lines: &'a mut Vec<String>) -> Self {
         Self {
             state,
             orphan_lines: Some(orphan_lines),
