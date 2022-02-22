@@ -50,7 +50,7 @@ impl ProgressDrawTarget {
 
     pub(crate) fn new_remote(state: Arc<RwLock<MultiProgressState>>, idx: usize) -> Self {
         Self {
-            kind: ProgressDrawTargetKind::Remote { state, idx },
+            kind: ProgressDrawTargetKind::Multi { state, idx },
         }
     }
 
@@ -109,7 +109,7 @@ impl ProgressDrawTarget {
     pub(crate) fn width(&self) -> u16 {
         match self.kind {
             ProgressDrawTargetKind::Term { ref term, .. } => term.size().1,
-            ProgressDrawTargetKind::Remote { ref state, .. } => state.read().unwrap().width(),
+            ProgressDrawTargetKind::Multi { ref state, .. } => state.read().unwrap().width(),
             ProgressDrawTargetKind::Hidden => 0,
             ProgressDrawTargetKind::TermLike { ref inner, .. } => inner.width(),
         }
@@ -137,7 +137,7 @@ impl ProgressDrawTarget {
                     false => None, // rate limited
                 }
             }
-            ProgressDrawTargetKind::Remote { idx, state, .. } => {
+            ProgressDrawTargetKind::Multi { idx, state, .. } => {
                 let state = state.write().unwrap();
                 Some(Drawable::Multi {
                     idx: *idx,
@@ -164,7 +164,7 @@ impl ProgressDrawTarget {
     pub(crate) fn disconnect(&self, now: Instant) {
         match self.kind {
             ProgressDrawTargetKind::Term { .. } => {}
-            ProgressDrawTargetKind::Remote { idx, ref state, .. } => {
+            ProgressDrawTargetKind::Multi { idx, ref state, .. } => {
                 let state = state.write().unwrap();
                 let _ = Drawable::Multi {
                     state,
@@ -181,7 +181,7 @@ impl ProgressDrawTarget {
 
     pub(crate) fn remote(&self) -> Option<(&Arc<RwLock<MultiProgressState>>, usize)> {
         match &self.kind {
-            ProgressDrawTargetKind::Remote { state, idx } => Some((state, *idx)),
+            ProgressDrawTargetKind::Multi { state, idx } => Some((state, *idx)),
             _ => None,
         }
     }
@@ -195,7 +195,7 @@ enum ProgressDrawTargetKind {
         rate_limiter: RateLimiter,
         draw_state: ProgressDrawState,
     },
-    Remote {
+    Multi {
         state: Arc<RwLock<MultiProgressState>>,
         idx: usize,
     },
