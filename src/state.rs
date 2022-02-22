@@ -252,6 +252,10 @@ impl ProgressState {
             _ => self.len as f64 / self.started.elapsed().as_secs_f64(),
         }
     }
+
+    pub fn elapsed(&self) -> Duration {
+        self.started.elapsed()
+    }
 }
 
 pub(crate) struct Ticker {

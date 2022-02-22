@@ -439,7 +439,7 @@ impl ProgressBar {
 
     /// Returns the current elapsed time
     pub fn elapsed(&self) -> Duration {
-        self.state.lock().unwrap().state.started.elapsed()
+        self.state().state.elapsed()
     }
 
     /// Index in the `MultiState`

@@ -283,16 +283,10 @@ impl ProgressStyle {
                                 .write_fmt(format_args!("{}", BinaryBytes(state.len)))
                                 .unwrap(),
                             "elapsed_precise" => buf
-                                .write_fmt(format_args!(
-                                    "{}",
-                                    FormattedDuration(state.started.elapsed())
-                                ))
+                                .write_fmt(format_args!("{}", FormattedDuration(state.elapsed())))
                                 .unwrap(),
                             "elapsed" => buf
-                                .write_fmt(format_args!(
-                                    "{:#}",
-                                    HumanDuration(state.started.elapsed())
-                                ))
+                                .write_fmt(format_args!("{:#}", HumanDuration(state.elapsed())))
                                 .unwrap(),
                             "per_sec" => buf
                                 .write_fmt(format_args!("{:.4}/s", state.per_sec()))
