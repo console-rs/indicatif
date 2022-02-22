@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use crate::draw_target::ProgressDrawTarget;
 use crate::state::{BarState, ProgressFinish, Reset, Ticker};
 use crate::style::ProgressStyle;
+use crate::ProgressState;
 use crate::{ProgressBarIter, ProgressIterator};
 
 /// A progress bar or spinner
@@ -163,6 +164,11 @@ impl ProgressBar {
     /// [`MultiProgress`]: crate::MultiProgress
     pub fn println<I: AsRef<str>>(&self, msg: I) {
         self.state().println(Instant::now(), msg.as_ref())
+    }
+
+    /// Update the `ProgressBar`'s inner [`ProgressState`]
+    pub fn update(&self, f: impl FnOnce(&mut ProgressState)) {
+        self.state().update(Instant::now(), f)
     }
 
     /// Sets the position of the progress bar

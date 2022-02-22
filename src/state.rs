@@ -66,6 +66,11 @@ impl BarState {
         }
     }
 
+    pub(crate) fn update(&mut self, now: Instant, f: impl FnOnce(&mut ProgressState)) {
+        f(&mut self.state);
+        let _ = self.draw(false, now);
+    }
+
     pub(crate) fn set_position(&mut self, now: Instant, pos: u64) {
         let prev = self.state.pos;
         self.state.pos = pos;
@@ -179,6 +184,7 @@ pub(crate) enum Reset {
 }
 
 /// The state of a progress bar at a moment in time.
+#[non_exhaustive]
 pub struct ProgressState {
     pub pos: u64,
     pub len: u64,
