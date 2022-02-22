@@ -15,7 +15,7 @@ use crate::TermLike;
 /// device.
 #[derive(Debug)]
 pub struct ProgressDrawTarget {
-    kind: ProgressDrawTargetKind,
+    kind: TargetKind,
 }
 
 impl ProgressDrawTarget {
@@ -50,7 +50,7 @@ impl ProgressDrawTarget {
 
     pub(crate) fn new_remote(state: Arc<RwLock<MultiProgressState>>, idx: usize) -> Self {
         Self {
-            kind: ProgressDrawTargetKind::Multi { state, idx },
+            kind: TargetKind::Multi { state, idx },
         }
     }
 
@@ -64,7 +64,7 @@ impl ProgressDrawTarget {
     /// Will panic if refresh_rate is `Some(0)`. To disable rate limiting use `None` instead.
     pub fn term(term: Term, refresh_rate: u8) -> ProgressDrawTarget {
         ProgressDrawTarget {
-            kind: ProgressDrawTargetKind::Term {
+            kind: TargetKind::Term {
                 term,
                 last_line_count: 0,
                 rate_limiter: RateLimiter::new(refresh_rate),
@@ -76,7 +76,7 @@ impl ProgressDrawTarget {
     /// Draw to a boxed object that implements the [`TermLike`] trait.
     pub fn term_like(term_like: Box<dyn TermLike>) -> ProgressDrawTarget {
         ProgressDrawTarget {
-            kind: ProgressDrawTargetKind::TermLike {
+            kind: TargetKind::TermLike {
                 inner: term_like,
                 last_line_count: 0,
                 draw_state: ProgressDrawState::default(),
@@ -89,7 +89,7 @@ impl ProgressDrawTarget {
     /// This forces a progress bar to be not rendered at all.
     pub fn hidden() -> ProgressDrawTarget {
         ProgressDrawTarget {
-            kind: ProgressDrawTargetKind::Hidden,
+            kind: TargetKind::Hidden,
         }
     }
 
@@ -99,8 +99,8 @@ impl ProgressDrawTarget {
     /// from drawing can be prevented.
     pub fn is_hidden(&self) -> bool {
         match self.kind {
-            ProgressDrawTargetKind::Hidden => true,
-            ProgressDrawTargetKind::Term { ref term, .. } => !term.is_term(),
+            TargetKind::Hidden => true,
+            TargetKind::Term { ref term, .. } => !term.is_term(),
             _ => false,
         }
     }
@@ -108,17 +108,17 @@ impl ProgressDrawTarget {
     /// Returns the current width of the draw target.
     pub(crate) fn width(&self) -> u16 {
         match self.kind {
-            ProgressDrawTargetKind::Term { ref term, .. } => term.size().1,
-            ProgressDrawTargetKind::Multi { ref state, .. } => state.read().unwrap().width(),
-            ProgressDrawTargetKind::Hidden => 0,
-            ProgressDrawTargetKind::TermLike { ref inner, .. } => inner.width(),
+            TargetKind::Term { ref term, .. } => term.size().1,
+            TargetKind::Multi { ref state, .. } => state.read().unwrap().width(),
+            TargetKind::Hidden => 0,
+            TargetKind::TermLike { ref inner, .. } => inner.width(),
         }
     }
 
     /// Apply the given draw state (draws it).
     pub(crate) fn drawable(&mut self, force_draw: bool, now: Instant) -> Option<Drawable<'_>> {
         match &mut self.kind {
-            ProgressDrawTargetKind::Term {
+            TargetKind::Term {
                 term,
                 last_line_count,
                 rate_limiter,
@@ -137,7 +137,7 @@ impl ProgressDrawTarget {
                     false => None, // rate limited
                 }
             }
-            ProgressDrawTargetKind::Multi { idx, state, .. } => {
+            TargetKind::Multi { idx, state, .. } => {
                 let state = state.write().unwrap();
                 Some(Drawable::Multi {
                     idx: *idx,
@@ -146,7 +146,7 @@ impl ProgressDrawTarget {
                     now,
                 })
             }
-            ProgressDrawTargetKind::TermLike {
+            TargetKind::TermLike {
                 inner,
                 last_line_count,
                 draw_state,
@@ -163,8 +163,8 @@ impl ProgressDrawTarget {
     /// Properly disconnects from the draw target
     pub(crate) fn disconnect(&self, now: Instant) {
         match self.kind {
-            ProgressDrawTargetKind::Term { .. } => {}
-            ProgressDrawTargetKind::Multi { idx, ref state, .. } => {
+            TargetKind::Term { .. } => {}
+            TargetKind::Multi { idx, ref state, .. } => {
                 let state = state.write().unwrap();
                 let _ = Drawable::Multi {
                     state,
@@ -174,21 +174,21 @@ impl ProgressDrawTarget {
                 }
                 .clear();
             }
-            ProgressDrawTargetKind::Hidden => {}
-            ProgressDrawTargetKind::TermLike { .. } => {}
+            TargetKind::Hidden => {}
+            TargetKind::TermLike { .. } => {}
         };
     }
 
     pub(crate) fn remote(&self) -> Option<(&Arc<RwLock<MultiProgressState>>, usize)> {
         match &self.kind {
-            ProgressDrawTargetKind::Multi { state, idx } => Some((state, *idx)),
+            TargetKind::Multi { state, idx } => Some((state, *idx)),
             _ => None,
         }
     }
 }
 
 #[derive(Debug)]
-enum ProgressDrawTargetKind {
+enum TargetKind {
     Term {
         term: Term,
         last_line_count: usize,
