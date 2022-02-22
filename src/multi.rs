@@ -8,7 +8,7 @@ use crate::progress_bar::ProgressBar;
 /// Manages multiple progress bars from different threads
 #[derive(Debug)]
 pub struct MultiProgress {
-    pub(crate) state: Arc<RwLock<MultiProgressState>>,
+    pub(crate) state: Arc<RwLock<MultiState>>,
 }
 
 impl Default for MultiProgress {
@@ -30,7 +30,7 @@ impl MultiProgress {
     /// Creates a new multi progress object with the given draw target.
     pub fn with_draw_target(draw_target: ProgressDrawTarget) -> MultiProgress {
         MultiProgress {
-            state: Arc::new(RwLock::new(MultiProgressState::new(draw_target))),
+            state: Arc::new(RwLock::new(MultiState::new(draw_target))),
         }
     }
 
@@ -137,7 +137,7 @@ impl MultiProgress {
 }
 
 #[derive(Debug)]
-pub(crate) struct MultiProgressState {
+pub(crate) struct MultiState {
     /// The collection of states corresponding to progress bars
     /// the state is None for bars that have not yet been drawn or have been removed
     draw_states: Vec<Option<DrawState>>,
@@ -155,7 +155,7 @@ pub(crate) struct MultiProgressState {
     orphan_lines: Vec<String>,
 }
 
-impl MultiProgressState {
+impl MultiState {
     fn new(draw_target: ProgressDrawTarget) -> Self {
         Self {
             draw_states: vec![],

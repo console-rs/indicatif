@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use console::Term;
 
-use crate::multi::{MultiProgressAlignment, MultiProgressState};
+use crate::multi::{MultiProgressAlignment, MultiState};
 use crate::TermLike;
 
 /// Target for draw operations
@@ -48,7 +48,7 @@ impl ProgressDrawTarget {
         ProgressDrawTarget::term(Term::buffered_stderr(), refresh_rate)
     }
 
-    pub(crate) fn new_remote(state: Arc<RwLock<MultiProgressState>>, idx: usize) -> Self {
+    pub(crate) fn new_remote(state: Arc<RwLock<MultiState>>, idx: usize) -> Self {
         Self {
             kind: TargetKind::Multi { state, idx },
         }
@@ -179,7 +179,7 @@ impl ProgressDrawTarget {
         };
     }
 
-    pub(crate) fn remote(&self) -> Option<(&Arc<RwLock<MultiProgressState>>, usize)> {
+    pub(crate) fn remote(&self) -> Option<(&Arc<RwLock<MultiState>>, usize)> {
         match &self.kind {
             TargetKind::Multi { state, idx } => Some((state, *idx)),
             _ => None,
@@ -196,7 +196,7 @@ enum TargetKind {
         draw_state: DrawState,
     },
     Multi {
-        state: Arc<RwLock<MultiProgressState>>,
+        state: Arc<RwLock<MultiState>>,
         idx: usize,
     },
     Hidden,
@@ -214,7 +214,7 @@ pub(crate) enum Drawable<'a> {
         draw_state: &'a mut DrawState,
     },
     Multi {
-        state: RwLockWriteGuard<'a, MultiProgressState>,
+        state: RwLockWriteGuard<'a, MultiState>,
         idx: usize,
         force_draw: bool,
         now: Instant,
