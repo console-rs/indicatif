@@ -120,7 +120,7 @@ impl BarState {
         let mut draw_state = drawable.state();
         draw_state.lines.extend(msg.lines().map(Into::into));
         draw_state.orphan_lines = draw_state.lines.len();
-        if self.state.should_render() {
+        if !matches!(self.state.status, Status::DoneHidden) {
             self.style
                 .format_state(&self.state, &mut draw_state.lines, width);
         }
@@ -151,7 +151,7 @@ impl BarState {
         // finished progress bar, so it's kept as to not cause compatibility issues in weird cases.
         let mut draw_state = drawable.state();
 
-        if self.state.should_render() {
+        if !matches!(self.state.status, Status::DoneHidden) {
             self.style
                 .format_state(&self.state, &mut draw_state.lines, width);
         }
@@ -207,12 +207,6 @@ impl ProgressState {
             Status::DoneVisible => true,
             Status::DoneHidden => true,
         }
-    }
-
-    /// Returns `false` if the progress bar should no longer be
-    /// drawn.
-    pub(crate) fn should_render(&self) -> bool {
-        !matches!(self.status, Status::DoneHidden)
     }
 
     /// Returns the completion as a floating-point number between 0 and 1
