@@ -171,7 +171,7 @@
 //! * `pos`: renders the current position of the bar as integer
 //! * `human_pos`: renders the current position of the bar as an integer, with commas as the
 //! thousands separator.
-//! * `len`: renders the total length of the bar as integer
+//! * `len`: renders the amount of work to be done as an integer
 //! * `human_len`: renders the total length of the bar as an integer, with commas as the thousands
 //! separator.
 //! * `bytes`: renders the current position of the bar as bytes.
