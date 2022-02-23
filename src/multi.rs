@@ -131,6 +131,29 @@ impl MultiProgress {
         pb
     }
 
+    /// Print a log line above all progress bars in the [`MultiProgress`]
+    ///
+    /// If the draw target is hidden (e.g. when standard output is not a terminal), `println()`
+    /// will not do anything.
+    pub fn println<I: AsRef<str>>(&self, msg: I) -> io::Result<()> {
+        let mut state = self.state.write().unwrap();
+        state.println(msg, Instant::now())
+    }
+
+    /// Hide all progress bars temporarily, execute `f`, then redraw the [`MultiProgress`]
+    ///
+    /// Executes 'f' even if the draw target is hidden.
+    ///
+    /// Useful for external code that writes to the standard output.
+    ///
+    /// **Note:** The internal lock is held while `f` is executed. Other threads trying to print
+    /// anything on the progress bar will be blocked until `f` finishes.
+    /// Therefore, it is recommended to avoid long-running operations in `f`.
+    pub fn suspend<F: FnOnce() -> R, R>(&self, f: F) -> R {
+        let mut state = self.state.write().unwrap();
+        state.suspend(f, Instant::now())
+    }
+
     pub fn clear(&self) -> io::Result<()> {
         self.state.write().unwrap().clear(Instant::now())
     }
@@ -168,7 +191,12 @@ impl MultiState {
         }
     }
 
-    pub(crate) fn draw(&mut self, mut force_draw: bool, now: Instant) -> io::Result<()> {
+    pub(crate) fn draw(
+        &mut self,
+        mut force_draw: bool,
+        extra_lines: Option<Vec<String>>,
+        now: Instant,
+    ) -> io::Result<()> {
         let orphan_lines_count = self.orphan_lines.len();
         force_draw |= orphan_lines_count > 0;
         let mut drawable = match self.draw_target.drawable(force_draw, now) {
@@ -178,6 +206,11 @@ impl MultiState {
 
         let mut draw_state = drawable.state();
         draw_state.orphan_lines = orphan_lines_count;
+
+        if let Some(extra_lines) = &extra_lines {
+            draw_state.lines.extend_from_slice(extra_lines.as_slice());
+            draw_state.orphan_lines += extra_lines.len();
+        }
 
         // Make orphaned lines appear at the top, so they can be properly forgotten.
         draw_state.lines.append(&mut self.orphan_lines);
@@ -190,6 +223,18 @@ impl MultiState {
 
         drop(draw_state);
         drawable.draw()
+    }
+
+    pub(crate) fn println<I: AsRef<str>>(&mut self, msg: I, now: Instant) -> io::Result<()> {
+        let msg = msg.as_ref();
+
+        // If msg is "", make sure a line is still printed
+        let lines: Vec<String> = match msg.is_empty() {
+            false => msg.lines().map(Into::into).collect(),
+            true => vec![String::new()],
+        };
+
+        self.draw(true, Some(lines), now)
     }
 
     pub(crate) fn draw_state(&mut self, idx: usize) -> DrawStateWrapper<'_> {
@@ -207,6 +252,13 @@ impl MultiState {
         };
 
         DrawStateWrapper::for_multi(state, orphans)
+    }
+
+    pub(crate) fn suspend<F: FnOnce() -> R, R>(&mut self, f: F, now: Instant) -> R {
+        self.clear(now).unwrap();
+        let ret = f();
+        self.draw(true, None, Instant::now()).unwrap();
+        ret
     }
 
     pub(crate) fn width(&self) -> u16 {
