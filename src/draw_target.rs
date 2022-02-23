@@ -256,7 +256,7 @@ impl<'a> Drawable<'a> {
                 force_draw,
                 now,
                 ..
-            } => state.draw(force_draw, now),
+            } => state.draw(force_draw, None, now),
             Drawable::TermLike {
                 term_like,
                 last_line_count,
