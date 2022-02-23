@@ -6,7 +6,7 @@ use crate::draw_target::{DrawState, DrawStateWrapper, ProgressDrawTarget};
 use crate::progress_bar::ProgressBar;
 
 /// Manages multiple progress bars from different threads
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MultiProgress {
     pub(crate) state: Arc<RwLock<MultiState>>,
 }
