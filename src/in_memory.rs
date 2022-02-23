@@ -54,31 +54,47 @@ impl TermLike for InMemoryTerm {
     }
 
     fn move_cursor_up(&self, n: usize) -> std::io::Result<()> {
-        self.state
-            .lock()
-            .unwrap()
-            .write_str(&*format!("\x1b[{}A", n))
+        match n {
+            0 => Ok(()),
+            _ => self
+                .state
+                .lock()
+                .unwrap()
+                .write_str(&*format!("\x1b[{}A", n)),
+        }
     }
 
     fn move_cursor_down(&self, n: usize) -> std::io::Result<()> {
-        self.state
-            .lock()
-            .unwrap()
-            .write_str(&*format!("\x1b[{}B", n))
+        match n {
+            0 => Ok(()),
+            _ => self
+                .state
+                .lock()
+                .unwrap()
+                .write_str(&*format!("\x1b[{}B", n)),
+        }
     }
 
     fn move_cursor_right(&self, n: usize) -> std::io::Result<()> {
-        self.state
-            .lock()
-            .unwrap()
-            .write_str(&*format!("\x1b[{}C", n))
+        match n {
+            0 => Ok(()),
+            _ => self
+                .state
+                .lock()
+                .unwrap()
+                .write_str(&*format!("\x1b[{}C", n)),
+        }
     }
 
     fn move_cursor_left(&self, n: usize) -> std::io::Result<()> {
-        self.state
-            .lock()
-            .unwrap()
-            .write_str(&*format!("\x1b[{}D", n))
+        match n {
+            0 => Ok(()),
+            _ => self
+                .state
+                .lock()
+                .unwrap()
+                .write_str(&*format!("\x1b[{}D", n)),
+        }
     }
 
     fn write_line(&self, s: &str) -> std::io::Result<()> {
@@ -210,5 +226,28 @@ mod test {
         in_mem.write_line("LINE FOUR").unwrap();
 
         assert_eq!(in_mem.contents(), "LINE ONE\nLINE TWO\n\nLINE FOUR");
+    }
+
+    #[test]
+    fn cursor_zero_movement() {
+        let in_mem = InMemoryTerm::new(10, 80);
+        in_mem.write_line("LINE ONE").unwrap();
+        assert_eq!(cursor_pos(&in_mem), (1, 0));
+
+        // Check that moving zero rows/cols does not actually move cursor
+        in_mem.move_cursor_up(0).unwrap();
+        assert_eq!(cursor_pos(&in_mem), (1, 0));
+
+        in_mem.move_cursor_down(0).unwrap();
+        assert_eq!(cursor_pos(&in_mem), (1, 0));
+
+        in_mem.move_cursor_right(1).unwrap();
+        assert_eq!(cursor_pos(&in_mem), (1, 1));
+
+        in_mem.move_cursor_left(0).unwrap();
+        assert_eq!(cursor_pos(&in_mem), (1, 1));
+
+        in_mem.move_cursor_right(0).unwrap();
+        assert_eq!(cursor_pos(&in_mem), (1, 1));
     }
 }
