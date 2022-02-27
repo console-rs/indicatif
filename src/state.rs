@@ -345,6 +345,8 @@ impl Estimator {
         if !self.full && self.pos == 0 {
             self.full = true;
         }
+
+        self.prev = (value, current_time);
     }
 
     pub(crate) fn reset(&mut self, start: u64, now: Instant) {
