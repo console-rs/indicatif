@@ -191,8 +191,8 @@ pub(crate) enum Reset {
 /// The state of a progress bar at a moment in time.
 #[non_exhaustive]
 pub struct ProgressState {
-    pub pos: u64,
-    pub len: u64,
+    pos: u64,
+    len: u64,
     pub(crate) tick: u64,
     pub(crate) started: Instant,
     status: Status,
@@ -260,6 +260,22 @@ impl ProgressState {
 
     pub fn elapsed(&self) -> Duration {
         self.started.elapsed()
+    }
+
+    pub fn pos(&self) -> u64 {
+        self.pos
+    }
+
+    pub fn set_pos(&mut self, pos: u64) {
+        self.pos = pos;
+    }
+
+    pub fn len(&self) -> u64 {
+        self.len
+    }
+
+    pub fn set_len(&mut self, len: u64) {
+        self.len = len;
     }
 }
 

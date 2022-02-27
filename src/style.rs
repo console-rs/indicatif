@@ -221,6 +221,7 @@ impl ProgressStyle {
         let mut cur = String::new();
         let mut buf = String::new();
         let mut wide = None;
+        let (pos, len) = (state.pos(), state.len());
         for part in &self.template.parts {
             match part {
                 TemplatePart::Placeholder {
@@ -257,35 +258,33 @@ impl ProgressStyle {
                             }
                             "msg" => buf.push_str(&self.message),
                             "prefix" => buf.push_str(&self.prefix),
-                            "pos" => buf.write_fmt(format_args!("{}", state.pos)).unwrap(),
-                            "human_pos" => buf
-                                .write_fmt(format_args!("{}", HumanCount(state.pos)))
-                                .unwrap(),
-                            "len" => buf.write_fmt(format_args!("{}", state.len)).unwrap(),
-                            "human_len" => buf
-                                .write_fmt(format_args!("{}", HumanCount(state.len)))
-                                .unwrap(),
+                            "pos" => buf.write_fmt(format_args!("{}", pos)).unwrap(),
+                            "human_pos" => {
+                                buf.write_fmt(format_args!("{}", HumanCount(pos))).unwrap()
+                            }
+                            "len" => buf.write_fmt(format_args!("{}", len)).unwrap(),
+                            "human_len" => {
+                                buf.write_fmt(format_args!("{}", HumanCount(len))).unwrap()
+                            }
                             "percent" => buf
                                 .write_fmt(format_args!("{:.*}", 0, state.fraction() * 100f32))
                                 .unwrap(),
-                            "bytes" => buf
-                                .write_fmt(format_args!("{}", HumanBytes(state.pos)))
-                                .unwrap(),
-                            "total_bytes" => buf
-                                .write_fmt(format_args!("{}", HumanBytes(state.len)))
-                                .unwrap(),
+                            "bytes" => buf.write_fmt(format_args!("{}", HumanBytes(pos))).unwrap(),
+                            "total_bytes" => {
+                                buf.write_fmt(format_args!("{}", HumanBytes(len))).unwrap()
+                            }
                             "decimal_bytes" => buf
-                                .write_fmt(format_args!("{}", DecimalBytes(state.pos)))
+                                .write_fmt(format_args!("{}", DecimalBytes(pos)))
                                 .unwrap(),
                             "decimal_total_bytes" => buf
-                                .write_fmt(format_args!("{}", DecimalBytes(state.len)))
+                                .write_fmt(format_args!("{}", DecimalBytes(len)))
                                 .unwrap(),
-                            "binary_bytes" => buf
-                                .write_fmt(format_args!("{}", BinaryBytes(state.pos)))
-                                .unwrap(),
-                            "binary_total_bytes" => buf
-                                .write_fmt(format_args!("{}", BinaryBytes(state.len)))
-                                .unwrap(),
+                            "binary_bytes" => {
+                                buf.write_fmt(format_args!("{}", BinaryBytes(pos))).unwrap()
+                            }
+                            "binary_total_bytes" => {
+                                buf.write_fmt(format_args!("{}", BinaryBytes(len))).unwrap()
+                            }
                             "elapsed_precise" => buf
                                 .write_fmt(format_args!("{}", FormattedDuration(state.elapsed())))
                                 .unwrap(),

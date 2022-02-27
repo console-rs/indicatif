@@ -71,7 +71,7 @@ impl ProgressBar {
 
     /// A convenience builder-like function for a progress bar with a given position
     pub fn with_position(self, pos: u64) -> ProgressBar {
-        self.state.lock().unwrap().state.pos = pos;
+        self.state.lock().unwrap().state.set_pos(pos);
         self
     }
 
@@ -420,12 +420,12 @@ impl ProgressBar {
 
     /// Returns the current position
     pub fn position(&self) -> u64 {
-        self.state.lock().unwrap().state.pos
+        self.state.lock().unwrap().state.pos()
     }
 
     /// Returns the current length
     pub fn length(&self) -> u64 {
-        self.state.lock().unwrap().state.len
+        self.state.lock().unwrap().state.len()
     }
 
     /// Returns the current ETA
