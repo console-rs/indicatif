@@ -332,8 +332,8 @@ impl Estimator {
         }
     }
 
-    fn record(&mut self, value: u64, current_time: Instant) {
-        let elapsed = current_time - self.prev.1;
+    fn record(&mut self, value: u64, now: Instant) {
+        let elapsed = now - self.prev.1;
         let divisor = value.saturating_sub(self.prev.0) as f64;
         let mut batch = 0.0;
         if divisor != 0.0 {
@@ -346,7 +346,7 @@ impl Estimator {
             self.full = true;
         }
 
-        self.prev = (value, current_time);
+        self.prev = (value, now);
     }
 
     pub(crate) fn reset(&mut self, start: u64, now: Instant) {
