@@ -376,10 +376,10 @@ impl<'a> WideElement<'a> {
         buf: &mut String,
         width: u16,
     ) -> String {
-        let left = (width as usize).saturating_sub(measure_text_width(&*cur.replace("\x00", "")));
+        let left = (width as usize).saturating_sub(measure_text_width(&*cur.replace('\x00', "")));
         match self {
             Self::Bar { alt_style } => cur.replace(
-                "\x00",
+                '\x00',
                 &format!(
                     "{}",
                     style.format_bar(state.fraction(), left, alt_style.as_ref())
@@ -403,7 +403,7 @@ impl<'a> WideElement<'a> {
                     false => buf,
                 };
 
-                cur.replace("\x00", trimmed)
+                cur.replace('\x00', trimmed)
             }
         }
     }
