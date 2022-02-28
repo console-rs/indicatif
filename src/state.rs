@@ -345,7 +345,7 @@ impl Estimator {
     }
 
     fn record(&mut self, delta: u64, now: Instant) {
-        if delta == 0 {
+        if delta == 0 || now < self.prev {
             return;
         }
 

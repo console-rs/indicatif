@@ -328,6 +328,10 @@ impl RateLimiter {
     }
 
     fn allow(&mut self, now: Instant) -> bool {
+        if now < self.prev {
+            return false;
+        }
+
         let elapsed = now - self.prev;
         let remaining = (MAX_BURST - self.capacity) as u128;
         self.capacity += Ord::min(remaining, elapsed.as_millis() / self.interval as u128) as u8;
