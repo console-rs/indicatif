@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 
 use crate::draw_target::ProgressDrawTarget;
-use crate::state::{BarState, ProgressFinish, Reset, Ticker};
+use crate::state::{AtomicPosition, BarState, ProgressFinish, Reset, Ticker};
 use crate::style::ProgressStyle;
 use crate::ProgressState;
 use crate::{ProgressBarIter, ProgressIterator};
@@ -18,6 +18,7 @@ use crate::{ProgressBarIter, ProgressIterator};
 #[derive(Clone)]
 pub struct ProgressBar {
     state: Arc<Mutex<BarState>>,
+    pos: Arc<AtomicPosition>,
 }
 
 impl fmt::Debug for ProgressBar {
@@ -46,8 +47,10 @@ impl ProgressBar {
 
     /// Creates a new progress bar with a given length and draw target
     pub fn with_draw_target(len: u64, draw_target: ProgressDrawTarget) -> ProgressBar {
+        let pos = Arc::new(AtomicPosition::default());
         ProgressBar {
-            state: Arc::new(Mutex::new(BarState::new(len, draw_target))),
+            state: Arc::new(Mutex::new(BarState::new(len, draw_target, pos.clone()))),
+            pos,
         }
     }
 
@@ -138,7 +141,11 @@ impl ProgressBar {
 
     /// Advances the position of the progress bar by `delta`
     pub fn inc(&self, delta: u64) {
-        self.state().inc(Instant::now(), delta)
+        self.pos.inc(delta);
+        let now = Instant::now();
+        if self.pos.allow(now) {
+            self.state().tick(now);
+        }
     }
 
     /// A quick convenience check if the progress bar is hidden
@@ -173,7 +180,11 @@ impl ProgressBar {
 
     /// Sets the position of the progress bar
     pub fn set_position(&self, pos: u64) {
-        self.state().set_position(Instant::now(), pos)
+        self.pos.set(pos);
+        let now = Instant::now();
+        if self.pos.allow(now) {
+            self.state().tick(now);
+        }
     }
 
     /// Sets the length of the progress bar
@@ -206,6 +217,7 @@ impl ProgressBar {
     pub fn downgrade(&self) -> WeakProgressBar {
         WeakProgressBar {
             state: Arc::downgrade(&self.state),
+            pos: Arc::downgrade(&self.pos),
         }
     }
 
@@ -464,6 +476,7 @@ impl ProgressBar {
 #[derive(Clone, Default)]
 pub struct WeakProgressBar {
     state: Weak<Mutex<BarState>>,
+    pos: Weak<AtomicPosition>,
 }
 
 impl WeakProgressBar {
@@ -479,7 +492,9 @@ impl WeakProgressBar {
     ///
     /// [`ProgressBar`]: struct.ProgressBar.html
     pub fn upgrade(&self) -> Option<ProgressBar> {
-        self.state.upgrade().map(|state| ProgressBar { state })
+        let state = self.state.upgrade()?;
+        let pos = self.pos.upgrade()?;
+        Some(ProgressBar { state, pos })
     }
 }
 

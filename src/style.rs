@@ -660,12 +660,14 @@ enum Alignment {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::ProgressState;
+    use crate::state::{AtomicPosition, ProgressState};
+    use std::sync::Arc;
 
     #[test]
     fn test_expand_template() {
         const WIDTH: u16 = 80;
-        let state = ProgressState::new(10);
+        let pos = Arc::new(AtomicPosition::default());
+        let state = ProgressState::new(10, pos);
         let mut buf = Vec::new();
 
         let mut style = ProgressStyle::default_bar();
@@ -688,7 +690,8 @@ mod tests {
         set_colors_enabled(true);
 
         const WIDTH: u16 = 80;
-        let state = ProgressState::new(10);
+        let pos = Arc::new(AtomicPosition::default());
+        let state = ProgressState::new(10, pos);
         let mut buf = Vec::new();
 
         let mut style = ProgressStyle::default_bar();
