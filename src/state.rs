@@ -68,19 +68,16 @@ impl BarState {
 
     pub(crate) fn update(&mut self, now: Instant, f: impl FnOnce(&mut ProgressState)) {
         f(&mut self.state);
-        self.state.est.record(self.state.pos, now);
         self.tick(now);
     }
 
     pub(crate) fn set_position(&mut self, now: Instant, new: u64) {
         self.state.pos = new;
-        self.state.est.record(new, now);
         self.tick(now);
     }
 
     pub(crate) fn inc(&mut self, now: Instant, delta: u64) {
         self.state.pos = self.state.pos.saturating_add(delta);
-        self.state.est.record(self.state.pos, now);
         self.tick(now);
     }
 
@@ -109,6 +106,7 @@ impl BarState {
             self.state.tick = self.state.tick.saturating_add(1);
         }
 
+        self.state.est.record(self.state.pos, now);
         let _ = self.draw(false, now);
     }
 
