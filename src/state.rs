@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::fmt;
 use std::io;
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -17,12 +18,12 @@ pub(crate) struct BarState {
 }
 
 impl BarState {
-    pub(crate) fn new(len: u64, draw_target: ProgressDrawTarget) -> Self {
+    pub(crate) fn new(len: u64, draw_target: ProgressDrawTarget, pos: Arc<AtomicPosition>) -> Self {
         Self {
             draw_target,
             on_finish: ProgressFinish::default(),
             style: ProgressStyle::default_bar(),
-            state: ProgressState::new(len),
+            state: ProgressState::new(len, pos),
             ticker: None,
         }
     }
@@ -32,13 +33,13 @@ impl BarState {
     pub(crate) fn finish_using_style(&mut self, now: Instant, finish: ProgressFinish) {
         self.state.status = Status::DoneVisible;
         match finish {
-            ProgressFinish::AndLeave => self.state.pos = self.state.len,
+            ProgressFinish::AndLeave => self.state.pos.set(self.state.len),
             ProgressFinish::WithMessage(msg) => {
-                self.state.pos = self.state.len;
+                self.state.pos.set(self.state.len);
                 self.style.message = msg;
             }
             ProgressFinish::AndClear => {
-                self.state.pos = self.state.len;
+                self.state.pos.set(self.state.len);
                 self.state.status = Status::DoneHidden;
             }
             ProgressFinish::Abandon => {}
@@ -60,7 +61,7 @@ impl BarState {
         }
 
         if let Reset::All = mode {
-            self.state.pos = 0;
+            self.state.pos.reset(now);
             self.state.status = Status::InProgress;
             let _ = self.draw(false, now);
         }
@@ -68,16 +69,6 @@ impl BarState {
 
     pub(crate) fn update(&mut self, now: Instant, f: impl FnOnce(&mut ProgressState)) {
         f(&mut self.state);
-        self.tick(now);
-    }
-
-    pub(crate) fn set_position(&mut self, now: Instant, new: u64) {
-        self.state.pos = new;
-        self.tick(now);
-    }
-
-    pub(crate) fn inc(&mut self, now: Instant, delta: u64) {
-        self.state.pos = self.state.pos.saturating_add(delta);
         self.tick(now);
     }
 
@@ -106,7 +97,8 @@ impl BarState {
             self.state.tick = self.state.tick.saturating_add(1);
         }
 
-        self.state.est.record(self.state.pos, now);
+        let pos = self.state.pos.pos.load(Ordering::Relaxed);
+        self.state.est.record(pos, now);
         let _ = self.draw(false, now);
     }
 
@@ -181,7 +173,7 @@ pub(crate) enum Reset {
 /// The state of a progress bar at a moment in time.
 #[non_exhaustive]
 pub struct ProgressState {
-    pos: u64,
+    pos: Arc<AtomicPosition>,
     len: u64,
     pub(crate) tick: u64,
     pub(crate) started: Instant,
@@ -190,9 +182,9 @@ pub struct ProgressState {
 }
 
 impl ProgressState {
-    pub(crate) fn new(len: u64) -> Self {
+    pub(crate) fn new(len: u64, pos: Arc<AtomicPosition>) -> Self {
         Self {
-            pos: 0,
+            pos,
             len,
             tick: 0,
             status: Status::InProgress,
@@ -212,7 +204,8 @@ impl ProgressState {
 
     /// Returns the completion as a floating-point number between 0 and 1
     pub fn fraction(&self) -> f32 {
-        let pct = match (self.pos, self.len) {
+        let pos = self.pos.pos.load(Ordering::Relaxed);
+        let pct = match (pos, self.len) {
             (_, 0) => 1.0,
             (0, _) => 0.0,
             (pos, len) => pos as f32 / len as f32,
@@ -225,8 +218,10 @@ impl ProgressState {
         if self.len == !0 || self.is_finished() {
             return Duration::new(0, 0);
         }
+
+        let pos = self.pos.pos.load(Ordering::Relaxed);
         let t = self.est.seconds_per_step();
-        secs_to_duration(t * self.len.saturating_sub(self.pos) as f64)
+        secs_to_duration(t * self.len.saturating_sub(pos) as f64)
     }
 
     /// The expected total duration (that is, elapsed time + expected ETA)
@@ -253,11 +248,11 @@ impl ProgressState {
     }
 
     pub fn pos(&self) -> u64 {
-        self.pos
+        self.pos.pos.load(Ordering::Relaxed)
     }
 
     pub fn set_pos(&mut self, pos: u64) {
-        self.pos = pos;
+        self.pos.set(pos);
     }
 
     #[allow(clippy::len_without_is_empty)]
@@ -390,6 +385,74 @@ impl fmt::Debug for Estimator {
             .finish()
     }
 }
+
+pub(crate) struct AtomicPosition {
+    pub(crate) pos: AtomicU64,
+    capacity: AtomicU8,
+    prev: AtomicU64,
+    start: Instant,
+}
+
+impl AtomicPosition {
+    pub(crate) fn allow(&self, now: Instant) -> bool {
+        let mut capacity = self.capacity.load(Ordering::Acquire);
+        // `prev` is the number of ms after `self.started` we last returned `true`, in ns
+        let prev = self.prev.load(Ordering::Acquire);
+        // `elapsed` is the number of ns since `self.started`
+        let elapsed = (now - self.start).as_nanos() as u64;
+        // `diff` is the number of ns since we last returned `true`
+        let diff = elapsed - prev;
+
+        // If `capacity` is 0 and not enough time (1ms) has passed since `prev`
+        // to add new capacity, return `false`. The goal of this method is to
+        // make this decision as efficient as possible.
+        if capacity == 0 && diff < INTERVAL {
+            return false;
+        }
+
+        // We now calculate `new`, the number of ms, in ns, since we last returned `true`,
+        // and `remainder`, which represents a number of ns less than 1ms which we cannot
+        // convert into capacity now, so we're saving it for later. We do this by
+        // substracting this from `elapsed` before storing it into `self.prev`.
+        let (new, remainder) = ((diff / INTERVAL), (diff % INTERVAL));
+        // We add `new` to `capacity`, subtract one for returning `true` from here,
+        // then make sure it does not exceed a maximum of `MAX_BURST`.
+        capacity = Ord::min(MAX_BURST, capacity + new as u8 - 1);
+
+        // Then, we just store `capacity` and `prev` atomically for the next iteration
+        self.capacity.store(capacity, Ordering::Release);
+        self.prev.store(elapsed - remainder, Ordering::Release);
+        true
+    }
+
+    fn reset(&self, now: Instant) {
+        self.set(0);
+        let elapsed = (now - self.start).as_millis() as u64;
+        self.prev.store(elapsed, Ordering::Release);
+    }
+
+    pub(crate) fn inc(&self, delta: u64) {
+        self.pos.fetch_add(delta, Ordering::SeqCst);
+    }
+
+    pub(crate) fn set(&self, pos: u64) {
+        self.pos.store(pos, Ordering::Release);
+    }
+}
+
+impl Default for AtomicPosition {
+    fn default() -> Self {
+        Self {
+            pos: AtomicU64::new(0),
+            capacity: AtomicU8::new(MAX_BURST),
+            prev: AtomicU64::new(0),
+            start: Instant::now(),
+        }
+    }
+}
+
+const INTERVAL: u64 = 1_000_000;
+const MAX_BURST: u8 = 10;
 
 /// Behavior of a progress bar when it is finished
 ///
