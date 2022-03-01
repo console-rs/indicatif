@@ -56,7 +56,7 @@ impl ProgressBar {
 
     /// A convenience builder-like function for a progress bar with a given style
     pub fn with_style(self, style: ProgressStyle) -> ProgressBar {
-        self.state.lock().unwrap().style = style;
+        self.state().style = style;
         self
     }
 
@@ -74,13 +74,13 @@ impl ProgressBar {
 
     /// A convenience builder-like function for a progress bar with a given position
     pub fn with_position(self, pos: u64) -> ProgressBar {
-        self.state.lock().unwrap().state.set_pos(pos);
+        self.state().state.set_pos(pos);
         self
     }
 
     /// A convenience builder-like function for a progress bar with a given elapsed time
     pub fn with_elapsed(self, elapsed: Duration) -> ProgressBar {
-        self.state.lock().unwrap().state.started = Instant::now() - elapsed;
+        self.state().state.started = Instant::now() - elapsed;
         self
     }
 
@@ -113,7 +113,7 @@ impl ProgressBar {
     ///
     /// This does not redraw the bar. Call [`ProgressBar::tick()`] to force it.
     pub fn set_style(&self, style: ProgressStyle) {
-        self.state.lock().unwrap().style = style;
+        self.state().style = style;
     }
 
     /// Spawns a background thread to tick the progress bar
@@ -150,12 +150,12 @@ impl ProgressBar {
 
     /// A quick convenience check if the progress bar is hidden
     pub fn is_hidden(&self) -> bool {
-        self.state.lock().unwrap().draw_target.is_hidden()
+        self.state().draw_target.is_hidden()
     }
 
     /// Indicates that the progress bar finished
     pub fn is_finished(&self) -> bool {
-        self.state.lock().unwrap().state.is_finished()
+        self.state().state.is_finished()
     }
 
     /// Print a log line above the progress bar
@@ -304,7 +304,7 @@ impl ProgressBar {
     /// [`MultiProgress::add`]: crate::MultiProgress::add
     /// [`MultiProgress::set_draw_target`]: crate::MultiProgress::set_draw_target
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state();
         state.draw_target.disconnect(Instant::now());
         state.draw_target = target;
     }
@@ -432,27 +432,27 @@ impl ProgressBar {
 
     /// Returns the current position
     pub fn position(&self) -> u64 {
-        self.state.lock().unwrap().state.pos()
+        self.state().state.pos()
     }
 
     /// Returns the current length
     pub fn length(&self) -> u64 {
-        self.state.lock().unwrap().state.len()
+        self.state().state.len()
     }
 
     /// Returns the current ETA
     pub fn eta(&self) -> Duration {
-        self.state.lock().unwrap().state.eta()
+        self.state().state.eta()
     }
 
     /// Returns the current rate of progress
     pub fn per_sec(&self) -> f64 {
-        self.state.lock().unwrap().state.per_sec()
+        self.state().state.per_sec()
     }
 
     /// Returns the current expected duration
     pub fn duration(&self) -> Duration {
-        self.state.lock().unwrap().state.duration()
+        self.state().state.duration()
     }
 
     /// Returns the current elapsed time
@@ -465,6 +465,7 @@ impl ProgressBar {
         self.state().draw_target.remote().map(|(_, idx)| idx)
     }
 
+    #[inline]
     pub(crate) fn state(&self) -> MutexGuard<'_, BarState> {
         self.state.lock().unwrap()
     }
@@ -506,14 +507,14 @@ mod tests {
     #[test]
     fn test_pbar_zero() {
         let pb = ProgressBar::new(0);
-        assert_eq!(pb.state.lock().unwrap().state.fraction(), 1.0);
+        assert_eq!(pb.state().state.fraction(), 1.0);
     }
 
     #[allow(clippy::float_cmp)]
     #[test]
     fn test_pbar_maxu64() {
         let pb = ProgressBar::new(!0);
-        assert_eq!(pb.state.lock().unwrap().state.fraction(), 0.0);
+        assert_eq!(pb.state().state.fraction(), 0.0);
     }
 
     #[test]
