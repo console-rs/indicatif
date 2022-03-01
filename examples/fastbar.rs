@@ -1,26 +1,17 @@
-use std::time::Instant;
-
-use indicatif::{HumanDuration, ProgressBar};
+use indicatif::ProgressBar;
 
 fn many_units_of_easy_work(n: u64, label: &str) {
     let pb = ProgressBar::new(n);
 
     let mut sum = 0;
-    let started = Instant::now();
     for i in 0..n {
         // Any quick computation, followed by an update to the progress bar.
         sum += 2 * i + 3;
         pb.inc(1);
     }
     pb.finish();
-    let finished = started.elapsed();
 
-    println!(
-        "[{}] Sum ({}) calculated in {}",
-        label,
-        sum,
-        HumanDuration(finished)
-    );
+    println!("[{}] Sum ({}) calculated in {:?}", label, sum, pb.elapsed());
 }
 
 fn main() {
