@@ -67,23 +67,20 @@ impl BarState {
     }
 
     pub(crate) fn update(&mut self, now: Instant, f: impl FnOnce(&mut ProgressState)) {
-        let old = self.state.pos;
         f(&mut self.state);
-        let delta = self.state.pos.saturating_sub(old);
-        self.state.est.record(delta, now);
+        self.state.est.record(self.state.pos, now);
         self.tick(now);
     }
 
     pub(crate) fn set_position(&mut self, now: Instant, new: u64) {
-        let old = self.state.pos;
         self.state.pos = new;
-        self.state.est.record(new.saturating_sub(old), now);
+        self.state.est.record(new, now);
         self.tick(now);
     }
 
     pub(crate) fn inc(&mut self, now: Instant, delta: u64) {
         self.state.pos = self.state.pos.saturating_add(delta);
-        self.state.est.record(delta, now);
+        self.state.est.record(self.state.pos, now);
         self.tick(now);
     }
 
@@ -332,7 +329,7 @@ pub(crate) struct Estimator {
     steps: [f64; 16],
     pos: u8,
     full: bool,
-    prev: Instant,
+    prev: (u64, Instant),
 }
 
 impl Estimator {
@@ -341,16 +338,17 @@ impl Estimator {
             steps: [0.0; 16],
             pos: 0,
             full: false,
-            prev: now,
+            prev: (0, now),
         }
     }
 
-    fn record(&mut self, delta: u64, now: Instant) {
-        if delta == 0 || now < self.prev {
+    fn record(&mut self, new: u64, now: Instant) {
+        let delta = new - self.prev.0;
+        if delta == 0 || now < self.prev.1 {
             return;
         }
 
-        let elapsed = now - self.prev;
+        let elapsed = now - self.prev.1;
         let divisor = delta as f64;
         let mut batch = 0.0;
         if divisor != 0.0 {
@@ -363,13 +361,13 @@ impl Estimator {
             self.full = true;
         }
 
-        self.prev = now;
+        self.prev = (new, now);
     }
 
     pub(crate) fn reset(&mut self, now: Instant) {
         self.pos = 0;
         self.full = false;
-        self.prev = now;
+        self.prev = (0, now);
     }
 
     /// Average time per step in seconds, using rolling buffer of last 15 steps
@@ -457,11 +455,14 @@ mod tests {
     #[test]
     fn test_time_per_step() {
         let test_rate = |items_per_second| {
-            let mut est = Estimator::new(Instant::now());
-            let mut current_time = est.prev;
+            let mut now = Instant::now();
+            let mut est = Estimator::new(now);
+            let mut pos = 0;
+
             for _ in 0..est.steps.len() {
-                current_time += Duration::from_secs(1);
-                est.record(items_per_second, current_time);
+                pos += items_per_second;
+                now += Duration::from_secs(1);
+                est.record(pos, now);
             }
             let avg_seconds_per_step = est.seconds_per_step();
 
