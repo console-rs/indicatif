@@ -299,8 +299,9 @@ impl MultiState {
             }
         }
 
-        assert!(
-            self.len() == self.ordering.len(),
+        assert_eq!(
+            self.len(),
+            self.ordering.len(),
             "Draw state is inconsistent"
         );
 
@@ -323,8 +324,9 @@ impl MultiState {
         self.free_set.push(idx);
         self.ordering.retain(|&x| x != idx);
 
-        assert!(
-            self.len() == self.ordering.len(),
+        assert_eq!(
+            self.len(),
+            self.ordering.len(),
             "Draw state is inconsistent"
         );
     }
