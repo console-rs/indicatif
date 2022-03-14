@@ -1,9 +1,9 @@
 use std::borrow::Cow;
-use std::fmt;
 use std::io;
 use std::sync::MutexGuard;
 use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
+use std::{fmt, mem};
 
 use crate::draw_target::ProgressDrawTarget;
 use crate::state::{AtomicPosition, BarState, ProgressFinish, Reset, Ticker};
@@ -55,8 +55,13 @@ impl ProgressBar {
     }
 
     /// A convenience builder-like function for a progress bar with a given style
-    pub fn with_style(self, style: ProgressStyle) -> ProgressBar {
-        self.state().style = style;
+    pub fn with_style(self, mut style: ProgressStyle) -> ProgressBar {
+        let mut state = self.state();
+        mem::swap(&mut state.style.message, &mut style.message);
+        mem::swap(&mut state.style.prefix, &mut style.prefix);
+        state.style = style;
+        drop(state);
+
         self
     }
 
