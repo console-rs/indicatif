@@ -1,7 +1,8 @@
 #![cfg(feature = "in_memory")]
 
 use indicatif::{
-    InMemoryTerm, MultiProgress, ProgressBar, ProgressDrawTarget, ProgressFinish, TermLike,
+    InMemoryTerm, MultiProgress, ProgressBar, ProgressDrawTarget, ProgressFinish, ProgressStyle,
+    TermLike,
 };
 
 #[test]
@@ -28,6 +29,30 @@ fn basic_progress_bar() {
     assert_eq!(
         in_mem.contents(),
         "██████████████████████████████████████████████████████████████████████████ 10/10"
+    );
+}
+
+#[test]
+fn progress_bar_builder_method_order() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    // Test that `with_style` doesn't overwrite the message or prefix
+    let pb =
+        ProgressBar::with_draw_target(10, ProgressDrawTarget::term_like(Box::new(in_mem.clone())))
+            .with_message("crate")
+            .with_prefix("Downloading")
+            .with_style(
+                ProgressStyle::with_template(
+                    "{prefix:>12.cyan.bold} {msg}: {wide_bar} {pos}/{len}",
+                )
+                .unwrap(),
+            );
+
+    assert_eq!(in_mem.contents(), String::new());
+
+    pb.tick();
+    assert_eq!(
+        in_mem.contents(),
+        " Downloading crate: ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10"
     );
 }
 
