@@ -54,6 +54,11 @@ impl ProgressBar {
         }
     }
 
+    /// Get a clone of the current progress bar style.
+    pub fn style(self) -> ProgressStyle {
+        self.state().style.clone()
+    }
+
     /// A convenience builder-like function for a progress bar with a given style
     pub fn with_style(self, mut style: ProgressStyle) -> ProgressBar {
         let mut state = self.state();
