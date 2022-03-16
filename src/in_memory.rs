@@ -9,6 +9,7 @@ use crate::TermLike;
 /// A thin wrapper around [`vt100::Parser`].
 ///
 /// This is just an [`Arc`] around its internal state, so it can be freely cloned.
+#[cfg_attr(docsrs, doc(cfg(feature = "in_memory")))]
 #[derive(Debug, Clone)]
 pub struct InMemoryTerm {
     state: Arc<Mutex<InMemoryTermState>>,
