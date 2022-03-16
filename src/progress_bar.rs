@@ -395,6 +395,7 @@ impl ProgressBar {
     }
 
     #[cfg(feature = "tokio")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
     /// Wraps an [`tokio::io::AsyncWrite`] with the progress bar
     ///
     /// ```rust,no_run
@@ -418,7 +419,9 @@ impl ProgressBar {
             it: write,
         }
     }
+
     #[cfg(feature = "tokio")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
     /// Wraps an [`tokio::io::AsyncRead`] with the progress bar
     ///
     /// ```rust,no_run

@@ -9,6 +9,7 @@ use std::convert::TryFrom;
 ///
 /// See [`ProgressIterator`](trait.ProgressIterator.html) for method
 /// documentation.
+#[cfg_attr(docsrs, doc(cfg(feature = "rayon")))]
 pub trait ParallelProgressIterator
 where
     Self: Sized + ParallelIterator,

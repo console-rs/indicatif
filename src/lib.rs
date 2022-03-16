@@ -212,6 +212,7 @@
 //! * `rayon`: adds rayon support
 //! * `improved_unicode`: adds improved unicode support (graphemes, better width calculation)
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(unreachable_pub)]
 
 mod draw_target;
