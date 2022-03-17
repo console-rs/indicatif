@@ -319,6 +319,12 @@ impl ProgressStyle {
                         }
                     };
 
+                    if buf == "\x00" {
+                        // Don't expand for wide elements
+                        cur.push_str(&buf);
+                        continue;
+                    }
+
                     match width {
                         Some(width) => {
                             let padded = PaddedStringDisplay {
@@ -625,11 +631,20 @@ struct PaddedStringDisplay<'a> {
 impl<'a> fmt::Display for PaddedStringDisplay<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let cols = measure_text_width(self.str);
-        if cols >= self.width {
-            return match self.truncate {
-                true => f.write_str(self.str.get(..self.width).unwrap_or(self.str)),
-                false => f.write_str(self.str),
+        let excess = cols.saturating_sub(self.width);
+        if excess > 0 && !self.truncate {
+            return f.write_str(self.str);
+        } else if excess > 0 {
+            let (start, end) = match self.align {
+                Alignment::Left => (0, self.str.len() - excess),
+                Alignment::Right => (excess, self.str.len()),
+                Alignment::Center => (
+                    excess / 2,
+                    self.str.len() - excess.saturating_sub(excess / 2),
+                ),
             };
+
+            return f.write_str(self.str.get(start..end).unwrap_or(self.str));
         }
 
         let diff = self.width.saturating_sub(cols);
@@ -715,5 +730,30 @@ mod tests {
         style.template = Template::from_str("{foo:^5.red.on_blue/green.on_cyan}").unwrap();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
+    }
+
+    #[test]
+    fn align_truncation() {
+        const WIDTH: u16 = 10;
+        let pos = Arc::new(AtomicPosition::default());
+        let state = ProgressState::new(10, pos);
+        let mut buf = Vec::new();
+
+        let mut style = ProgressStyle::with_template("{wide_msg}").unwrap();
+        style.message = "abcdefghijklmnopqrst".into();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "abcdefghij");
+
+        buf.clear();
+        let mut style = ProgressStyle::with_template("{wide_msg:>}").unwrap();
+        style.message = "abcdefghijklmnopqrst".into();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "klmnopqrst");
+
+        buf.clear();
+        let mut style = ProgressStyle::with_template("{wide_msg:^}").unwrap();
+        style.message = "abcdefghijklmnopqrst".into();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "fghijklmno");
     }
 }
