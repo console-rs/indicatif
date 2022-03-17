@@ -395,13 +395,17 @@ pub(crate) struct AtomicPosition {
 
 impl AtomicPosition {
     pub(crate) fn allow(&self, now: Instant) -> bool {
+        if now < self.start {
+            return false;
+        }
+
         let mut capacity = self.capacity.load(Ordering::Acquire);
         // `prev` is the number of ms after `self.started` we last returned `true`, in ns
         let prev = self.prev.load(Ordering::Acquire);
         // `elapsed` is the number of ns since `self.started`
         let elapsed = (now - self.start).as_nanos() as u64;
         // `diff` is the number of ns since we last returned `true`
-        let diff = elapsed - prev;
+        let diff = elapsed.saturating_sub(prev);
 
         // If `capacity` is 0 and not enough time (1ms) has passed since `prev`
         // to add new capacity, return `false`. The goal of this method is to
@@ -427,7 +431,7 @@ impl AtomicPosition {
 
     fn reset(&self, now: Instant) {
         self.set(0);
-        let elapsed = (now - self.start).as_millis() as u64;
+        let elapsed = (now.saturating_duration_since(self.start)).as_millis() as u64;
         self.prev.store(elapsed, Ordering::Release);
     }
 
