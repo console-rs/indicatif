@@ -333,18 +333,27 @@ impl RateLimiter {
         }
 
         let elapsed = now - self.prev;
-        let remaining = (MAX_BURST - self.capacity) as u128;
-        self.capacity += Ord::min(remaining, elapsed.as_millis() / self.interval as u128) as u8;
-        let interval_nanos = self.interval as u128 * 1_000_000;
-        self.prev = now - Duration::from_nanos((elapsed.as_nanos() % interval_nanos) as u64);
-
-        match self.capacity.checked_sub(1) {
-            Some(new) => {
-                self.capacity = new;
-                true
-            }
-            None => false,
+        // If `capacity` is 0 and not enough time (`self.interval` ms) has passed since
+        // `self.prev` to add new capacity, return `false`. The goal of this method is to
+        // make this decision as efficient as possible.
+        if self.capacity == 0 && elapsed < Duration::from_millis(self.interval as u64) {
+            return false;
         }
+
+        // We now calculate `new`, the number of ms, since we last returned `true`,
+        // and `remainder`, which represents a number of ns less than 1ms which we cannot
+        // convert into capacity now, so we're saving it for later.
+        let (new, remainder) = (
+            elapsed.as_millis() / self.interval as u128,
+            elapsed.as_nanos() % self.interval as u128 * 1_000_000,
+        );
+
+        // We add `new` to `capacity`, subtract one for returning `true` from here,
+        // then make sure it does not exceed a maximum of `MAX_BURST`, then store it.
+        self.capacity = Ord::min(MAX_BURST, self.capacity + new as u8 - 1);
+        // Store `prev` for the next iteration after subtracting the `remainder`.
+        self.prev = now - Duration::from_nanos(remainder as u64);
+        true
     }
 }
 
