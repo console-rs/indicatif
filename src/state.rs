@@ -336,7 +336,7 @@ impl Estimator {
     }
 
     fn record(&mut self, new: u64, now: Instant) {
-        let delta = new - self.prev.0;
+        let delta = new.saturating_sub(self.prev.0);
         if delta == 0 || now < self.prev.1 {
             return;
         }
@@ -511,6 +511,8 @@ pub(crate) enum Status {
 
 #[cfg(test)]
 mod tests {
+    use crate::ProgressBar;
+
     use super::*;
 
     #[test]
@@ -557,5 +559,22 @@ mod tests {
         let duration = Duration::new(42, 100_000_000);
         let secs = duration_to_secs(duration);
         assert_eq!(secs_to_duration(secs), duration);
+    }
+
+    #[test]
+    fn test_estimator_rewind_position() {
+        let now = Instant::now();
+        let mut est = Estimator::new(now);
+        est.record(0, now);
+        est.record(1, now);
+        // Should not panic.
+        est.record(0, now);
+
+        let pb = ProgressBar::hidden();
+        pb.set_length(10);
+        pb.set_position(1);
+        pb.tick();
+        // Should not panic.
+        pb.set_position(0);
     }
 }
