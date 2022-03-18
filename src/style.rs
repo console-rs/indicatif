@@ -683,7 +683,7 @@ mod tests {
     #[test]
     fn test_expand_template() {
         const WIDTH: u16 = 80;
-        let pos = Arc::new(AtomicPosition::default());
+        let pos = Arc::new(AtomicPosition::new());
         let state = ProgressState::new(Some(10), pos);
         let mut buf = Vec::new();
 
@@ -707,7 +707,7 @@ mod tests {
         set_colors_enabled(true);
 
         const WIDTH: u16 = 80;
-        let pos = Arc::new(AtomicPosition::default());
+        let pos = Arc::new(AtomicPosition::new());
         let state = ProgressState::new(Some(10), pos);
         let mut buf = Vec::new();
 
@@ -737,7 +737,7 @@ mod tests {
     #[test]
     fn align_truncation() {
         const WIDTH: u16 = 10;
-        let pos = Arc::new(AtomicPosition::default());
+        let pos = Arc::new(AtomicPosition::new());
         let state = ProgressState::new(Some(10), pos);
         let mut buf = Vec::new();
 
