@@ -418,6 +418,15 @@ pub(crate) struct AtomicPosition {
 }
 
 impl AtomicPosition {
+    pub(crate) fn new() -> Self {
+        Self {
+            pos: AtomicU64::new(0),
+            capacity: AtomicU8::new(MAX_BURST),
+            prev: AtomicU64::new(0),
+            start: Instant::now(),
+        }
+    }
+
     pub(crate) fn allow(&self, now: Instant) -> bool {
         if now < self.start {
             return false;
@@ -465,17 +474,6 @@ impl AtomicPosition {
 
     pub(crate) fn set(&self, pos: u64) {
         self.pos.store(pos, Ordering::Release);
-    }
-}
-
-impl Default for AtomicPosition {
-    fn default() -> Self {
-        Self {
-            pos: AtomicU64::new(0),
-            capacity: AtomicU8::new(MAX_BURST),
-            prev: AtomicU64::new(0),
-            start: Instant::now(),
-        }
     }
 }
 

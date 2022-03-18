@@ -47,7 +47,7 @@ impl ProgressBar {
 
     /// Creates a new progress bar with a given length and draw target
     pub fn with_draw_target(len: Option<u64>, draw_target: ProgressDrawTarget) -> ProgressBar {
-        let pos = Arc::new(AtomicPosition::default());
+        let pos = Arc::new(AtomicPosition::new());
         ProgressBar {
             state: Arc::new(Mutex::new(BarState::new(len, draw_target, pos.clone()))),
             pos,
