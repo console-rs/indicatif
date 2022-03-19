@@ -4,6 +4,7 @@ use indicatif::{
     InMemoryTerm, MultiProgress, ProgressBar, ProgressDrawTarget, ProgressFinish, ProgressStyle,
     TermLike,
 };
+use std::time::Duration;
 
 #[test]
 fn basic_progress_bar() {
@@ -242,5 +243,30 @@ And so is this
 
 Another line printed"#
             .trim()
+    );
+}
+
+#[test]
+fn ticker_drop() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+    let mut spinner: Option<ProgressBar> = None;
+
+    for i in 0..5 {
+        let new_spinner = mp.add(
+            ProgressBar::new_spinner()
+                .with_finish(ProgressFinish::AndLeave)
+                .with_message(format!("doing stuff {}", i)),
+        );
+        new_spinner.enable_steady_tick(Duration::from_millis(50));
+        spinner.replace(new_spinner);
+    }
+
+    drop(spinner);
+    assert_eq!(
+        in_mem.contents(),
+        "  doing stuff 0\n  doing stuff 1\n  doing stuff 2\n  doing stuff 3\n  doing stuff 4"
     );
 }
