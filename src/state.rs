@@ -332,6 +332,7 @@ impl Ticker {
             self.interval = interval;
             state.draw(false, Instant::now()).ok();
             drop(state); // Don't forget to drop the lock before sleeping
+            drop(arc); // Also need to drop Arc otherwise BarState won't be dropped
             thread::sleep(self.interval);
         }
     }
