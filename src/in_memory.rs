@@ -41,6 +41,7 @@ impl InMemoryTerm {
             .into_iter()
             .rev()
             .skip_while(|line| line.is_empty())
+            .map(|line| line.trim_end().to_string())
             .collect();
 
         // Un-reverse the rows and join them up with newlines
