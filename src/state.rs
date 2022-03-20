@@ -421,7 +421,14 @@ impl AtomicPosition {
         let (new, remainder) = ((diff / INTERVAL), (diff % INTERVAL));
         // We add `new` to `capacity`, subtract one for returning `true` from here,
         // then make sure it does not exceed a maximum of `MAX_BURST`.
-        capacity = Ord::min(MAX_BURST, capacity + new as u8 - 1);
+        capacity = Ord::min(
+            MAX_BURST,
+            capacity
+                .checked_add(new as u8)
+                .unwrap_or_default()
+                .checked_sub(1)
+                .unwrap_or_default(),
+        );
 
         // Then, we just store `capacity` and `prev` atomically for the next iteration
         self.capacity.store(capacity, Ordering::Release);
