@@ -113,7 +113,8 @@ impl MultiProgress {
     /// If the passed progress bar does not satisfy the condition above,
     /// the `remove` method does nothing.
     pub fn remove(&self, pb: &ProgressBar) {
-        let idx = match &pb.state().draw_target.remote() {
+        let mut state = pb.state();
+        let idx = match &state.draw_target.remote() {
             Some((state, idx)) => {
                 // Check that this progress bar is owned by the current MultiProgress.
                 assert!(Arc::ptr_eq(&self.state, state));
@@ -122,6 +123,7 @@ impl MultiProgress {
             _ => return,
         };
 
+        state.draw_target = ProgressDrawTarget::hidden();
         self.state.write().unwrap().remove_idx(idx);
     }
 
@@ -433,8 +435,8 @@ mod tests {
         }
 
         assert_eq!(p0.index().unwrap(), 0);
-        assert_eq!(p1.index().unwrap(), 1);
-        assert_eq!(p2.index().unwrap(), 2);
+        assert_eq!(p1.index(), None);
+        assert_eq!(p2.index(), None);
         assert_eq!(p3.index().unwrap(), 3);
     }
 
@@ -533,7 +535,7 @@ mod tests {
         assert_eq!(state.free_set.last(), Some(&0));
 
         assert_eq!(state.ordering, vec![1]);
-        assert_eq!(p0.index().unwrap(), 0);
+        assert_eq!(p0.index(), None);
         assert_eq!(p1.index().unwrap(), 1);
     }
 }
