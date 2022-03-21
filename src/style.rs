@@ -221,7 +221,9 @@ impl ProgressStyle {
         let mut cur = String::new();
         let mut buf = String::new();
         let mut wide = None;
-        let (pos, len) = (state.pos(), state.len());
+
+        let pos = state.pos();
+        let len = state.len().unwrap_or(pos);
         for part in &self.template.parts {
             match part {
                 TemplatePart::Placeholder {
@@ -682,7 +684,7 @@ mod tests {
     fn test_expand_template() {
         const WIDTH: u16 = 80;
         let pos = Arc::new(AtomicPosition::default());
-        let state = ProgressState::new(10, pos);
+        let state = ProgressState::new(Some(10), pos);
         let mut buf = Vec::new();
 
         let mut style = ProgressStyle::default_bar();
@@ -706,7 +708,7 @@ mod tests {
 
         const WIDTH: u16 = 80;
         let pos = Arc::new(AtomicPosition::default());
-        let state = ProgressState::new(10, pos);
+        let state = ProgressState::new(Some(10), pos);
         let mut buf = Vec::new();
 
         let mut style = ProgressStyle::default_bar();
@@ -736,7 +738,7 @@ mod tests {
     fn align_truncation() {
         const WIDTH: u16 = 10;
         let pos = Arc::new(AtomicPosition::default());
-        let state = ProgressState::new(10, pos);
+        let state = ProgressState::new(Some(10), pos);
         let mut buf = Vec::new();
 
         let mut style = ProgressStyle::with_template("{wide_msg}").unwrap();

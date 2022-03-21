@@ -18,7 +18,11 @@ pub(crate) struct BarState {
 }
 
 impl BarState {
-    pub(crate) fn new(len: u64, draw_target: ProgressDrawTarget, pos: Arc<AtomicPosition>) -> Self {
+    pub(crate) fn new(
+        len: Option<u64>,
+        draw_target: ProgressDrawTarget,
+        pos: Arc<AtomicPosition>,
+    ) -> Self {
         Self {
             draw_target,
             on_finish: ProgressFinish::default(),
@@ -33,13 +37,21 @@ impl BarState {
     pub(crate) fn finish_using_style(&mut self, now: Instant, finish: ProgressFinish) {
         self.state.status = Status::DoneVisible;
         match finish {
-            ProgressFinish::AndLeave => self.state.pos.set(self.state.len),
+            ProgressFinish::AndLeave => {
+                if let Some(len) = self.state.len {
+                    self.state.pos.set(len);
+                }
+            }
             ProgressFinish::WithMessage(msg) => {
-                self.state.pos.set(self.state.len);
+                if let Some(len) = self.state.len {
+                    self.state.pos.set(len);
+                }
                 self.style.message = msg;
             }
             ProgressFinish::AndClear => {
-                self.state.pos.set(self.state.len);
+                if let Some(len) = self.state.len {
+                    self.state.pos.set(len);
+                }
                 self.state.status = Status::DoneHidden;
             }
             ProgressFinish::Abandon => {}
@@ -73,12 +85,14 @@ impl BarState {
     }
 
     pub(crate) fn set_length(&mut self, now: Instant, len: u64) {
-        self.state.len = len;
+        self.state.len = Some(len);
         self.tick(now);
     }
 
     pub(crate) fn inc_length(&mut self, now: Instant, delta: u64) {
-        self.state.len = self.state.len.saturating_add(delta);
+        if let Some(len) = self.state.len {
+            self.state.len = Some(len.saturating_add(delta));
+        }
         self.tick(now);
     }
 
@@ -174,7 +188,7 @@ pub(crate) enum Reset {
 #[non_exhaustive]
 pub struct ProgressState {
     pos: Arc<AtomicPosition>,
-    len: u64,
+    len: Option<u64>,
     pub(crate) tick: u64,
     pub(crate) started: Instant,
     status: Status,
@@ -182,7 +196,7 @@ pub struct ProgressState {
 }
 
 impl ProgressState {
-    pub(crate) fn new(len: u64, pos: Arc<AtomicPosition>) -> Self {
+    pub(crate) fn new(len: Option<u64>, pos: Arc<AtomicPosition>) -> Self {
         Self {
             pos,
             len,
@@ -206,27 +220,33 @@ impl ProgressState {
     pub fn fraction(&self) -> f32 {
         let pos = self.pos.pos.load(Ordering::Relaxed);
         let pct = match (pos, self.len) {
-            (_, 0) => 1.0,
+            (_, None) => 1.0,
+            (_, Some(0)) => 1.0,
             (0, _) => 0.0,
-            (pos, len) => pos as f32 / len as f32,
+            (pos, Some(len)) => pos as f32 / len as f32,
         };
         pct.max(0.0).min(1.0)
     }
 
     /// The expected ETA
     pub fn eta(&self) -> Duration {
-        if self.len == !0 || self.is_finished() {
+        if self.is_finished() {
             return Duration::new(0, 0);
         }
 
+        let len = match self.len {
+            Some(len) => len,
+            None => return Duration::new(0, 0),
+        };
+
         let pos = self.pos.pos.load(Ordering::Relaxed);
         let t = self.est.seconds_per_step();
-        secs_to_duration(t * self.len.saturating_sub(pos) as f64)
+        secs_to_duration(t * len.saturating_sub(pos) as f64)
     }
 
     /// The expected total duration (that is, elapsed time + expected ETA)
     pub fn duration(&self) -> Duration {
-        if self.len == !0 || self.is_finished() {
+        if self.len.is_none() || self.is_finished() {
             return Duration::new(0, 0);
         }
         self.started.elapsed() + self.eta()
@@ -239,7 +259,10 @@ impl ProgressState {
                 per_sec if per_sec.is_nan() => 0.0,
                 per_sec => per_sec,
             },
-            _ => self.len as f64 / self.started.elapsed().as_secs_f64(),
+            _ => {
+                let len = self.len.unwrap_or_else(|| self.pos());
+                len as f64 / self.started.elapsed().as_secs_f64()
+            }
         }
     }
 
@@ -256,12 +279,12 @@ impl ProgressState {
     }
 
     #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self) -> u64 {
+    pub fn len(&self) -> Option<u64> {
         self.len
     }
 
     pub fn set_len(&mut self, len: u64) {
-        self.len = len;
+        self.len = Some(len);
     }
 }
 

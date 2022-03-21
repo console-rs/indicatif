@@ -90,7 +90,10 @@ fn main() {
     let sty_aux = ProgressStyle::with_template("{spinner:.green} {msg} {pos:>4}/{len:4}").unwrap();
 
     let pb_main = mp.add(ProgressBar::new(
-        ELEMENTS.iter().map(|e| e.progress_bar.length()).sum(),
+        ELEMENTS
+            .iter()
+            .map(|e| e.progress_bar.length().unwrap())
+            .sum(),
     ));
     pb_main.set_style(sty_main);
     for elem in ELEMENTS.iter() {
@@ -121,8 +124,7 @@ fn main() {
                     let elem = &tree.lock().unwrap()[el_idx];
                     elem.progress_bar.inc(1);
                     let pos = elem.progress_bar.position();
-                    let len = elem.progress_bar.length();
-                    if pos >= len {
+                    if pos >= elem.progress_bar.length().unwrap() {
                         elem.progress_bar.finish_with_message(format!(
                             "{}{} {}",
                             "  ".repeat(elem.indent),
@@ -155,7 +157,7 @@ fn get_action<'a>(rng: &'a mut dyn RngCore, tree: &Mutex<Vec<&Elem>>) -> Option<
         .iter()
         .map(|e| {
             let pos = e.progress_bar.position();
-            let len = e.progress_bar.length();
+            let len = e.progress_bar.length().unwrap();
             len - pos
         })
         .sum::<u64>();
@@ -176,7 +178,7 @@ fn get_action<'a>(rng: &'a mut dyn RngCore, tree: &Mutex<Vec<&Elem>>) -> Option<
                 let l = (k % list_len) as usize;
                 let pos = list[l].progress_bar.position();
                 let len = list[l].progress_bar.length();
-                if pos < len {
+                if pos < len.unwrap() {
                     return Some(Action::IncProgressBar(l));
                 }
             }

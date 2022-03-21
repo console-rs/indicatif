@@ -8,8 +8,10 @@ use indicatif::{
 #[test]
 fn basic_progress_bar() {
     let in_mem = InMemoryTerm::new(10, 80);
-    let pb =
-        ProgressBar::with_draw_target(10, ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+    let pb = ProgressBar::with_draw_target(
+        Some(10),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    );
 
     assert_eq!(in_mem.contents(), String::new());
 
@@ -36,16 +38,16 @@ fn basic_progress_bar() {
 fn progress_bar_builder_method_order() {
     let in_mem = InMemoryTerm::new(10, 80);
     // Test that `with_style` doesn't overwrite the message or prefix
-    let pb =
-        ProgressBar::with_draw_target(10, ProgressDrawTarget::term_like(Box::new(in_mem.clone())))
-            .with_message("crate")
-            .with_prefix("Downloading")
-            .with_style(
-                ProgressStyle::with_template(
-                    "{prefix:>12.cyan.bold} {msg}: {wide_bar} {pos}/{len}",
-                )
-                .unwrap(),
-            );
+    let pb = ProgressBar::with_draw_target(
+        Some(10),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    )
+    .with_message("crate")
+    .with_prefix("Downloading")
+    .with_style(
+        ProgressStyle::with_template("{prefix:>12.cyan.bold} {msg}: {wide_bar} {pos}/{len}")
+            .unwrap(),
+    );
 
     assert_eq!(in_mem.contents(), String::new());
 
