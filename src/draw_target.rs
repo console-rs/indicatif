@@ -1,5 +1,6 @@
 use std::io;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
+use std::thread::panicking;
 use std::time::{Duration, Instant};
 
 use console::Term;
@@ -378,6 +379,10 @@ impl DrawState {
         term: &(impl TermLike + ?Sized),
         last_line_count: &mut usize,
     ) -> io::Result<()> {
+        if panicking() {
+            return Ok(());
+        }
+
         if !self.lines.is_empty() && self.move_cursor {
             term.move_cursor_up(*last_line_count)?;
         } else {
