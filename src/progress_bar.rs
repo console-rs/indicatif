@@ -60,13 +60,8 @@ impl ProgressBar {
     }
 
     /// A convenience builder-like function for a progress bar with a given style
-    pub fn with_style(self, mut style: ProgressStyle) -> ProgressBar {
-        let mut state = self.state();
-        mem::swap(&mut state.style.message, &mut style.message);
-        mem::swap(&mut state.style.prefix, &mut style.prefix);
-        state.style = style;
-        drop(state);
-
+    pub fn with_style(self, style: ProgressStyle) -> ProgressBar {
+        self.set_style(style);
         self
     }
 
@@ -122,8 +117,11 @@ impl ProgressBar {
     /// Overrides the stored style
     ///
     /// This does not redraw the bar. Call [`ProgressBar::tick()`] to force it.
-    pub fn set_style(&self, style: ProgressStyle) {
-        self.state().style = style;
+    pub fn set_style(&self, mut style: ProgressStyle) {
+        let mut state = self.state();
+        mem::swap(&mut state.style.message, &mut style.message);
+        mem::swap(&mut state.style.prefix, &mut style.prefix);
+        state.style = style;
     }
 
     /// Spawns a background thread to tick the progress bar
