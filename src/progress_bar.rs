@@ -34,7 +34,7 @@ impl ProgressBar {
     /// a second. To change the refresh rate, set the draw target to one with a different refresh
     /// rate.
     pub fn new(len: u64) -> ProgressBar {
-        ProgressBar::with_draw_target(len, ProgressDrawTarget::stderr())
+        ProgressBar::with_draw_target(Some(len), ProgressDrawTarget::stderr())
     }
 
     /// Creates a completely hidden progress bar
@@ -42,11 +42,11 @@ impl ProgressBar {
     /// This progress bar still responds to API changes but it does not have a length or render in
     /// any way.
     pub fn hidden() -> ProgressBar {
-        ProgressBar::with_draw_target(!0, ProgressDrawTarget::hidden())
+        ProgressBar::with_draw_target(None, ProgressDrawTarget::hidden())
     }
 
     /// Creates a new progress bar with a given length and draw target
-    pub fn with_draw_target(len: u64, draw_target: ProgressDrawTarget) -> ProgressBar {
+    pub fn with_draw_target(len: Option<u64>, draw_target: ProgressDrawTarget) -> ProgressBar {
         let pos = Arc::new(AtomicPosition::default());
         ProgressBar {
             state: Arc::new(Mutex::new(BarState::new(len, draw_target, pos.clone()))),
@@ -109,7 +109,7 @@ impl ProgressBar {
     ///
     /// This spinner by default draws directly to stderr. This adds the default spinner style to it.
     pub fn new_spinner() -> ProgressBar {
-        let rv = ProgressBar::new(!0);
+        let rv = ProgressBar::with_draw_target(None, ProgressDrawTarget::stderr());
         rv.set_style(ProgressStyle::default_spinner());
         rv
     }
@@ -447,7 +447,7 @@ impl ProgressBar {
     }
 
     /// Returns the current length
-    pub fn length(&self) -> u64 {
+    pub fn length(&self) -> Option<u64> {
         self.state().state.len()
     }
 

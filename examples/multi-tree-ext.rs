@@ -193,7 +193,7 @@ pub fn main() {
         ELEMENTS
             .iter()
             .map(|e| match e {
-                Elem::AddItem(item) => item.progress_bar.length(),
+                Elem::AddItem(item) => item.progress_bar.length().unwrap(),
                 Elem::RemoveItem(_) => 1,
             })
             .sum(),
@@ -230,15 +230,14 @@ pub fn main() {
                     let item = items.remove(*index);
                     let pb = &item.progress_bar;
                     mp2.remove(pb);
-                    pb_main.inc(pb.length() - pb.position());
+                    pb_main.inc(pb.length().unwrap() - pb.position());
                 }
             },
             Action::IncProgressBar(item_idx) => {
                 let item = &items[item_idx];
                 item.progress_bar.inc(1);
                 let pos = item.progress_bar.position();
-                let len = item.progress_bar.length();
-                if pos >= len {
+                if pos >= item.progress_bar.length().unwrap() {
                     item.progress_bar.set_style(sty_fin.clone());
                     item.progress_bar.finish_with_message(format!(
                         "{} {}",
@@ -262,8 +261,7 @@ fn get_action<'a>(rng: &'a mut dyn RngCore, items: &[&Item]) -> Action {
         .enumerate()
         .filter(|(_, item)| {
             let pos = item.progress_bar.position();
-            let len = item.progress_bar.length();
-            pos < len
+            pos < item.progress_bar.length().unwrap()
         })
         .map(|(idx, _)| idx)
         .collect::<Vec<usize>>();
