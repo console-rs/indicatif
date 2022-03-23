@@ -1,10 +1,9 @@
 use std::borrow::Cow;
-use std::fmt;
 use std::io;
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
-use std::sync::{Arc, Mutex, Weak};
-use std::thread;
+use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::time::{Duration, Instant};
+use std::{fmt, thread};
 
 use crate::draw_target::ProgressDrawTarget;
 use crate::style::ProgressStyle;
@@ -14,7 +13,6 @@ pub(crate) struct BarState {
     pub(crate) on_finish: ProgressFinish,
     pub(crate) style: ProgressStyle,
     pub(crate) state: ProgressState,
-    pub(crate) ticker: Option<(Duration, thread::JoinHandle<()>)>,
 }
 
 impl BarState {
@@ -28,7 +26,6 @@ impl BarState {
             on_finish: ProgressFinish::default(),
             style: ProgressStyle::default_bar(),
             state: ProgressState::new(len, pos),
-            ticker: None,
         }
     }
 
@@ -107,7 +104,7 @@ impl BarState {
     }
 
     pub(crate) fn tick(&mut self, now: Instant) {
-        if self.ticker.is_none() || self.state.tick == 0 {
+        if self.state.tick == 0 {
             self.state.tick = self.state.tick.saturating_add(1);
         }
 
@@ -145,7 +142,7 @@ impl BarState {
         ret
     }
 
-    fn draw(&mut self, mut force_draw: bool, now: Instant) -> io::Result<()> {
+    pub(crate) fn draw(&mut self, mut force_draw: bool, now: Instant) -> io::Result<()> {
         let width = self.draw_target.width();
         force_draw |= self.state.is_finished();
         let mut drawable = match self.draw_target.drawable(force_draw, now) {
@@ -289,53 +286,82 @@ impl ProgressState {
 }
 
 pub(crate) struct Ticker {
-    weak: Weak<Mutex<BarState>>,
-    interval: Duration,
+    stop_received: Arc<Mutex<bool>>,
+    cond_var: Arc<Condvar>,
+    join_handle: Option<thread::JoinHandle<()>>,
+}
+
+impl Drop for Ticker {
+    fn drop(&mut self) {
+        self.stop();
+        self.join_handle.take().map(|handle| handle.join());
+    }
 }
 
 impl Ticker {
-    pub(crate) fn spawn(arc: &Arc<Mutex<BarState>>, interval: Duration) {
-        let mut state = arc.lock().unwrap();
-        if interval.is_zero() {
-            return;
-        } else if let Some((old, _)) = &mut state.ticker {
-            *old = interval;
-            return;
-        }
+    pub(crate) fn new(interval: Duration, bar_state: &Arc<Mutex<BarState>>) -> Ticker {
+        debug_assert!(!interval.is_zero());
 
-        let ticker = Self {
-            // Using a weak pointer is required to prevent a potential deadlock. See issue #133
-            weak: Arc::downgrade(arc),
-            interval,
+        #[allow(clippy::mutex_atomic)]
+        let cancel_pending = Arc::new(Mutex::new(false));
+        let cond_var = Arc::new(Condvar::new());
+
+        let control = TickerControl {
+            stop_received: cancel_pending.clone(),
+            cond_var: cond_var.clone(),
+            weak_state: Arc::downgrade(bar_state),
         };
 
-        let handle = thread::spawn(move || ticker.run());
-        state.ticker = Some((interval, handle));
-        drop(state);
-        // use the side effect of tick to force the bar to tick.
-        arc.lock().unwrap().tick(Instant::now());
-    }
+        let join_handle = thread::spawn(move || {
+            while let Some(arc) = control.weak_state.upgrade() {
+                let mut state = arc.lock().unwrap();
+                if state.state.is_finished() {
+                    break;
+                }
 
-    fn run(mut self) {
-        thread::sleep(self.interval);
-        while let Some(arc) = self.weak.upgrade() {
-            let mut state = arc.lock().unwrap();
-            let interval = match state.ticker {
-                Some((interval, _)) if !state.state.is_finished() => interval,
-                _ => return,
-            };
+                if state.state.tick != 0 {
+                    state.state.tick = state.state.tick.saturating_add(1);
+                }
 
-            if state.state.tick != 0 {
-                state.state.tick = state.state.tick.saturating_add(1);
+                state.draw(false, Instant::now()).ok();
+
+                drop(state); // Don't forget to drop the lock before sleeping
+                drop(arc); // Also need to drop Arc otherwise BarState won't be dropped
+
+                // Wait for `interval` but return early if we are notified to stop
+                let result = control
+                    .cond_var
+                    .wait_timeout_while(
+                        control.stop_received.lock().unwrap(),
+                        interval,
+                        |stopped| !*stopped,
+                    )
+                    .unwrap();
+
+                // If the wait didn't time out, it means we were notified to stop
+                if !result.1.timed_out() {
+                    break;
+                }
             }
+        });
 
-            self.interval = interval;
-            state.draw(false, Instant::now()).ok();
-            drop(state); // Don't forget to drop the lock before sleeping
-            drop(arc); // Also need to drop Arc otherwise BarState won't be dropped
-            thread::sleep(self.interval);
+        Ticker {
+            stop_received: cancel_pending,
+            cond_var,
+            join_handle: Some(join_handle),
         }
     }
+
+    pub(crate) fn stop(&self) {
+        *self.stop_received.lock().unwrap() = true;
+        self.cond_var.notify_one();
+    }
+}
+
+struct TickerControl {
+    stop_received: Arc<Mutex<bool>>,
+    cond_var: Arc<Condvar>,
+    weak_state: Weak<Mutex<BarState>>,
 }
 
 /// Estimate the number of seconds per step

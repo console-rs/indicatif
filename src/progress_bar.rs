@@ -19,6 +19,7 @@ use crate::{ProgressBarIter, ProgressIterator};
 pub struct ProgressBar {
     state: Arc<Mutex<BarState>>,
     pos: Arc<AtomicPosition>,
+    ticker: Arc<Mutex<Option<Ticker>>>,
 }
 
 impl fmt::Debug for ProgressBar {
@@ -51,6 +52,7 @@ impl ProgressBar {
         ProgressBar {
             state: Arc::new(Mutex::new(BarState::new(len, draw_target, pos.clone()))),
             pos,
+            ticker: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -132,19 +134,35 @@ impl ProgressBar {
     /// When steady ticks are enabled, calling [`ProgressBar::tick()`] on a progress bar does not
     /// have any effect.
     pub fn enable_steady_tick(&self, interval: Duration) {
-        Ticker::spawn(&self.state, interval)
+        if interval.is_zero() {
+            return;
+        }
+
+        self.stop_and_replace_ticker(Some(Ticker::new(interval, &self.state)));
     }
 
     /// Undoes [`ProgressBar::enable_steady_tick()`]
     pub fn disable_steady_tick(&self) {
-        self.state().ticker = None;
+        self.stop_and_replace_ticker(None);
+    }
+
+    fn stop_and_replace_ticker(&self, new_ticker: Option<Ticker>) {
+        let mut ticker_state = self.ticker.lock().unwrap();
+        if let Some(ticker) = ticker_state.take() {
+            ticker.stop();
+        }
+
+        *ticker_state = new_ticker;
     }
 
     /// Manually ticks the spinner or progress bar
     ///
     /// This automatically happens on any other change to a progress bar.
     pub fn tick(&self) {
-        self.state().tick(Instant::now())
+        // Only tick if a `Ticker` isn't installed
+        if self.ticker.lock().unwrap().is_none() {
+            self.state().tick(Instant::now())
+        }
     }
 
     /// Advances the position of the progress bar by `delta`
@@ -226,6 +244,7 @@ impl ProgressBar {
         WeakProgressBar {
             state: Arc::downgrade(&self.state),
             pos: Arc::downgrade(&self.pos),
+            ticker: Arc::downgrade(&self.ticker),
         }
     }
 
@@ -489,6 +508,7 @@ impl ProgressBar {
 pub struct WeakProgressBar {
     state: Weak<Mutex<BarState>>,
     pos: Weak<AtomicPosition>,
+    ticker: Weak<Mutex<Option<Ticker>>>,
 }
 
 impl WeakProgressBar {
@@ -506,7 +526,8 @@ impl WeakProgressBar {
     pub fn upgrade(&self) -> Option<ProgressBar> {
         let state = self.state.upgrade()?;
         let pos = self.pos.upgrade()?;
-        Some(ProgressBar { state, pos })
+        let ticker = self.ticker.upgrade()?;
+        Some(ProgressBar { state, pos, ticker })
     }
 }
 
