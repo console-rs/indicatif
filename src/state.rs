@@ -454,7 +454,7 @@ impl AtomicPosition {
         let (new, remainder) = ((diff / INTERVAL), (diff % INTERVAL));
         // We add `new` to `capacity`, subtract one for returning `true` from here,
         // then make sure it does not exceed a maximum of `MAX_BURST`.
-        capacity = Ord::min(MAX_BURST, capacity + new as u8 - 1);
+        capacity = Ord::min(MAX_BURST as u128, (capacity as u128) + (new as u128) - 1) as u8;
 
         // Then, we just store `capacity` and `prev` atomically for the next iteration
         self.capacity.store(capacity, Ordering::Release);
@@ -602,5 +602,13 @@ mod tests {
         pb.tick();
         // Should not panic.
         pb.set_position(0);
+    }
+
+    #[test]
+    fn test_atomic_position_large_time_difference() {
+        let atomic_position = AtomicPosition::new();
+        let later = atomic_position.start + Duration::from_nanos(INTERVAL * u64::from(u8::MAX));
+        // Should not panic.
+        atomic_position.allow(later);
     }
 }
