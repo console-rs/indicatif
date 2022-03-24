@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::VecDeque;
 use std::fmt;
 use std::io;
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
@@ -252,6 +253,38 @@ impl ProgressState {
         self.started.elapsed() + self.eta()
     }
 
+    /// Rate of change of pos over last n seconds
+    pub fn per_n_sec(&self, seconds: u8) -> f64 {
+        assert!(seconds < 16, "per_n_sec can't sample more than 15 seconds");
+        assert!(seconds > 0, "per_n_sec must sample at least one second");
+        let data_points = self.est.samples.len() as i8;
+        // Two points of data represent one second, so we need seconds + 1 data points
+        let needed_samples = seconds + 1;
+        if data_points < 2 {
+            return 0.0;
+        }
+        let data = self
+            .est
+            .samples
+            .iter()
+            .skip(((data_points - needed_samples as i8) - 1).max(0) as usize)
+            .collect::<Vec<&(_, _)>>();
+        let i = data.len() - 2;
+        let rates = (0..i)
+            .into_iter()
+            .map(|n| {
+                // 0 = pos, 1 = time(ms)
+                let (prev, earlier) = data.get(n).unwrap();
+                let (next, later) = data.get(n + 1).unwrap();
+                let increased_by = next - prev;
+                let time_span = later - earlier;
+                increased_by as f64 / time_span as f64
+            })
+            .collect::<Vec<_>>();
+        let total = rates.len();
+        (rates.into_iter().sum::<f64>() / total as f64) * 1_000f64
+    }
+
     /// The number of steps per second
     pub fn per_sec(&self) -> f64 {
         match self.status {
@@ -343,6 +376,10 @@ impl Ticker {
 /// Ring buffer with constant capacity. Used by `ProgressBar`s to display `{eta}`,
 /// `{eta_precise}`, and `{*_per_sec}`.
 pub(crate) struct Estimator {
+    // Need a more efficient way to store old samples. Ideally one that isn't computationally expensive.
+    // Possibly even store as Option<Box<T>> by default if the user doesn't need this. Or maybe feature gate it.
+    samples: VecDeque<(u64, u64)>,
+    acc: u64,
     steps: [f64; 16],
     pos: u8,
     full: bool,
@@ -352,6 +389,8 @@ pub(crate) struct Estimator {
 impl Estimator {
     fn new(now: Instant) -> Self {
         Self {
+            samples: VecDeque::from([(0, 0); 16]),
+            acc: 0,
             steps: [0.0; 16],
             pos: 0,
             full: false,
@@ -379,6 +418,24 @@ impl Estimator {
         }
 
         self.prev = (new, now);
+
+        self.acc += elapsed.as_millis() as u64;
+        // avoid this check too frequently somehow to make recording less costly. Not sure if pos % 4 is ideal.
+        if self.pos % 4 == 0 {
+            // Do not sample until after at least full second has passed since the last sample.
+            // It's ok if it's a bit over one second as the calculation will account for it, but we don't want i.e. 2 seconds.
+            if self.acc > 1000 {
+                let past_curr = self.samples.len() - 1;
+                let last = self.samples.get(past_curr).unwrap().1;
+                if past_curr >= 16 {
+                    self.samples.push_back((new, last + self.acc));
+                    self.samples.pop_front();
+                } else {
+                    self.samples.push_back((new, last + self.acc));
+                }
+                self.acc = 0;
+            }
+        }
     }
 
     pub(crate) fn reset(&mut self, now: Instant) {
