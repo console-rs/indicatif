@@ -5,6 +5,11 @@ use std::time::{Duration, Instant};
 use std::{fmt, mem};
 use std::{io, thread};
 
+#[cfg(test)]
+use std::sync::atomic::AtomicBool;
+#[cfg(test)]
+use std::sync::atomic::Ordering;
+
 use crate::draw_target::ProgressDrawTarget;
 use crate::state::{AtomicPosition, BarState, ProgressFinish, Reset};
 use crate::style::ProgressStyle;
@@ -544,6 +549,9 @@ impl Drop for Ticker {
     }
 }
 
+#[cfg(test)]
+static TICKER_RUNNING: AtomicBool = AtomicBool::new(false);
+
 impl Ticker {
     pub(crate) fn new(interval: Duration, bar_state: &Arc<Mutex<BarState>>) -> Ticker {
         debug_assert!(!interval.is_zero());
@@ -559,6 +567,9 @@ impl Ticker {
         };
 
         let join_handle = thread::spawn(move || {
+            #[cfg(test)]
+            TICKER_RUNNING.store(true, Ordering::SeqCst);
+
             while let Some(arc) = control.weak_state.upgrade() {
                 let mut state = arc.lock().unwrap();
                 if state.state.is_finished() {
@@ -589,6 +600,9 @@ impl Ticker {
                     break;
                 }
             }
+
+            #[cfg(test)]
+            TICKER_RUNNING.store(false, Ordering::SeqCst);
         });
 
         Ticker {
@@ -609,6 +623,13 @@ struct TickerControl {
     cond_var: Arc<Condvar>,
     weak_state: Weak<Mutex<BarState>>,
 }
+
+#[cfg(test)]
+use once_cell::sync::Lazy;
+
+// Tests using the global TICKER_RUNNING flag need to be serialized
+#[cfg(test)]
+static TICKER_TEST: Lazy<Mutex<()>> = Lazy::new(Mutex::default);
 
 #[cfg(test)]
 mod tests {
@@ -673,5 +694,43 @@ mod tests {
         let mut writer = pb.wrap_write(writer);
         io::copy(&mut reader, &mut writer).unwrap();
         assert_eq!(writer.it, bytes);
+    }
+
+    #[test]
+    fn ticker_thread_terminates_on_drop() {
+        let _guard = TICKER_TEST.lock().unwrap();
+        assert!(!TICKER_RUNNING.load(Ordering::SeqCst));
+
+        let pb = ProgressBar::new_spinner();
+        pb.enable_steady_tick(Duration::from_millis(50));
+
+        // Give the thread time to start up
+        thread::sleep(Duration::from_millis(250));
+
+        assert!(TICKER_RUNNING.load(Ordering::SeqCst));
+
+        drop(pb);
+        assert!(!TICKER_RUNNING.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn ticker_thread_terminates_on_drop_2() {
+        let _guard = TICKER_TEST.lock().unwrap();
+        assert!(!TICKER_RUNNING.load(Ordering::SeqCst));
+
+        let pb = ProgressBar::new_spinner();
+        pb.enable_steady_tick(Duration::from_millis(50));
+        let pb2 = pb.clone();
+
+        // Give the thread time to start up
+        thread::sleep(Duration::from_millis(250));
+
+        assert!(TICKER_RUNNING.load(Ordering::SeqCst));
+
+        drop(pb);
+        assert!(TICKER_RUNNING.load(Ordering::SeqCst));
+
+        drop(pb2);
+        assert!(!TICKER_RUNNING.load(Ordering::SeqCst));
     }
 }
