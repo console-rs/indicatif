@@ -1,9 +1,9 @@
 use std::borrow::Cow;
+use std::fmt;
 use std::io;
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
-use std::sync::{Arc, Condvar, Mutex, Weak};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::{fmt, thread};
 
 use crate::draw_target::ProgressDrawTarget;
 use crate::style::ProgressStyle;
@@ -283,85 +283,6 @@ impl ProgressState {
     pub fn set_len(&mut self, len: u64) {
         self.len = Some(len);
     }
-}
-
-pub(crate) struct Ticker {
-    stop_received: Arc<Mutex<bool>>,
-    cond_var: Arc<Condvar>,
-    join_handle: Option<thread::JoinHandle<()>>,
-}
-
-impl Drop for Ticker {
-    fn drop(&mut self) {
-        self.stop();
-        self.join_handle.take().map(|handle| handle.join());
-    }
-}
-
-impl Ticker {
-    pub(crate) fn new(interval: Duration, bar_state: &Arc<Mutex<BarState>>) -> Ticker {
-        debug_assert!(!interval.is_zero());
-
-        #[allow(clippy::mutex_atomic)]
-        let cancel_pending = Arc::new(Mutex::new(false));
-        let cond_var = Arc::new(Condvar::new());
-
-        let control = TickerControl {
-            stop_received: cancel_pending.clone(),
-            cond_var: cond_var.clone(),
-            weak_state: Arc::downgrade(bar_state),
-        };
-
-        let join_handle = thread::spawn(move || {
-            while let Some(arc) = control.weak_state.upgrade() {
-                let mut state = arc.lock().unwrap();
-                if state.state.is_finished() {
-                    break;
-                }
-
-                if state.state.tick != 0 {
-                    state.state.tick = state.state.tick.saturating_add(1);
-                }
-
-                state.draw(false, Instant::now()).ok();
-
-                drop(state); // Don't forget to drop the lock before sleeping
-                drop(arc); // Also need to drop Arc otherwise BarState won't be dropped
-
-                // Wait for `interval` but return early if we are notified to stop
-                let result = control
-                    .cond_var
-                    .wait_timeout_while(
-                        control.stop_received.lock().unwrap(),
-                        interval,
-                        |stopped| !*stopped,
-                    )
-                    .unwrap();
-
-                // If the wait didn't time out, it means we were notified to stop
-                if !result.1.timed_out() {
-                    break;
-                }
-            }
-        });
-
-        Ticker {
-            stop_received: cancel_pending,
-            cond_var,
-            join_handle: Some(join_handle),
-        }
-    }
-
-    pub(crate) fn stop(&self) {
-        *self.stop_received.lock().unwrap() = true;
-        self.cond_var.notify_one();
-    }
-}
-
-struct TickerControl {
-    stop_received: Arc<Mutex<bool>>,
-    cond_var: Arc<Condvar>,
-    weak_state: Weak<Mutex<BarState>>,
 }
 
 /// Estimate the number of seconds per step
