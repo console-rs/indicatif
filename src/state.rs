@@ -1,7 +1,8 @@
+use lazy_static::lazy_static;
 use std::borrow::Cow;
 use std::fmt;
 use std::io;
-use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -322,7 +323,7 @@ impl Ticker {
             let mut state = arc.lock().unwrap();
             let interval = match state.ticker {
                 Some((interval, _)) if !state.state.is_finished() => interval,
-                _ => return,
+                _ => break,
             };
 
             if state.state.tick != 0 {
@@ -335,7 +336,13 @@ impl Ticker {
             drop(arc); // Also need to drop Arc otherwise BarState won't be dropped
             thread::sleep(self.interval);
         }
+
+        TICKER_TERMINATED.store(true, Ordering::SeqCst);
     }
+}
+
+lazy_static! {
+    pub static ref TICKER_TERMINATED: AtomicBool = AtomicBool::new(false);
 }
 
 /// Estimate the number of seconds per step
@@ -610,5 +617,18 @@ mod tests {
         let later = atomic_position.start + Duration::from_nanos(INTERVAL * u64::from(u8::MAX));
         // Should not panic.
         atomic_position.allow(later);
+    }
+
+    #[test]
+    fn test_ticker_terminates() {
+        let pb = ProgressBar::new_spinner();
+        pb.enable_steady_tick(Duration::from_millis(50));
+
+        // Let the Ticker start up and tick for a while
+        thread::sleep(Duration::from_millis(500));
+
+        drop(pb);
+
+        assert!(TICKER_TERMINATED.load(Ordering::SeqCst));
     }
 }
