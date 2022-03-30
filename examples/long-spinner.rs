@@ -1,7 +1,7 @@
 use std::thread;
 use std::time::Duration;
 
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle, TICKER_BARRIER};
 
 fn main() {
     let pb = ProgressBar::new_spinner();
@@ -22,6 +22,15 @@ fn main() {
             ]),
     );
     pb.set_message("Calculating...");
-    thread::sleep(Duration::from_secs(5));
-    pb.finish_with_message("Done");
+
+    // Wait long enough for the `Ticker` to make it inside the loop and to the first barrier.
+
+    // Note: if you uncomment this sleep, the program will deadlock because the drop(pb)
+    // below will cause the ticker loop to never run, so a call to TICKER_BARRIER.wait()
+    // will never be made in Ticker.
+    thread::sleep(Duration::from_millis(200));
+
+    drop(pb);
+
+    TICKER_BARRIER.wait();
 }

@@ -4,11 +4,10 @@ use std::io;
 #[cfg(test)]
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Barrier, Mutex, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
 
-#[cfg(test)]
 use once_cell::sync::Lazy;
 
 use crate::draw_target::ProgressDrawTarget;
@@ -359,6 +358,9 @@ impl Ticker {
 
             self.interval = interval;
             state.draw(false, Instant::now()).ok();
+
+            TICKER_BARRIER.wait();
+
             drop(state); // Don't forget to drop the lock before sleeping
             drop(arc); // Also need to drop Arc otherwise BarState won't be dropped
 
@@ -374,6 +376,8 @@ impl Ticker {
 
 #[cfg(test)]
 static TICKER_RUNNING: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(false));
+
+pub static TICKER_BARRIER: Lazy<Barrier> = Lazy::new(|| Barrier::new(2));
 
 /// Estimate the number of seconds per step
 ///

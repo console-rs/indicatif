@@ -243,3 +243,5 @@ pub use crate::term_like::TermLike;
 
 #[cfg(feature = "rayon")]
 pub use crate::rayon::ParallelProgressIterator;
+
+pub use crate::state::TICKER_BARRIER;
