@@ -1,13 +1,47 @@
 use std::borrow::Cow;
 use std::fmt;
 use std::io;
+#[cfg(test)]
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
 
+#[cfg(test)]
+use once_cell::sync::Lazy;
+
 use crate::draw_target::ProgressDrawTarget;
 use crate::style::ProgressStyle;
+
+pub(crate) struct ProgressBarInner {
+    pub(crate) state: Mutex<BarState>,
+}
+
+impl ProgressBarInner {
+    pub(crate) fn new(
+        len: Option<u64>,
+        draw_target: ProgressDrawTarget,
+        pos: Arc<AtomicPosition>,
+    ) -> Self {
+        Self {
+            state: Mutex::new(BarState::new(len, draw_target, pos)),
+        }
+    }
+}
+
+impl Drop for ProgressBarInner {
+    fn drop(&mut self) {
+        let mut state = self.state.lock().unwrap();
+        // Progress bar is already finished.  Do not need to do anything.
+        if state.state.is_finished() {
+            return;
+        }
+
+        let finish = state.on_finish.clone();
+        state.finish_using_style(Instant::now(), finish);
+    }
+}
 
 pub(crate) struct BarState {
     pub(crate) draw_target: ProgressDrawTarget,
@@ -167,17 +201,6 @@ impl BarState {
     }
 }
 
-impl Drop for BarState {
-    fn drop(&mut self) {
-        // Progress bar is already finished.  Do not need to do anything.
-        if self.state.is_finished() {
-            return;
-        }
-
-        self.finish_using_style(Instant::now(), self.on_finish.clone());
-    }
-}
-
 pub(crate) enum Reset {
     Eta,
     Elapsed,
@@ -289,13 +312,13 @@ impl ProgressState {
 }
 
 pub(crate) struct Ticker {
-    weak: Weak<Mutex<BarState>>,
+    weak: Weak<ProgressBarInner>,
     interval: Duration,
 }
 
 impl Ticker {
-    pub(crate) fn spawn(arc: &Arc<Mutex<BarState>>, interval: Duration) {
-        let mut state = arc.lock().unwrap();
+    pub(crate) fn spawn(arc: &Arc<ProgressBarInner>, interval: Duration) {
+        let mut state = arc.state.lock().unwrap();
         if interval.is_zero() {
             return;
         } else if let Some((old, _)) = &mut state.ticker {
@@ -313,16 +336,21 @@ impl Ticker {
         state.ticker = Some((interval, handle));
         drop(state);
         // use the side effect of tick to force the bar to tick.
-        arc.lock().unwrap().tick(Instant::now());
+        arc.state.lock().unwrap().tick(Instant::now());
     }
 
     fn run(mut self) {
+        #[cfg(test)]
+        TICKER_RUNNING.store(false, Ordering::SeqCst);
         thread::sleep(self.interval);
+        #[cfg(test)]
+        TICKER_RUNNING.store(true, Ordering::SeqCst);
+
         while let Some(arc) = self.weak.upgrade() {
-            let mut state = arc.lock().unwrap();
+            let mut state = arc.state.lock().unwrap();
             let interval = match state.ticker {
                 Some((interval, _)) if !state.state.is_finished() => interval,
-                _ => return,
+                _ => break,
             };
 
             if state.state.tick != 0 {
@@ -333,10 +361,19 @@ impl Ticker {
             state.draw(false, Instant::now()).ok();
             drop(state); // Don't forget to drop the lock before sleeping
             drop(arc); // Also need to drop Arc otherwise BarState won't be dropped
+
+            #[cfg(test)]
+            TICKER_RUNNING.store(false, Ordering::SeqCst);
             thread::sleep(self.interval);
         }
+
+        #[cfg(test)]
+        TICKER_RUNNING.store(false, Ordering::SeqCst);
     }
 }
+
+#[cfg(test)]
+static TICKER_RUNNING: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(false));
 
 /// Estimate the number of seconds per step
 ///
@@ -610,5 +647,18 @@ mod tests {
         let later = atomic_position.start + Duration::from_nanos(INTERVAL * u64::from(u8::MAX));
         // Should not panic.
         atomic_position.allow(later);
+    }
+
+    #[test]
+    fn test_ticker_terminates() {
+        let pb = ProgressBar::new_spinner();
+        pb.enable_steady_tick(Duration::from_millis(50));
+
+        // Let the Ticker start up and tick for a while
+        thread::sleep(Duration::from_millis(500));
+
+        drop(pb);
+
+        assert!(!TICKER_RUNNING.load(Ordering::SeqCst));
     }
 }

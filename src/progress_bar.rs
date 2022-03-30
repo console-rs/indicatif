@@ -1,12 +1,12 @@
 use std::borrow::Cow;
 use std::io;
 use std::sync::MutexGuard;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 use std::{fmt, mem};
 
 use crate::draw_target::ProgressDrawTarget;
-use crate::state::{AtomicPosition, BarState, ProgressFinish, Reset, Ticker};
+use crate::state::{AtomicPosition, BarState, ProgressBarInner, ProgressFinish, Reset, Ticker};
 use crate::style::ProgressStyle;
 use crate::ProgressState;
 use crate::{ProgressBarIter, ProgressIterator};
@@ -17,7 +17,7 @@ use crate::{ProgressBarIter, ProgressIterator};
 /// just increments the refcount (so the original and its clone share the same state).
 #[derive(Clone)]
 pub struct ProgressBar {
-    state: Arc<Mutex<BarState>>,
+    inner: Arc<ProgressBarInner>,
     pos: Arc<AtomicPosition>,
 }
 
@@ -46,10 +46,10 @@ impl ProgressBar {
     }
 
     /// Creates a new progress bar with a given length and draw target
-    pub fn with_draw_target(len: Option<u64>, draw_target: ProgressDrawTarget) -> ProgressBar {
+    pub fn with_draw_target(len: Option<u64>, draw_target: ProgressDrawTarget) -> Self {
         let pos = Arc::new(AtomicPosition::new());
-        ProgressBar {
-            state: Arc::new(Mutex::new(BarState::new(len, draw_target, pos.clone()))),
+        Self {
+            inner: Arc::new(ProgressBarInner::new(len, draw_target, pos.clone())),
             pos,
         }
     }
@@ -132,7 +132,7 @@ impl ProgressBar {
     /// When steady ticks are enabled, calling [`ProgressBar::tick()`] on a progress bar does not
     /// have any effect.
     pub fn enable_steady_tick(&self, interval: Duration) {
-        Ticker::spawn(&self.state, interval)
+        Ticker::spawn(&self.inner, interval)
     }
 
     /// Undoes [`ProgressBar::enable_steady_tick()`]
@@ -224,7 +224,7 @@ impl ProgressBar {
     /// Creates a new weak reference to this `ProgressBar`
     pub fn downgrade(&self) -> WeakProgressBar {
         WeakProgressBar {
-            state: Arc::downgrade(&self.state),
+            inner: Arc::downgrade(&self.inner),
             pos: Arc::downgrade(&self.pos),
         }
     }
@@ -478,7 +478,7 @@ impl ProgressBar {
 
     #[inline]
     pub(crate) fn state(&self) -> MutexGuard<'_, BarState> {
-        self.state.lock().unwrap()
+        self.inner.state.lock().unwrap()
     }
 }
 
@@ -487,7 +487,7 @@ impl ProgressBar {
 /// Useful for creating custom steady tick implementations
 #[derive(Clone, Default)]
 pub struct WeakProgressBar {
-    state: Weak<Mutex<BarState>>,
+    inner: Weak<ProgressBarInner>,
     pos: Weak<AtomicPosition>,
 }
 
@@ -504,9 +504,9 @@ impl WeakProgressBar {
     ///
     /// [`ProgressBar`]: struct.ProgressBar.html
     pub fn upgrade(&self) -> Option<ProgressBar> {
-        let state = self.state.upgrade()?;
+        let inner = self.inner.upgrade()?;
         let pos = self.pos.upgrade()?;
-        Some(ProgressBar { state, pos })
+        Some(ProgressBar { inner, pos })
     }
 }
 
