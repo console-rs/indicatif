@@ -32,6 +32,13 @@ impl ProgressBarInner {
 impl Drop for ProgressBarInner {
     fn drop(&mut self) {
         let mut state = self.state.lock().unwrap();
+        let c = state.ticker.take();
+        let control = c.as_ref().map(|c| {
+            let mut control = c.lock().unwrap();
+            control.interval = Duration::ZERO;
+            control
+        });
+
         // Progress bar is already finished.  Do not need to do anything.
         if state.state.is_finished() {
             return;
@@ -39,6 +46,8 @@ impl Drop for ProgressBarInner {
 
         let finish = state.on_finish.clone();
         state.finish_using_style(Instant::now(), finish);
+        dbg!("DROP");
+        drop(control)
     }
 }
 
@@ -47,7 +56,7 @@ pub(crate) struct BarState {
     pub(crate) on_finish: ProgressFinish,
     pub(crate) style: ProgressStyle,
     pub(crate) state: ProgressState,
-    pub(crate) ticker: Option<(Duration, thread::JoinHandle<()>)>,
+    pub(crate) ticker: Option<Arc<Mutex<TickerControl>>>,
 }
 
 impl BarState {
@@ -311,67 +320,72 @@ impl ProgressState {
 }
 
 pub(crate) struct Ticker {
-    weak: Weak<ProgressBarInner>,
-    interval: Duration,
+    state: Weak<ProgressBarInner>,
+    control: Weak<Mutex<TickerControl>>,
 }
 
 impl Ticker {
     pub(crate) fn spawn(arc: &Arc<ProgressBarInner>, interval: Duration) {
         let mut state = arc.state.lock().unwrap();
-        if interval.is_zero() {
-            return;
-        } else if let Some((old, _)) = &mut state.ticker {
-            *old = interval;
-            return;
+        match &state.ticker {
+            Some(control) => {
+                control.lock().unwrap().interval = interval;
+                return;
+            }
+            None => {}
         }
 
+        let control = Arc::new(Mutex::new(TickerControl { interval }));
+        state.ticker = Some(control.clone());
         let ticker = Self {
             // Using a weak pointer is required to prevent a potential deadlock. See issue #133
-            weak: Arc::downgrade(arc),
-            interval,
+            state: Arc::downgrade(arc),
+            control: Arc::downgrade(&control),
         };
 
-        let handle = thread::spawn(move || ticker.run());
-        state.ticker = Some((interval, handle));
+        thread::spawn(move || ticker.run(interval));
         drop(state);
         // use the side effect of tick to force the bar to tick.
         arc.state.lock().unwrap().tick(Instant::now());
     }
 
-    fn run(mut self) {
-        #[cfg(test)]
-        TICKER_RUNNING.store(false, Ordering::SeqCst);
-        thread::sleep(self.interval);
-        #[cfg(test)]
-        TICKER_RUNNING.store(true, Ordering::SeqCst);
+    fn run(self, mut interval: Duration) {
+        loop {
+            #[cfg(test)]
+            TICKER_RUNNING.store(false, Ordering::SeqCst);
+            thread::sleep(interval);
+            #[cfg(test)]
+            TICKER_RUNNING.store(true, Ordering::SeqCst);
 
-        while let Some(arc) = self.weak.upgrade() {
-            let mut state = arc.state.lock().unwrap();
-            let interval = match state.ticker {
-                Some((interval, _)) if !state.state.is_finished() => interval,
-                _ => break,
+            let c = match self.control.upgrade() {
+                Some(c) => c,
+                None => break,
             };
 
+            let control = c.lock().unwrap();
+            let s = match self.state.upgrade() {
+                Some(s) => s,
+                None => break,
+            };
+
+            let mut state = s.state.lock().unwrap();
             if state.state.tick != 0 {
                 state.state.tick = state.state.tick.saturating_add(1);
             }
 
-            self.interval = interval;
             state.draw(false, Instant::now()).ok();
-
             TICKER_BARRIER.wait();
-
-            drop(state); // Don't forget to drop the lock before sleeping
-            drop(arc); // Also need to drop Arc otherwise BarState won't be dropped
-
-            #[cfg(test)]
-            TICKER_RUNNING.store(false, Ordering::SeqCst);
-            thread::sleep(self.interval);
+            interval = control.interval;
         }
 
         #[cfg(test)]
         TICKER_RUNNING.store(false, Ordering::SeqCst);
     }
+}
+
+#[derive(Debug)]
+pub(crate) struct TickerControl {
+    interval: Duration,
 }
 
 #[cfg(test)]
