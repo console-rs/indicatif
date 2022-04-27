@@ -94,7 +94,7 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn insert_before(&self, before: &ProgressBar, pb: ProgressBar) -> ProgressBar {
-        self.internalize(InsertLocation::Before(before), pb)
+        self.internalize(InsertLocation::Before(before.index().unwrap()), pb)
     }
 
     /// Inserts a progress bar after an existing one.
@@ -103,7 +103,7 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn insert_after(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
-        self.internalize(InsertLocation::After(after), pb)
+        self.internalize(InsertLocation::After(after.index().unwrap()), pb)
     }
 
     /// Removes a progress bar.
@@ -289,13 +289,11 @@ impl MultiState {
                 let pos = self.ordering.len().saturating_sub(pos);
                 self.ordering.insert(pos, idx);
             }
-            InsertLocation::After(after) => {
-                let after_idx = after.index().unwrap();
+            InsertLocation::After(after_idx) => {
                 let pos = self.ordering.iter().position(|i| *i == after_idx).unwrap();
                 self.ordering.insert(pos + 1, idx);
             }
-            InsertLocation::Before(before) => {
-                let before_idx = before.index().unwrap();
+            InsertLocation::Before(before_idx) => {
                 let pos = self.ordering.iter().position(|i| *i == before_idx).unwrap();
                 self.ordering.insert(pos, idx);
             }
@@ -366,12 +364,12 @@ impl Default for MultiProgressAlignment {
     }
 }
 
-enum InsertLocation<'a> {
+enum InsertLocation {
     End,
     Index(usize),
     IndexFromBack(usize),
-    After(&'a ProgressBar),
-    Before(&'a ProgressBar),
+    After(usize),
+    Before(usize),
 }
 
 #[cfg(test)]
