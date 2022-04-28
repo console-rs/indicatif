@@ -3,8 +3,9 @@ use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
-use std::{fmt, io, mem, thread};
+use std::{fmt, io, thread};
 
+use console::strip_ansi_codes;
 #[cfg(test)]
 use once_cell::sync::Lazy;
 
@@ -71,13 +72,13 @@ impl ProgressBar {
 
     /// A convenience builder-like function for a progress bar with a given prefix
     pub fn with_prefix(self, prefix: impl Into<Cow<'static, str>>) -> ProgressBar {
-        self.state().style.prefix = prefix.into();
+        self.state().state.prefix = prefix.into();
         self
     }
 
     /// A convenience builder-like function for a progress bar with a given message
     pub fn with_message(self, message: impl Into<Cow<'static, str>>) -> ProgressBar {
-        self.state().style.message = message.into();
+        self.state().state.message = message.into();
         self
     }
 
@@ -121,11 +122,8 @@ impl ProgressBar {
     /// Overrides the stored style
     ///
     /// This does not redraw the bar. Call [`ProgressBar::tick()`] to force it.
-    pub fn set_style(&self, mut style: ProgressStyle) {
-        let mut state = self.state();
-        mem::swap(&mut state.style.message, &mut style.message);
-        mem::swap(&mut state.style.prefix, &mut style.prefix);
-        state.style = style;
+    pub fn set_style(&self, style: ProgressStyle) {
+        self.state().style = style;
     }
 
     /// Spawns a background thread to tick the progress bar
@@ -517,6 +515,26 @@ impl ProgressBar {
         self.state().draw_target.remote().map(|(_, idx)| idx)
     }
 
+    /// Current message
+    pub fn message(&self) -> Cow<'static, str> {
+        self.state().state.message.clone()
+    }
+
+    /// Current message (with ANSI escape codes stripped)
+    pub fn message_unstyled(&self) -> String {
+        strip_ansi_codes(&self.message()).to_string()
+    }
+
+    /// Current prefix
+    pub fn prefix(&self) -> Cow<'static, str> {
+        self.state().state.prefix.clone()
+    }
+
+    /// Current prefix (with ANSI escape codes stripped)
+    pub fn prefix_unstyled(&self) -> String {
+        strip_ansi_codes(&self.prefix()).to_string()
+    }
+
     #[inline]
     pub(crate) fn state(&self) -> MutexGuard<'_, BarState> {
         self.state.lock().unwrap()
@@ -644,6 +662,7 @@ pub(crate) static TICKER_TEST: Lazy<Mutex<()>> = Lazy::new(Mutex::default);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use console::Style;
 
     #[allow(clippy::float_cmp)]
     #[test]
@@ -742,5 +761,21 @@ mod tests {
 
         drop(pb2);
         assert!(!TICKER_RUNNING.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn access_message_and_prefix() {
+        let pb = ProgressBar::new(80);
+        pb.set_message(Style::new().red().bold().apply_to("text").to_string());
+        pb.set_prefix(
+            Style::new()
+                .on_blue()
+                .italic()
+                .apply_to("prefix!")
+                .to_string(),
+        );
+
+        assert_eq!(pb.message_unstyled(), "text");
+        assert_eq!(pb.prefix_unstyled(), "prefix!");
     }
 }

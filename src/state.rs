@@ -42,7 +42,7 @@ impl BarState {
                 if let Some(len) = self.state.len {
                     self.state.pos.set(len);
                 }
-                self.style.message = msg;
+                self.state.message = msg;
             }
             ProgressFinish::AndClear => {
                 if let Some(len) = self.state.len {
@@ -51,7 +51,7 @@ impl BarState {
                 self.state.status = Status::DoneHidden;
             }
             ProgressFinish::Abandon => {}
-            ProgressFinish::AbandonWithMessage(msg) => self.style.message = msg,
+            ProgressFinish::AbandonWithMessage(msg) => self.state.message = msg,
         }
 
         // There's no need to update the estimate here; once the `status` is no longer
@@ -93,12 +93,12 @@ impl BarState {
     }
 
     pub(crate) fn set_message(&mut self, now: Instant, msg: Cow<'static, str>) {
-        self.style.message = msg;
+        self.state.message = msg;
         self.update_estimate_and_draw(now);
     }
 
     pub(crate) fn set_prefix(&mut self, now: Instant, prefix: Cow<'static, str>) {
-        self.style.prefix = prefix;
+        self.state.prefix = prefix;
         self.update_estimate_and_draw(now);
     }
 
@@ -190,6 +190,8 @@ pub struct ProgressState {
     pub(crate) started: Instant,
     status: Status,
     est: Estimator,
+    pub(crate) message: Cow<'static, str>,
+    pub(crate) prefix: Cow<'static, str>,
 }
 
 impl ProgressState {
@@ -201,6 +203,8 @@ impl ProgressState {
             status: Status::InProgress,
             started: Instant::now(),
             est: Estimator::new(Instant::now()),
+            message: "".into(),
+            prefix: "".into(),
         }
     }
 

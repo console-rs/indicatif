@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+
 use std::collections::HashMap;
 use std::fmt::{self, Write};
 use std::mem;
@@ -15,8 +15,6 @@ use crate::state::ProgressState;
 /// Controls the rendering style of progress bars
 #[derive(Clone)]
 pub struct ProgressStyle {
-    pub(crate) message: Cow<'static, str>,
-    pub(crate) prefix: Cow<'static, str>,
     tick_strings: Vec<Box<str>>,
     progress_chars: Vec<Box<str>>,
     template: Template,
@@ -81,8 +79,6 @@ impl ProgressStyle {
         let progress_chars = segment("█░");
         let char_width = width(&progress_chars);
         Self {
-            message: "".into(),
-            prefix: "".into(),
             tick_strings: "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈ "
                 .chars()
                 .map(|c| c.to_string().into())
@@ -258,8 +254,8 @@ impl ProgressStyle {
                                 wide = Some(WideElement::Message { align });
                                 buf.push('\x00');
                             }
-                            "msg" => buf.push_str(&self.message),
-                            "prefix" => buf.push_str(&self.prefix),
+                            "msg" => buf.push_str(&state.message),
+                            "prefix" => buf.push_str(&state.prefix),
                             "pos" => buf.write_fmt(format_args!("{}", pos)).unwrap(),
                             "human_pos" => {
                                 buf.write_fmt(format_args!("{}", HumanCount(pos))).unwrap()
@@ -392,7 +388,7 @@ impl<'a> WideElement<'a> {
                 buf.write_fmt(format_args!(
                     "{}",
                     PaddedStringDisplay {
-                        str: &style.message,
+                        str: &state.message,
                         width: left,
                         align: *align,
                         truncate: true,
@@ -558,7 +554,7 @@ impl fmt::Display for TemplateError {
 
 impl std::error::Error for TemplateError {}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum TemplatePart {
     Literal(String),
     Placeholder {
@@ -572,7 +568,7 @@ enum TemplatePart {
     NewLine,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum State {
     Literal,
     MaybeOpen,
@@ -733,23 +729,23 @@ mod tests {
     fn align_truncation() {
         const WIDTH: u16 = 10;
         let pos = Arc::new(AtomicPosition::new());
-        let state = ProgressState::new(Some(10), pos);
+        let mut state = ProgressState::new(Some(10), pos);
         let mut buf = Vec::new();
 
-        let mut style = ProgressStyle::with_template("{wide_msg}").unwrap();
-        style.message = "abcdefghijklmnopqrst".into();
+        let style = ProgressStyle::with_template("{wide_msg}").unwrap();
+        state.message = "abcdefghijklmnopqrst".into();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "abcdefghij");
 
         buf.clear();
-        let mut style = ProgressStyle::with_template("{wide_msg:>}").unwrap();
-        style.message = "abcdefghijklmnopqrst".into();
+        let style = ProgressStyle::with_template("{wide_msg:>}").unwrap();
+        state.message = "abcdefghijklmnopqrst".into();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "klmnopqrst");
 
         buf.clear();
-        let mut style = ProgressStyle::with_template("{wide_msg:^}").unwrap();
-        style.message = "abcdefghijklmnopqrst".into();
+        let style = ProgressStyle::with_template("{wide_msg:^}").unwrap();
+        state.message = "abcdefghijklmnopqrst".into();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "fghijklmno");
     }
@@ -761,7 +757,7 @@ mod tests {
         let pos = Arc::new(AtomicPosition::new());
         // half finished
         pos.set(2);
-        let state = ProgressState::new(Some(4), pos);
+        let mut state = ProgressState::new(Some(4), pos);
         let mut buf = Vec::new();
 
         let style = ProgressStyle::with_template("{wide_bar}")
@@ -781,8 +777,8 @@ mod tests {
         );
 
         buf.clear();
-        let mut style = ProgressStyle::with_template("{wide_msg:^.red.on_blue}").unwrap();
-        style.message = "foobar".into();
+        let style = ProgressStyle::with_template("{wide_msg:^.red.on_blue}").unwrap();
+        state.message = "foobar".into();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m foobar \u{1b}[0m");
     }
