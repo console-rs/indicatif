@@ -1,9 +1,10 @@
 use std::borrow::Cow;
+use std::fmt::{self, Display};
 use std::io;
+use std::mem;
 use std::sync::MutexGuard;
 use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
-use std::{fmt, mem};
 
 use crate::draw_target::ProgressDrawTarget;
 use crate::state::{AtomicPosition, BarState, ProgressFinish, Reset, Ticker};
@@ -209,16 +210,18 @@ impl ProgressBar {
     ///
     /// For the prefix to be visible, the `{prefix}` placeholder must be present in the template
     /// (see [`ProgressStyle`]).
-    pub fn set_prefix(&self, prefix: impl Into<Cow<'static, str>>) {
-        self.state().set_prefix(Instant::now(), prefix.into());
+    pub fn set_prefix(&self, prefix: impl Display) {
+        self.state()
+            .set_prefix(Instant::now(), prefix.to_string().into());
     }
 
     /// Sets the current message of the progress bar
     ///
     /// For the message to be visible, the `{msg}` placeholder must be present in the template (see
     /// [`ProgressStyle`]).
-    pub fn set_message(&self, msg: impl Into<Cow<'static, str>>) {
-        self.state().set_message(Instant::now(), msg.into())
+    pub fn set_message(&self, msg: impl Display) {
+        self.state()
+            .set_message(Instant::now(), msg.to_string().into())
     }
 
     /// Creates a new weak reference to this `ProgressBar`
