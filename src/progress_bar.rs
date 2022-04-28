@@ -479,6 +479,16 @@ impl ProgressBar {
         self.state().draw_target.remote().map(|(_, idx)| idx)
     }
 
+    /// Current message
+    pub fn message(&self) -> Cow<'static, str> {
+        self.state().style.message.clone()
+    }
+
+    /// Current prefix
+    pub fn prefix(&self) -> Cow<'static, str> {
+        self.state().style.prefix.clone()
+    }
+
     #[inline]
     pub(crate) fn state(&self) -> MutexGuard<'_, BarState> {
         self.state.lock().unwrap()
