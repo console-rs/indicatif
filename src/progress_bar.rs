@@ -526,6 +526,7 @@ impl WeakProgressBar {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use console::{strip_ansi_codes, Style};
 
     #[allow(clippy::float_cmp)]
     #[test]
@@ -586,5 +587,15 @@ mod tests {
         let mut writer = pb.wrap_write(writer);
         io::copy(&mut reader, &mut writer).unwrap();
         assert_eq!(writer.it, bytes);
+    }
+
+    #[test]
+    fn display_styled_object() {
+        let pb = ProgressBar::new(80);
+        pb.set_message(Style::new().red().bold().apply_to("text"));
+        pb.set_prefix(Style::new().on_blue().italic().apply_to("prefix!"));
+
+        assert_eq!(strip_ansi_codes(&pb.message()), "text");
+        assert_eq!(strip_ansi_codes(&pb.prefix()), "prefix!");
     }
 }
