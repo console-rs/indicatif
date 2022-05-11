@@ -1,5 +1,6 @@
-use indicatif::ProgressBar;
 use std::time::Duration;
+
+use indicatif::ProgressBar;
 use tokio::runtime;
 use tokio::time::interval;
 

@@ -1,12 +1,14 @@
-use console::style;
-use indicatif::{MultiProgress, MultiProgressAlignment, ProgressBar, ProgressStyle};
-use once_cell::sync::Lazy;
-use rand::{rngs::ThreadRng, Rng, RngCore};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+
+use console::style;
+use indicatif::{MultiProgress, MultiProgressAlignment, ProgressBar, ProgressStyle};
+use once_cell::sync::Lazy;
+use rand::rngs::ThreadRng;
+use rand::{Rng, RngCore};
 use structopt::StructOpt;
 
 #[derive(Debug, Clone)]

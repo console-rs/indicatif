@@ -1,9 +1,8 @@
 use std::borrow::Cow;
-use std::fmt;
-use std::io;
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use std::{fmt, io};
 
 use crate::draw_target::ProgressDrawTarget;
 use crate::style::ProgressStyle;
@@ -484,9 +483,8 @@ pub(crate) enum Status {
 
 #[cfg(test)]
 mod tests {
-    use crate::ProgressBar;
-
     use super::*;
+    use crate::ProgressBar;
 
     #[test]
     fn test_time_per_step() {

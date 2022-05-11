@@ -1,10 +1,10 @@
-use rand::seq::SliceRandom;
-use rand::Rng;
 use std::thread;
 use std::time::{Duration, Instant};
 
 use console::{style, Emoji};
 use indicatif::{HumanDuration, MultiProgress, ProgressBar, ProgressStyle};
+use rand::seq::SliceRandom;
+use rand::Rng;
 
 static PACKAGES: &[&str] = &[
     "fs-events",

@@ -676,9 +676,10 @@ enum Alignment {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
     use crate::state::{AtomicPosition, ProgressState};
-    use std::sync::Arc;
 
     #[test]
     fn test_expand_template() {

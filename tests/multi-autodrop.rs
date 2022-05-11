@@ -1,6 +1,7 @@
-use indicatif::{MultiProgress, ProgressBar};
 use std::thread;
 use std::time::Duration;
+
+use indicatif::{MultiProgress, ProgressBar};
 
 #[test]
 fn main() {

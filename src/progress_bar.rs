@@ -1,20 +1,17 @@
 use std::borrow::Cow;
-use std::sync::{Arc, Mutex, Weak};
-use std::sync::{Condvar, MutexGuard};
+#[cfg(test)]
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
-use std::{fmt, mem};
-use std::{io, thread};
+use std::{fmt, io, mem, thread};
 
 #[cfg(test)]
 use once_cell::sync::Lazy;
-#[cfg(test)]
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::draw_target::ProgressDrawTarget;
 use crate::state::{AtomicPosition, BarState, ProgressFinish, Reset};
 use crate::style::ProgressStyle;
-use crate::ProgressState;
-use crate::{ProgressBarIter, ProgressIterator};
+use crate::{ProgressBarIter, ProgressIterator, ProgressState};
 
 /// A progress bar or spinner
 ///
@@ -605,7 +602,8 @@ impl TickerControl {
 
             // Wait for `interval` but return early if we are notified to stop
             let (_, result) = self
-                .stopping.1
+                .stopping
+                .1
                 .wait_timeout_while(self.stopping.0.lock().unwrap(), interval, |stopped| {
                     !*stopped
                 })

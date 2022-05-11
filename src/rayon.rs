@@ -1,9 +1,9 @@
-use crate::{ProgressBar, ProgressBarIter};
-use rayon::iter::{
-    plumbing::{Consumer, Folder, Producer, ProducerCallback, UnindexedConsumer},
-    IndexedParallelIterator, ParallelIterator,
-};
 use std::convert::TryFrom;
+
+use rayon::iter::plumbing::{Consumer, Folder, Producer, ProducerCallback, UnindexedConsumer};
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+
+use crate::{ProgressBar, ProgressBarIter};
 
 /// Wraps a Rayon parallel iterator.
 ///
@@ -210,9 +210,9 @@ impl<S: Send, T: ParallelIterator<Item = S>> ParallelIterator for ProgressBarIte
 
 #[cfg(test)]
 mod test {
-    use crate::ProgressStyle;
-    use crate::{ParallelProgressIterator, ProgressBar, ProgressBarIter};
     use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
+    use crate::{ParallelProgressIterator, ProgressBar, ProgressBarIter, ProgressStyle};
 
     #[test]
     fn it_can_wrap_a_parallel_iterator() {

@@ -1,10 +1,11 @@
 #![cfg(feature = "in_memory")]
 
+use std::time::Duration;
+
 use indicatif::{
     InMemoryTerm, MultiProgress, ProgressBar, ProgressDrawTarget, ProgressFinish, ProgressStyle,
     TermLike,
 };
-use std::time::Duration;
 
 #[test]
 fn basic_progress_bar() {
