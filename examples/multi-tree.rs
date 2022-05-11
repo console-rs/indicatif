@@ -1,10 +1,12 @@
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use once_cell::sync::Lazy;
-use rand::{rngs::ThreadRng, Rng, RngCore};
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use once_cell::sync::Lazy;
+use rand::rngs::ThreadRng;
+use rand::{Rng, RngCore};
 
 #[derive(Debug, Clone)]
 enum Action {

@@ -1,6 +1,7 @@
-use console::Term;
 use std::fmt::Debug;
 use std::io;
+
+use console::Term;
 
 /// A trait for minimal terminal-like behavior.
 ///
