@@ -102,6 +102,7 @@ impl ProgressDrawTarget {
         match self.kind {
             TargetKind::Hidden => true,
             TargetKind::Term { ref term, .. } => !term.is_term(),
+            TargetKind::Multi { ref state, .. } => state.read().unwrap().is_hidden(),
             _ => false,
         }
     }
@@ -432,5 +433,19 @@ impl DrawState {
     fn reset(&mut self) {
         self.lines.clear();
         self.orphan_lines = 0;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{MultiProgress, ProgressBar, ProgressDrawTarget};
+
+    #[test]
+    fn multi_is_hidden() {
+        let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
+
+        let pb = mp.add(ProgressBar::new(100));
+        assert!(mp.is_hidden());
+        assert!(pb.is_hidden());
     }
 }
