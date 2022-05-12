@@ -159,6 +159,10 @@ impl MultiProgress {
     pub fn clear(&self) -> io::Result<()> {
         self.state.write().unwrap().clear(Instant::now())
     }
+
+    pub fn is_hidden(&self) -> bool {
+        self.state.read().unwrap().is_hidden()
+    }
 }
 
 #[derive(Debug)]
@@ -254,6 +258,10 @@ impl MultiState {
         };
 
         DrawStateWrapper::for_multi(state, orphans)
+    }
+
+    pub(crate) fn is_hidden(&self) -> bool {
+        self.draw_target.is_hidden()
     }
 
     pub(crate) fn suspend<F: FnOnce() -> R, R>(&mut self, f: F, now: Instant) -> R {
