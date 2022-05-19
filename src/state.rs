@@ -82,31 +82,32 @@ impl BarState {
 
     pub(crate) fn set_length(&mut self, now: Instant, len: u64) {
         self.state.len = Some(len);
-        self.tick(now);
+        self.update_estimate_and_draw(now);
     }
 
     pub(crate) fn inc_length(&mut self, now: Instant, delta: u64) {
         if let Some(len) = self.state.len {
             self.state.len = Some(len.saturating_add(delta));
         }
-        self.tick(now);
+        self.update_estimate_and_draw(now);
     }
 
     pub(crate) fn set_message(&mut self, now: Instant, msg: Cow<'static, str>) {
         self.style.message = msg;
-        self.tick(now);
+        self.update_estimate_and_draw(now);
     }
 
     pub(crate) fn set_prefix(&mut self, now: Instant, prefix: Cow<'static, str>) {
         self.style.prefix = prefix;
-        self.tick(now);
+        self.update_estimate_and_draw(now);
     }
 
     pub(crate) fn tick(&mut self, now: Instant) {
-        if self.state.tick == 0 {
-            self.state.tick = self.state.tick.saturating_add(1);
-        }
+        self.state.tick = self.state.tick.saturating_add(1);
+        self.update_estimate_and_draw(now);
+    }
 
+    fn update_estimate_and_draw(&mut self, now: Instant) {
         let pos = self.state.pos.pos.load(Ordering::Relaxed);
         self.state.est.record(pos, now);
         let _ = self.draw(false, now);

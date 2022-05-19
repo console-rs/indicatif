@@ -591,10 +591,7 @@ impl TickerControl {
                 break;
             }
 
-            if state.state.tick != 0 {
-                state.state.tick = state.state.tick.saturating_add(1);
-            }
-
+            state.state.tick = state.state.tick.saturating_add(1);
             state.draw(false, Instant::now()).ok();
 
             drop(state); // Don't forget to drop the lock before sleeping
