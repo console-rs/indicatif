@@ -137,7 +137,7 @@ impl BarState {
         }
 
         let ret = f();
-        let _ = self.draw(true, now);
+        let _ = self.draw(true, Instant::now());
         ret
     }
 
