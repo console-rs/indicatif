@@ -271,3 +271,25 @@ fn ticker_drop() {
         "  doing stuff 0\n  doing stuff 1\n  doing stuff 2\n  doing stuff 3\n  doing stuff 4"
     );
 }
+
+#[test]
+fn manually_inc_ticker() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+    let spinner = mp.add(ProgressBar::new_spinner().with_message("msg"));
+
+    assert_eq!(in_mem.contents(), "");
+
+    spinner.inc(1);
+    assert_eq!(in_mem.contents(), "⠁ msg");
+
+    spinner.inc(1);
+    assert_eq!(in_mem.contents(), "⠉ msg");
+
+    // set_message / set_prefix shouldn't increase tick
+    spinner.set_message("new message");
+    spinner.set_prefix("prefix");
+    assert_eq!(in_mem.contents(), "⠉ new message");
+}
