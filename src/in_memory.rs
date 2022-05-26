@@ -24,6 +24,11 @@ impl InMemoryTerm {
         }
     }
 
+    pub fn reset(&self) {
+        let mut state = self.state.lock().unwrap();
+        *state = InMemoryTermState::new(state.parser.screen().size().0, state.width);
+    }
+
     pub fn contents(&self) -> String {
         let state = self.state.lock().unwrap();
 
