@@ -136,6 +136,22 @@ impl ProgressBar {
     /// When steady ticks are enabled, calling [`ProgressBar::tick()`] on a progress bar does not
     /// have any effect.
     pub fn enable_steady_tick(&self, interval: Duration) {
+        // The way we test for ticker termination is with a single static `AtomicBool`. Since cargo
+        // runs tests concurrently, we have a `TICKER_TEST` lock to make sure tests using ticker
+        // don't step on each other. This check catches attempts to use tickers in tests without
+        // acquiring the lock.
+        #[cfg(test)]
+        {
+            let guard = TICKER_TEST.try_lock();
+            let lock_acquired = guard.is_ok();
+            // Drop the guard before panicking to avoid poisoning the lock (which would cause other
+            // ticker tests to fail)
+            drop(guard);
+            if lock_acquired {
+                panic!("you must acquire the TICKER_TEST lock in your test to use this method");
+            }
+        }
+
         if interval.is_zero() {
             return;
         }
@@ -619,7 +635,7 @@ impl TickerControl {
 
 // Tests using the global TICKER_RUNNING flag need to be serialized
 #[cfg(test)]
-static TICKER_TEST: Lazy<Mutex<()>> = Lazy::new(Mutex::default);
+pub(crate) static TICKER_TEST: Lazy<Mutex<()>> = Lazy::new(Mutex::default);
 
 #[cfg(test)]
 mod tests {
