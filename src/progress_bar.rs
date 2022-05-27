@@ -266,6 +266,10 @@ impl ProgressBar {
         }
     }
 
+    pub(crate) fn weak_bar_state(&self) -> Weak<Mutex<BarState>> {
+        Arc::downgrade(&self.state)
+    }
+
     /// Resets the ETA calculation
     ///
     /// This can be useful if the progress bars made a large jump or was paused for a prolonged
