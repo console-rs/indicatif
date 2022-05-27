@@ -1,9 +1,11 @@
+use std::fmt::{Debug, Formatter};
 use std::io;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock, Weak};
 use std::time::Instant;
 
 use crate::draw_target::{DrawState, DrawStateWrapper, ProgressDrawTarget};
 use crate::progress_bar::ProgressBar;
+use crate::state::BarState;
 
 /// Manages multiple progress bars from different threads
 #[derive(Debug, Clone)]
@@ -128,8 +130,11 @@ impl MultiProgress {
     }
 
     fn internalize(&self, location: InsertLocation, pb: ProgressBar) -> ProgressBar {
-        let idx = self.state.write().unwrap().insert(location);
+        let mut state = self.state.write().unwrap();
+
+        let idx = state.insert(location);
         pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
+        state.members.get_mut(idx).unwrap().pb = pb.weak_bar_state();
         pb
     }
 
@@ -168,9 +173,9 @@ impl MultiProgress {
 #[derive(Debug)]
 pub(crate) struct MultiState {
     /// The collection of states corresponding to progress bars
-    /// the state is None for bars that have not yet been drawn or have been removed
-    draw_states: Vec<Option<DrawState>>,
-    /// Set of removed bars, should have corresponding `None` elements in the `draw_states` vector
+    members: Vec<MultiStateMember>,
+    /// Set of removed bars, should have corresponding members in the `members` vector with a
+    /// `draw_state` of `None`.
     free_set: Vec<usize>,
     /// Indices to the `draw_states` to maintain correct visual order
     ordering: Vec<usize>,
@@ -187,7 +192,7 @@ pub(crate) struct MultiState {
 impl MultiState {
     fn new(draw_target: ProgressDrawTarget) -> Self {
         Self {
-            draw_states: vec![],
+            members: vec![],
             free_set: vec![],
             ordering: vec![],
             draw_target,
@@ -203,6 +208,32 @@ impl MultiState {
         extra_lines: Option<Vec<String>>,
         now: Instant,
     ) -> io::Result<()> {
+        // Reap all consecutive 'zombie' progress bars from head of the list
+        let mut zombies = vec![];
+        let mut adjust = 0;
+        for index in self.ordering.iter() {
+            let member = &self.members[*index];
+            if !member.is_zombie {
+                break;
+            }
+
+            zombies.push(*index);
+            adjust += member
+                .draw_state
+                .as_ref()
+                .map(|d| d.lines.len())
+                .unwrap_or_default();
+        }
+
+        for index in zombies {
+            self.remove_idx(index);
+        }
+
+        // Adjust last line count so we don't clear too many lines
+        if let Some(last_line_count) = self.draw_target.last_line_count() {
+            *last_line_count -= adjust;
+        }
+
         let orphan_lines_count = self.orphan_lines.len();
         force_draw |= orphan_lines_count > 0;
         let mut drawable = match self.draw_target.drawable(force_draw, now) {
@@ -222,8 +253,14 @@ impl MultiState {
         draw_state.lines.append(&mut self.orphan_lines);
 
         for index in self.ordering.iter() {
-            if let Some(state) = &self.draw_states[*index] {
+            let member = &mut self.members[*index];
+            if let Some(state) = &member.draw_state {
                 draw_state.lines.extend_from_slice(&state.lines[..]);
+            }
+
+            // Mark the dead progress bar as a zombie - will be reaped on next draw
+            if member.pb.upgrade().is_none() {
+                member.is_zombie = true;
             }
         }
 
@@ -244,20 +281,14 @@ impl MultiState {
     }
 
     pub(crate) fn draw_state(&mut self, idx: usize) -> DrawStateWrapper<'_> {
-        let (states, orphans) = (&mut self.draw_states, &mut self.orphan_lines);
-        let state = match states.get_mut(idx) {
-            Some(Some(draw_state)) => draw_state,
-            Some(inner) => {
-                *inner = Some(DrawState::default());
-                let state = inner.as_mut().unwrap();
-                state.move_cursor = self.move_cursor;
-                state.alignment = self.alignment;
-                state
-            }
-            _ => unreachable!(),
-        };
+        let member = self.members.get_mut(idx).unwrap();
+        let state = member.draw_state.get_or_insert(DrawState {
+            move_cursor: self.move_cursor,
+            alignment: self.alignment,
+            ..Default::default()
+        });
 
-        DrawStateWrapper::for_multi(state, orphans)
+        DrawStateWrapper::for_multi(state, &mut self.orphan_lines)
     }
 
     pub(crate) fn is_hidden(&self) -> bool {
@@ -278,12 +309,12 @@ impl MultiState {
     fn insert(&mut self, location: InsertLocation) -> usize {
         let idx = match self.free_set.pop() {
             Some(idx) => {
-                self.draw_states[idx] = None;
+                self.members[idx] = MultiStateMember::default();
                 idx
             }
             None => {
-                self.draw_states.push(None);
-                self.draw_states.len() - 1
+                self.members.push(MultiStateMember::default());
+                self.members.len() - 1
             }
         };
 
@@ -328,7 +359,7 @@ impl MultiState {
             return;
         }
 
-        self.draw_states[idx].take();
+        self.members[idx] = MultiStateMember::default();
         self.free_set.push(idx);
         self.ordering.retain(|&x| x != idx);
 
@@ -340,7 +371,26 @@ impl MultiState {
     }
 
     fn len(&self) -> usize {
-        self.draw_states.len() - self.free_set.len()
+        self.members.len() - self.free_set.len()
+    }
+}
+
+#[derive(Default)]
+struct MultiStateMember {
+    /// Draw state will be `None` for members that haven't been drawn before, or for entries that
+    /// correspond to something in the free set.
+    draw_state: Option<DrawState>,
+    /// This will be a valid reference unless the containing member is actually in the free set.
+    pb: Weak<Mutex<BarState>>,
+    is_zombie: bool,
+}
+
+impl Debug for MultiStateMember {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MultiStateElement")
+            .field("draw_state", &self.draw_state)
+            .field("is_zombie", &self.is_zombie)
+            .finish_non_exhaustive()
     }
 }
 
@@ -422,19 +472,19 @@ mod tests {
 
         let state = mp.state.read().unwrap();
         // the removed place for p1 is reused
-        assert_eq!(state.draw_states.len(), 4);
+        assert_eq!(state.members.len(), 4);
         assert_eq!(state.len(), 3);
 
         // free_set may contain 1 or 2
         match state.free_set.last() {
             Some(1) => {
                 assert_eq!(state.ordering, vec![0, 2, 3]);
-                assert!(state.draw_states[1].is_none());
+                assert!(state.members[1].draw_state.is_none());
                 assert_eq!(p4.index().unwrap(), 2);
             }
             Some(2) => {
                 assert_eq!(state.ordering, vec![0, 1, 3]);
-                assert!(state.draw_states[2].is_none());
+                assert!(state.members[2].draw_state.is_none());
                 assert_eq!(p4.index().unwrap(), 1);
             }
             _ => unreachable!(),
@@ -534,10 +584,10 @@ mod tests {
 
         let state = mp.state.read().unwrap();
         // the removed place for p1 is reused
-        assert_eq!(state.draw_states.len(), 2);
+        assert_eq!(state.members.len(), 2);
         assert_eq!(state.free_set.len(), 1);
         assert_eq!(state.len(), 1);
-        assert!(state.draw_states[0].is_none());
+        assert!(state.members[0].draw_state.is_none());
         assert_eq!(state.free_set.last(), Some(&0));
 
         assert_eq!(state.ordering, vec![1]);

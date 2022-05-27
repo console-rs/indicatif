@@ -187,6 +187,10 @@ impl ProgressDrawTarget {
             _ => None,
         }
     }
+
+    pub(crate) fn last_line_count(&mut self) -> Option<&mut usize> {
+        self.kind.last_line_count()
+    }
 }
 
 #[derive(Debug)]
@@ -207,6 +211,20 @@ enum TargetKind {
         last_line_count: usize,
         draw_state: DrawState,
     },
+}
+
+impl TargetKind {
+    fn last_line_count(&mut self) -> Option<&mut usize> {
+        match self {
+            TargetKind::Term {
+                last_line_count, ..
+            } => Some(last_line_count),
+            TargetKind::TermLike {
+                last_line_count, ..
+            } => Some(last_line_count),
+            _ => None,
+        }
+    }
 }
 
 pub(crate) enum Drawable<'a> {
