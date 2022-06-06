@@ -321,12 +321,6 @@ impl ProgressStyle {
                         }
                     };
 
-                    if buf == "\x00" {
-                        // Don't expand for wide elements
-                        cur.push_str(&buf);
-                        continue;
-                    }
-
                     match width {
                         Some(width) => {
                             let padded = PaddedStringDisplay {
@@ -758,5 +752,38 @@ mod tests {
         style.message = "abcdefghijklmnopqrst".into();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "fghijklmno");
+    }
+
+    #[test]
+    fn wide_element_style() {
+        const CHARS: &str = "=>-";
+        const WIDTH: u16 = 8;
+        let pos = Arc::new(AtomicPosition::new());
+        // half finished
+        pos.set(2);
+        let state = ProgressState::new(Some(4), pos);
+        let mut buf = Vec::new();
+
+        let style = ProgressStyle::with_template("{wide_bar}")
+            .unwrap()
+            .progress_chars(CHARS);
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "====>---");
+
+        buf.clear();
+        let style = ProgressStyle::with_template("{wide_bar:.red.on_blue/green.on_cyan}")
+            .unwrap()
+            .progress_chars(CHARS);
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(
+            &buf[0],
+            "\u{1b}[31m\u{1b}[44m====>\u{1b}[32m\u{1b}[46m---\u{1b}[0m\u{1b}[0m"
+        );
+
+        buf.clear();
+        let mut style = ProgressStyle::with_template("{wide_msg:^.red.on_blue}").unwrap();
+        style.message = "foobar".into();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m foobar \u{1b}[0m");
     }
 }
