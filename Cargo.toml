@@ -13,6 +13,7 @@ exclude = ["screenshots/*"]
 
 [dependencies]
 console = { version = "0.15", default-features = false, features = ["ansi-parsing"] }
+generational_token_list = { version = "0.1.5", features = ["iter-mut"] }
 number_prefix = "0.4"
 rayon = { version = "1.1", optional = true }
 tokio = { version = "1", optional = true, features = ["fs", "io-util"] }

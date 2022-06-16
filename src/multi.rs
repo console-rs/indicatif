@@ -2,6 +2,7 @@ use std::fmt::{Debug, Formatter};
 use std::io;
 use std::sync::{Arc, Mutex, RwLock, Weak};
 use std::time::Instant;
+use generational_token_list::{GenerationalTokenList, ItemToken};
 
 use crate::draw_target::{DrawState, DrawStateWrapper, ProgressDrawTarget};
 use crate::progress_bar::ProgressBar;
@@ -96,7 +97,7 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn insert_before(&self, before: &ProgressBar, pb: ProgressBar) -> ProgressBar {
-        self.internalize(InsertLocation::Before(before.index().unwrap()), pb)
+        self.internalize(InsertLocation::Before(before.token().unwrap()), pb)
     }
 
     /// Inserts a progress bar after an existing one.
@@ -105,7 +106,7 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     pub fn insert_after(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
-        self.internalize(InsertLocation::After(after.index().unwrap()), pb)
+        self.internalize(InsertLocation::After(after.token().unwrap()), pb)
     }
 
     /// Removes a progress bar.
@@ -116,7 +117,7 @@ impl MultiProgress {
     /// the `remove` method does nothing.
     pub fn remove(&self, pb: &ProgressBar) {
         let mut state = pb.state();
-        let idx = match &state.draw_target.remote() {
+        let token = match &state.draw_target.remote() {
             Some((state, idx)) => {
                 // Check that this progress bar is owned by the current MultiProgress.
                 assert!(Arc::ptr_eq(&self.state, state));
@@ -126,15 +127,14 @@ impl MultiProgress {
         };
 
         state.draw_target = ProgressDrawTarget::hidden();
-        self.state.write().unwrap().remove_idx(idx);
+        self.state.write().unwrap().remove_idx(token);
     }
 
     fn internalize(&self, location: InsertLocation, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
 
-        let idx = state.insert(location);
-        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
-        state.members.get_mut(idx).unwrap().pb = pb.weak_bar_state();
+        let token = state.insert(location, pb.weak_bar_state());
+        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), token));
         pb
     }
 
@@ -173,12 +173,7 @@ impl MultiProgress {
 #[derive(Debug)]
 pub(crate) struct MultiState {
     /// The collection of states corresponding to progress bars
-    members: Vec<MultiStateMember>,
-    /// Set of removed bars, should have corresponding members in the `members` vector with a
-    /// `draw_state` of `None`.
-    free_set: Vec<usize>,
-    /// Indices to the `draw_states` to maintain correct visual order
-    ordering: Vec<usize>,
+    members: GenerationalTokenList<MultiStateMember>,
     /// Target for draw operation for MultiProgress
     draw_target: ProgressDrawTarget,
     /// Whether or not to just move cursor instead of clearing lines
@@ -192,9 +187,7 @@ pub(crate) struct MultiState {
 impl MultiState {
     fn new(draw_target: ProgressDrawTarget) -> Self {
         Self {
-            members: vec![],
-            free_set: vec![],
-            ordering: vec![],
+            members: GenerationalTokenList::new(),
             draw_target,
             move_cursor: false,
             alignment: Default::default(),
@@ -211,13 +204,12 @@ impl MultiState {
         // Reap all consecutive 'zombie' progress bars from head of the list
         let mut zombies = vec![];
         let mut adjust = 0;
-        for index in self.ordering.iter() {
-            let member = &self.members[*index];
+        for member in self.members.iter() {
             if !member.is_zombie {
                 break;
             }
 
-            zombies.push(*index);
+            zombies.push(member.token);
             adjust += member
                 .draw_state
                 .as_ref()
@@ -252,8 +244,7 @@ impl MultiState {
         // Make orphaned lines appear at the top, so they can be properly forgotten.
         draw_state.lines.append(&mut self.orphan_lines);
 
-        for index in self.ordering.iter() {
-            let member = &mut self.members[*index];
+        for member in self.members.iter_mut() {
             if let Some(state) = &member.draw_state {
                 draw_state.lines.extend_from_slice(&state.lines[..]);
             }
@@ -280,8 +271,8 @@ impl MultiState {
         self.draw(true, Some(lines), now)
     }
 
-    pub(crate) fn draw_state(&mut self, idx: usize) -> DrawStateWrapper<'_> {
-        let member = self.members.get_mut(idx).unwrap();
+    pub(crate) fn draw_state(&mut self, token: ItemToken) -> DrawStateWrapper<'_> {
+        let member = self.members.get_mut(token).unwrap();
         let state = member.draw_state.get_or_insert(DrawState {
             move_cursor: self.move_cursor,
             alignment: self.alignment,
@@ -306,45 +297,28 @@ impl MultiState {
         self.draw_target.width()
     }
 
-    fn insert(&mut self, location: InsertLocation) -> usize {
-        let idx = match self.free_set.pop() {
-            Some(idx) => {
-                self.members[idx] = MultiStateMember::default();
-                idx
-            }
-            None => {
-                self.members.push(MultiStateMember::default());
-                self.members.len() - 1
-            }
-        };
+    fn insert(&mut self, location: InsertLocation, bar_state: Weak<Mutex<BarState>>) -> ItemToken {
+        let create = |token| -> _ { MultiStateMember::new(bar_state, token) };
 
         match location {
-            InsertLocation::End => self.ordering.push(idx),
+            InsertLocation::End => self.members.push_back_with(create),
             InsertLocation::Index(pos) => {
-                let pos = Ord::min(pos, self.ordering.len());
-                self.ordering.insert(pos, idx);
+                if let Some(token) = self.members.token_at(pos) {
+                    self.members.insert_before_with(token, create)
+                } else {
+                    self.members.push_back_with(create)
+                }
             }
             InsertLocation::IndexFromBack(pos) => {
-                let pos = self.ordering.len().saturating_sub(pos);
-                self.ordering.insert(pos, idx);
+                if let Some(token) = self.members.token_at_back(pos) {
+                    self.members.insert_after_with(token, create)
+                } else {
+                    self.members.push_front_with(create)
+                }
             }
-            InsertLocation::After(after_idx) => {
-                let pos = self.ordering.iter().position(|i| *i == after_idx).unwrap();
-                self.ordering.insert(pos + 1, idx);
-            }
-            InsertLocation::Before(before_idx) => {
-                let pos = self.ordering.iter().position(|i| *i == before_idx).unwrap();
-                self.ordering.insert(pos, idx);
-            }
+            InsertLocation::After(after_idx) => self.members.insert_after_with(after_idx, create),
+            InsertLocation::Before(before_idx) => self.members.insert_before_with(before_idx, create),
         }
-
-        assert_eq!(
-            self.len(),
-            self.ordering.len(),
-            "Draw state is inconsistent"
-        );
-
-        idx
     }
 
     fn clear(&mut self, now: Instant) -> io::Result<()> {
@@ -354,35 +328,28 @@ impl MultiState {
         }
     }
 
-    fn remove_idx(&mut self, idx: usize) {
-        if self.free_set.contains(&idx) {
-            return;
-        }
-
-        self.members[idx] = MultiStateMember::default();
-        self.free_set.push(idx);
-        self.ordering.retain(|&x| x != idx);
-
-        assert_eq!(
-            self.len(),
-            self.ordering.len(),
-            "Draw state is inconsistent"
-        );
-    }
-
-    fn len(&self) -> usize {
-        self.members.len() - self.free_set.len()
+    fn remove_idx(&mut self, token: ItemToken) {
+        self.members.remove(token);
     }
 }
 
-#[derive(Default)]
 struct MultiStateMember {
-    /// Draw state will be `None` for members that haven't been drawn before, or for entries that
-    /// correspond to something in the free set.
+    /// Draw state will be `None` for members that haven't been drawn before.
     draw_state: Option<DrawState>,
-    /// This will be a valid reference unless the containing member is actually in the free set.
     pb: Weak<Mutex<BarState>>,
     is_zombie: bool,
+    token: ItemToken,
+}
+
+impl MultiStateMember {
+    fn new(pb: Weak<Mutex<BarState>>, token: ItemToken) -> Self {
+        Self {
+            draw_state: None,
+            pb,
+            is_zombie: false,
+            token,
+        }
+    }
 }
 
 impl Debug for MultiStateMember {
@@ -426,8 +393,8 @@ enum InsertLocation {
     End,
     Index(usize),
     IndexFromBack(usize),
-    After(usize),
-    Before(usize),
+    After(ItemToken),
+    Before(ItemToken),
 }
 
 #[cfg(test)]
@@ -459,6 +426,19 @@ mod tests {
         pb.finish();
     }
 
+    macro_rules! check_order {
+        ($mp:ident, $($pbs:ident),*) => {
+            let state = $mp.state.read().unwrap();
+            let tokens = state
+                .members
+                .iter_with_tokens()
+                .map(|(token, _)| Some(token))
+                .collect::<Vec<_>>();
+
+            assert_eq!(tokens, vec![$($pbs.token()),+]);
+        }
+    }
+
     #[test]
     fn multi_progress_modifications() {
         let mp = MultiProgress::new();
@@ -470,30 +450,10 @@ mod tests {
         mp.remove(&p1);
         let p4 = mp.insert(1, ProgressBar::new(1));
 
-        let state = mp.state.read().unwrap();
-        // the removed place for p1 is reused
-        assert_eq!(state.members.len(), 4);
-        assert_eq!(state.len(), 3);
+        check_order!(mp, p0, p4, p3);
 
-        // free_set may contain 1 or 2
-        match state.free_set.last() {
-            Some(1) => {
-                assert_eq!(state.ordering, vec![0, 2, 3]);
-                assert!(state.members[1].draw_state.is_none());
-                assert_eq!(p4.index().unwrap(), 2);
-            }
-            Some(2) => {
-                assert_eq!(state.ordering, vec![0, 1, 3]);
-                assert!(state.members[2].draw_state.is_none());
-                assert_eq!(p4.index().unwrap(), 1);
-            }
-            _ => unreachable!(),
-        }
-
-        assert_eq!(p0.index().unwrap(), 0);
-        assert_eq!(p1.index(), None);
-        assert_eq!(p2.index(), None);
-        assert_eq!(p3.index().unwrap(), 3);
+        assert_eq!(p1.token(), None);
+        assert_eq!(p2.token(), None);
     }
 
     #[test]
@@ -505,13 +465,7 @@ mod tests {
         let p3 = mp.insert_from_back(1, ProgressBar::new(1));
         let p4 = mp.insert_from_back(10, ProgressBar::new(1));
 
-        let state = mp.state.read().unwrap();
-        assert_eq!(state.ordering, vec![4, 0, 1, 3, 2]);
-        assert_eq!(p0.index().unwrap(), 0);
-        assert_eq!(p1.index().unwrap(), 1);
-        assert_eq!(p2.index().unwrap(), 2);
-        assert_eq!(p3.index().unwrap(), 3);
-        assert_eq!(p4.index().unwrap(), 4);
+        check_order!(mp, p4, p0, p1, p3, p2);
     }
 
     #[test]
@@ -523,13 +477,7 @@ mod tests {
         let p3 = mp.insert_after(&p2, ProgressBar::new(1));
         let p4 = mp.insert_after(&p0, ProgressBar::new(1));
 
-        let state = mp.state.read().unwrap();
-        assert_eq!(state.ordering, vec![0, 4, 1, 2, 3]);
-        assert_eq!(p0.index().unwrap(), 0);
-        assert_eq!(p1.index().unwrap(), 1);
-        assert_eq!(p2.index().unwrap(), 2);
-        assert_eq!(p3.index().unwrap(), 3);
-        assert_eq!(p4.index().unwrap(), 4);
+        check_order!(mp, p0, p4, p1, p2, p3);
     }
 
     #[test]
@@ -541,13 +489,7 @@ mod tests {
         let p3 = mp.insert_before(&p0, ProgressBar::new(1));
         let p4 = mp.insert_before(&p2, ProgressBar::new(1));
 
-        let state = mp.state.read().unwrap();
-        assert_eq!(state.ordering, vec![3, 0, 1, 4, 2]);
-        assert_eq!(p0.index().unwrap(), 0);
-        assert_eq!(p1.index().unwrap(), 1);
-        assert_eq!(p2.index().unwrap(), 2);
-        assert_eq!(p3.index().unwrap(), 3);
-        assert_eq!(p4.index().unwrap(), 4);
+        check_order!(mp, p3, p0, p1, p4, p2);
     }
 
     #[test]
@@ -561,15 +503,7 @@ mod tests {
         let p5 = mp.insert_after(&p3, ProgressBar::new(1));
         let p6 = mp.insert_before(&p1, ProgressBar::new(1));
 
-        let state = mp.state.read().unwrap();
-        assert_eq!(state.ordering, vec![3, 5, 4, 0, 6, 1, 2]);
-        assert_eq!(p0.index().unwrap(), 0);
-        assert_eq!(p1.index().unwrap(), 1);
-        assert_eq!(p2.index().unwrap(), 2);
-        assert_eq!(p3.index().unwrap(), 3);
-        assert_eq!(p4.index().unwrap(), 4);
-        assert_eq!(p5.index().unwrap(), 5);
-        assert_eq!(p6.index().unwrap(), 6);
+        check_order!(mp, p3, p5, p4, p0, p6, p1, p2);
     }
 
     #[test]
@@ -582,16 +516,7 @@ mod tests {
         mp.remove(&p0);
         mp.remove(&p0);
 
-        let state = mp.state.read().unwrap();
-        // the removed place for p1 is reused
-        assert_eq!(state.members.len(), 2);
-        assert_eq!(state.free_set.len(), 1);
-        assert_eq!(state.len(), 1);
-        assert!(state.members[0].draw_state.is_none());
-        assert_eq!(state.free_set.last(), Some(&0));
-
-        assert_eq!(state.ordering, vec![1]);
-        assert_eq!(p0.index(), None);
-        assert_eq!(p1.index().unwrap(), 1);
+        check_order!(mp, p1);
+        assert_eq!(p0.token(), None);
     }
 }

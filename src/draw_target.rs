@@ -4,6 +4,7 @@ use std::thread::panicking;
 use std::time::{Duration, Instant};
 
 use console::Term;
+use generational_token_list::ItemToken;
 
 use crate::multi::{MultiProgressAlignment, MultiState};
 use crate::TermLike;
@@ -49,9 +50,9 @@ impl ProgressDrawTarget {
         ProgressDrawTarget::term(Term::buffered_stderr(), refresh_rate)
     }
 
-    pub(crate) fn new_remote(state: Arc<RwLock<MultiState>>, idx: usize) -> Self {
+    pub(crate) fn new_remote(state: Arc<RwLock<MultiState>>, token: ItemToken) -> Self {
         Self {
-            kind: TargetKind::Multi { state, idx },
+            kind: TargetKind::Multi { state, token },
         }
     }
 
@@ -139,10 +140,10 @@ impl ProgressDrawTarget {
                     false => None, // rate limited
                 }
             }
-            TargetKind::Multi { idx, state, .. } => {
+            TargetKind::Multi { token, state, .. } => {
                 let state = state.write().unwrap();
                 Some(Drawable::Multi {
-                    idx: *idx,
+                    token: *token,
                     state,
                     force_draw,
                     now,
@@ -166,11 +167,11 @@ impl ProgressDrawTarget {
     pub(crate) fn disconnect(&self, now: Instant) {
         match self.kind {
             TargetKind::Term { .. } => {}
-            TargetKind::Multi { idx, ref state, .. } => {
+            TargetKind::Multi { token, ref state, .. } => {
                 let state = state.write().unwrap();
                 let _ = Drawable::Multi {
                     state,
-                    idx,
+                    token,
                     force_draw: true,
                     now,
                 }
@@ -181,9 +182,9 @@ impl ProgressDrawTarget {
         };
     }
 
-    pub(crate) fn remote(&self) -> Option<(&Arc<RwLock<MultiState>>, usize)> {
+    pub(crate) fn remote(&self) -> Option<(&Arc<RwLock<MultiState>>, ItemToken)> {
         match &self.kind {
-            TargetKind::Multi { state, idx } => Some((state, *idx)),
+            TargetKind::Multi { state, token } => Some((state, *token)),
             _ => None,
         }
     }
@@ -203,7 +204,7 @@ enum TargetKind {
     },
     Multi {
         state: Arc<RwLock<MultiState>>,
-        idx: usize,
+        token: ItemToken,
     },
     Hidden,
     TermLike {
@@ -235,7 +236,7 @@ pub(crate) enum Drawable<'a> {
     },
     Multi {
         state: RwLockWriteGuard<'a, MultiState>,
-        idx: usize,
+        token: ItemToken,
         force_draw: bool,
         now: Instant,
     },
@@ -250,7 +251,7 @@ impl<'a> Drawable<'a> {
     pub(crate) fn state(&mut self) -> DrawStateWrapper<'_> {
         let mut state = match self {
             Drawable::Term { draw_state, .. } => DrawStateWrapper::for_term(draw_state),
-            Drawable::Multi { state, idx, .. } => state.draw_state(*idx),
+            Drawable::Multi { state, token, .. } => state.draw_state(*token),
             Drawable::TermLike { draw_state, .. } => DrawStateWrapper::for_term(draw_state),
         };
 

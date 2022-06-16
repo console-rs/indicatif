@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
 use std::{fmt, io, mem, thread};
+use generational_token_list::ItemToken;
 
 #[cfg(test)]
 use once_cell::sync::Lazy;
@@ -512,9 +513,9 @@ impl ProgressBar {
         self.state().state.elapsed()
     }
 
-    /// Index in the `MultiState`
-    pub(crate) fn index(&self) -> Option<usize> {
-        self.state().draw_target.remote().map(|(_, idx)| idx)
+    /// Token in the `MultiState`
+    pub(crate) fn token(&self) -> Option<ItemToken> {
+        self.state().draw_target.remote().map(|(_, token)| token)
     }
 
     #[inline]
