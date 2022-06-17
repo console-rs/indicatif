@@ -1,4 +1,3 @@
-
 use std::collections::HashMap;
 use std::fmt::{self, Write};
 use std::mem;
@@ -10,7 +9,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::format::{
     BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,
 };
-use crate::state::ProgressState;
+use crate::state::{ProgressState, TabExpandedString, DEFAULT_TAB_WIDTH};
 
 /// Controls the rendering style of progress bars
 #[derive(Clone)]
@@ -21,6 +20,7 @@ pub struct ProgressStyle {
     // how unicode-big each char in progress_chars is
     char_width: usize,
     format_map: HashMap<&'static str, fn(&ProgressState) -> String>,
+    tab_width: usize,
 }
 
 #[cfg(feature = "unicode-segmentation")]
@@ -75,6 +75,11 @@ impl ProgressStyle {
         Ok(Self::new(Template::from_str(template)?))
     }
 
+    pub(crate) fn set_tab_width(&mut self, new_tab_width: usize) {
+        self.tab_width = new_tab_width;
+        self.template.set_tab_width(new_tab_width);
+    }
+
     fn new(template: Template) -> Self {
         let progress_chars = segment("█░");
         let char_width = width(&progress_chars);
@@ -87,6 +92,7 @@ impl ProgressStyle {
             char_width,
             template,
             format_map: HashMap::default(),
+            tab_width: DEFAULT_TAB_WIDTH,
         }
     }
 
@@ -232,7 +238,7 @@ impl ProgressStyle {
                 } => {
                     buf.clear();
                     if let Some(formatter) = self.format_map.get(key.as_str()) {
-                        buf.push_str(&formatter(state));
+                        buf.push_str(&formatter(state).replace('\t', &" ".repeat(self.tab_width)));
                     } else {
                         match key.as_str() {
                             "wide_bar" => {
@@ -254,8 +260,8 @@ impl ProgressStyle {
                                 wide = Some(WideElement::Message { align });
                                 buf.push('\x00');
                             }
-                            "msg" => buf.push_str(&state.message),
-                            "prefix" => buf.push_str(&state.prefix),
+                            "msg" => buf.push_str(state.message.expanded()),
+                            "prefix" => buf.push_str(state.prefix.expanded()),
                             "pos" => buf.write_fmt(format_args!("{}", pos)).unwrap(),
                             "human_pos" => {
                                 buf.write_fmt(format_args!("{}", HumanCount(pos))).unwrap()
@@ -338,7 +344,7 @@ impl ProgressStyle {
                         },
                     }
                 }
-                TemplatePart::Literal(s) => cur.push_str(s),
+                TemplatePart::Literal(s) => cur.push_str(s.expanded()),
                 TemplatePart::NewLine => lines.push(match wide {
                     Some(inner) => {
                         inner.expand(mem::take(&mut cur), self, state, &mut buf, target_width)
@@ -388,7 +394,7 @@ impl<'a> WideElement<'a> {
                 buf.write_fmt(format_args!(
                     "{}",
                     PaddedStringDisplay {
-                        str: &state.message,
+                        str: state.message.expanded(),
                         width: left,
                         align: *align,
                         truncate: true,
@@ -413,7 +419,7 @@ struct Template {
 }
 
 impl Template {
-    fn from_str(s: &str) -> Result<Self, TemplateError> {
+    fn from_str_with_tab_width(s: &str, tab_width: usize) -> Result<Self, TemplateError> {
         use State::*;
         let (mut state, mut parts, mut buf) = (Literal, vec![], String::new());
         for c in s.chars() {
@@ -421,7 +427,10 @@ impl Template {
                 (Literal, '{') => (MaybeOpen, None),
                 (Literal, '\n') => {
                     if !buf.is_empty() {
-                        parts.push(TemplatePart::Literal(mem::take(&mut buf)));
+                        parts.push(TemplatePart::Literal(TabExpandedString::new(
+                            mem::take(&mut buf).into(),
+                            tab_width,
+                        )));
                     }
                     parts.push(TemplatePart::NewLine);
                     (Literal, None)
@@ -437,7 +446,10 @@ impl Template {
                     let mut new = String::from("{");
                     new.push_str(&buf);
                     buf.clear();
-                    parts.push(TemplatePart::Literal(new));
+                    parts.push(TemplatePart::Literal(TabExpandedString::new(
+                        new.into(),
+                        tab_width,
+                    )));
                     (Literal, None)
                 }
                 (MaybeOpen, c) if c != '}' && c != ':' => (Key, Some(c)),
@@ -488,9 +500,9 @@ impl Template {
             };
 
             match (state, new.0) {
-                (MaybeOpen, Key) if !buf.is_empty() => {
-                    parts.push(TemplatePart::Literal(mem::take(&mut buf)))
-                }
+                (MaybeOpen, Key) if !buf.is_empty() => parts.push(TemplatePart::Literal(
+                    TabExpandedString::new(mem::take(&mut buf).into(), tab_width),
+                )),
                 (Key, Align) | (Key, Literal) if !buf.is_empty() => {
                     parts.push(TemplatePart::Placeholder {
                         key: mem::take(&mut buf),
@@ -529,10 +541,25 @@ impl Template {
         }
 
         if matches!(state, Literal | DoubleClose) && !buf.is_empty() {
-            parts.push(TemplatePart::Literal(buf));
+            parts.push(TemplatePart::Literal(TabExpandedString::new(
+                buf.into(),
+                tab_width,
+            )));
         }
 
         Ok(Self { parts })
+    }
+
+    fn from_str(s: &str) -> Result<Self, TemplateError> {
+        Self::from_str_with_tab_width(s, DEFAULT_TAB_WIDTH)
+    }
+
+    fn set_tab_width(&mut self, new_tab_width: usize) {
+        for part in self.parts.iter_mut() {
+            if let TemplatePart::Literal(s) = part {
+                s.set_tab_width(new_tab_width)
+            }
+        }
     }
 }
 
@@ -556,7 +583,7 @@ impl std::error::Error for TemplateError {}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum TemplatePart {
-    Literal(String),
+    Literal(TabExpandedString),
     Placeholder {
         key: String,
         align: Alignment,
@@ -669,7 +696,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::state::{AtomicPosition, ProgressState};
+    use crate::state::{AtomicPosition, ProgressState, TabExpandedString};
 
     #[test]
     fn test_expand_template() {
@@ -733,19 +760,19 @@ mod tests {
         let mut buf = Vec::new();
 
         let style = ProgressStyle::with_template("{wide_msg}").unwrap();
-        state.message = "abcdefghijklmnopqrst".into();
+        state.message = TabExpandedString::NoTabs("abcdefghijklmnopqrst".into());
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "abcdefghij");
 
         buf.clear();
         let style = ProgressStyle::with_template("{wide_msg:>}").unwrap();
-        state.message = "abcdefghijklmnopqrst".into();
+        state.message = TabExpandedString::NoTabs("abcdefghijklmnopqrst".into());
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "klmnopqrst");
 
         buf.clear();
         let style = ProgressStyle::with_template("{wide_msg:^}").unwrap();
-        state.message = "abcdefghijklmnopqrst".into();
+        state.message = TabExpandedString::NoTabs("abcdefghijklmnopqrst".into());
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "fghijklmno");
     }
@@ -778,7 +805,7 @@ mod tests {
 
         buf.clear();
         let style = ProgressStyle::with_template("{wide_msg:^.red.on_blue}").unwrap();
-        state.message = "foobar".into();
+        state.message = TabExpandedString::NoTabs("foobar".into());
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m foobar \u{1b}[0m");
     }
