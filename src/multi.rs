@@ -209,23 +209,18 @@ impl MultiState {
         now: Instant,
     ) -> io::Result<()> {
         // Reap all consecutive 'zombie' progress bars from head of the list
-        let mut zombies = vec![];
         let mut adjust = 0;
-        for index in self.ordering.iter() {
-            let member = &self.members[*index];
+        while let Some(index) = self.ordering.first().copied() {
+            let member = &self.members[index];
             if !member.is_zombie {
                 break;
             }
 
-            zombies.push(*index);
             adjust += member
                 .draw_state
                 .as_ref()
                 .map(|d| d.lines.len())
                 .unwrap_or_default();
-        }
-
-        for index in zombies {
             self.remove_idx(index);
         }
 
