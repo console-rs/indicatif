@@ -12,6 +12,7 @@ pub(crate) struct BarState {
     pub(crate) on_finish: ProgressFinish,
     pub(crate) style: ProgressStyle,
     pub(crate) state: ProgressState,
+    pub(crate) tab_width: usize,
 }
 
 impl BarState {
@@ -25,6 +26,7 @@ impl BarState {
             on_finish: ProgressFinish::default(),
             style: ProgressStyle::default_bar(),
             state: ProgressState::new(len, pos),
+            tab_width: DEFAULT_TAB_WIDTH,
         }
     }
 
@@ -42,7 +44,7 @@ impl BarState {
                 if let Some(len) = self.state.len {
                     self.state.pos.set(len);
                 }
-                self.style.message = msg;
+                self.state.message = TabExpandedString::new(msg, self.tab_width);
             }
             ProgressFinish::AndClear => {
                 if let Some(len) = self.state.len {
@@ -51,7 +53,9 @@ impl BarState {
                 self.state.status = Status::DoneHidden;
             }
             ProgressFinish::Abandon => {}
-            ProgressFinish::AbandonWithMessage(msg) => self.style.message = msg,
+            ProgressFinish::AbandonWithMessage(msg) => {
+                self.state.message = TabExpandedString::new(msg, self.tab_width)
+            }
         }
 
         // There's no need to update the estimate here; once the `status` is no longer
@@ -92,14 +96,16 @@ impl BarState {
         self.update_estimate_and_draw(now);
     }
 
-    pub(crate) fn set_message(&mut self, now: Instant, msg: Cow<'static, str>) {
-        self.style.message = msg;
-        self.update_estimate_and_draw(now);
+    pub(crate) fn set_tab_width(&mut self, tab_width: usize) {
+        self.tab_width = tab_width;
+        self.state.message.set_tab_width(tab_width);
+        self.state.prefix.set_tab_width(tab_width);
+        self.style.set_tab_width(tab_width);
     }
 
-    pub(crate) fn set_prefix(&mut self, now: Instant, prefix: Cow<'static, str>) {
-        self.style.prefix = prefix;
-        self.update_estimate_and_draw(now);
+    pub(crate) fn set_style(&mut self, style: ProgressStyle) {
+        self.style = style;
+        self.style.set_tab_width(self.tab_width);
     }
 
     pub(crate) fn tick(&mut self, now: Instant) {
@@ -107,7 +113,7 @@ impl BarState {
         self.update_estimate_and_draw(now);
     }
 
-    fn update_estimate_and_draw(&mut self, now: Instant) {
+    pub(crate) fn update_estimate_and_draw(&mut self, now: Instant) {
         let pos = self.state.pos.pos.load(Ordering::Relaxed);
         self.state.est.record(pos, now);
         let _ = self.draw(false, now);
@@ -190,6 +196,8 @@ pub struct ProgressState {
     pub(crate) started: Instant,
     status: Status,
     est: Estimator,
+    pub(crate) message: TabExpandedString,
+    pub(crate) prefix: TabExpandedString,
 }
 
 impl ProgressState {
@@ -201,6 +209,8 @@ impl ProgressState {
             status: Status::InProgress,
             started: Instant::now(),
             est: Estimator::new(Instant::now()),
+            message: TabExpandedString::NoTabs("".into()),
+            prefix: TabExpandedString::NoTabs("".into()),
         }
     }
 
@@ -282,6 +292,55 @@ impl ProgressState {
 
     pub fn set_len(&mut self, len: u64) {
         self.len = Some(len);
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub(crate) enum TabExpandedString {
+    NoTabs(Cow<'static, str>),
+    WithTabs {
+        original: Cow<'static, str>,
+        expanded: String,
+        tab_width: usize,
+    },
+}
+
+impl TabExpandedString {
+    pub(crate) fn new(s: Cow<'static, str>, tab_width: usize) -> Self {
+        let expanded = s.replace('\t', &" ".repeat(tab_width));
+        if s == expanded {
+            Self::NoTabs(s)
+        } else {
+            Self::WithTabs {
+                original: s,
+                expanded,
+                tab_width,
+            }
+        }
+    }
+
+    pub(crate) fn expanded(&self) -> &str {
+        match &self {
+            Self::NoTabs(s) => {
+                debug_assert!(!s.contains('\t'));
+                s
+            }
+            Self::WithTabs { expanded, .. } => expanded,
+        }
+    }
+
+    pub(crate) fn set_tab_width(&mut self, new_tab_width: usize) {
+        if let TabExpandedString::WithTabs {
+            original,
+            expanded,
+            tab_width,
+        } = self
+        {
+            if *tab_width != new_tab_width {
+                *tab_width = new_tab_width;
+                *expanded = original.replace('\t', &" ".repeat(new_tab_width));
+            }
+        }
     }
 }
 
@@ -481,6 +540,8 @@ pub(crate) enum Status {
     DoneVisible,
     DoneHidden,
 }
+
+pub(crate) const DEFAULT_TAB_WIDTH: usize = 8;
 
 #[cfg(test)]
 mod tests {

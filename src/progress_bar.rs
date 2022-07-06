@@ -3,13 +3,13 @@ use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
-use std::{fmt, io, mem, thread};
+use std::{fmt, io, thread};
 
 #[cfg(test)]
 use once_cell::sync::Lazy;
 
 use crate::draw_target::ProgressDrawTarget;
-use crate::state::{AtomicPosition, BarState, ProgressFinish, Reset};
+use crate::state::{AtomicPosition, BarState, ProgressFinish, Reset, TabExpandedString};
 use crate::style::ProgressStyle;
 use crate::{ProgressBarIter, ProgressIterator, ProgressState};
 
@@ -69,15 +69,25 @@ impl ProgressBar {
         self
     }
 
+    /// A convenience builder-like function for a progress bar with a given tab width
+    pub fn with_tab_width(self, tab_width: usize) -> ProgressBar {
+        self.state().set_tab_width(tab_width);
+        self
+    }
+
     /// A convenience builder-like function for a progress bar with a given prefix
     pub fn with_prefix(self, prefix: impl Into<Cow<'static, str>>) -> ProgressBar {
-        self.state().style.prefix = prefix.into();
+        let mut state = self.state();
+        state.state.prefix = TabExpandedString::new(prefix.into(), state.tab_width);
+        drop(state);
         self
     }
 
     /// A convenience builder-like function for a progress bar with a given message
     pub fn with_message(self, message: impl Into<Cow<'static, str>>) -> ProgressBar {
-        self.state().style.message = message.into();
+        let mut state = self.state();
+        state.state.message = TabExpandedString::new(message.into(), state.tab_width);
+        drop(state);
         self
     }
 
@@ -121,11 +131,15 @@ impl ProgressBar {
     /// Overrides the stored style
     ///
     /// This does not redraw the bar. Call [`ProgressBar::tick()`] to force it.
-    pub fn set_style(&self, mut style: ProgressStyle) {
+    pub fn set_style(&self, style: ProgressStyle) {
+        self.state().set_style(style);
+    }
+
+    /// Sets the tab width (default: 8). All tabs will be expanded to this many spaces.
+    pub fn set_tab_width(&mut self, tab_width: usize) {
         let mut state = self.state();
-        mem::swap(&mut state.style.message, &mut style.message);
-        mem::swap(&mut state.style.prefix, &mut style.prefix);
-        state.style = style;
+        state.set_tab_width(tab_width);
+        state.draw(true, Instant::now()).unwrap();
     }
 
     /// Spawns a background thread to tick the progress bar
@@ -246,7 +260,9 @@ impl ProgressBar {
     /// For the prefix to be visible, the `{prefix}` placeholder must be present in the template
     /// (see [`ProgressStyle`]).
     pub fn set_prefix(&self, prefix: impl Into<Cow<'static, str>>) {
-        self.state().set_prefix(Instant::now(), prefix.into());
+        let mut state = self.state();
+        state.state.prefix = TabExpandedString::new(prefix.into(), state.tab_width);
+        state.update_estimate_and_draw(Instant::now());
     }
 
     /// Sets the current message of the progress bar
@@ -254,7 +270,9 @@ impl ProgressBar {
     /// For the message to be visible, the `{msg}` placeholder must be present in the template (see
     /// [`ProgressStyle`]).
     pub fn set_message(&self, msg: impl Into<Cow<'static, str>>) {
-        self.state().set_message(Instant::now(), msg.into())
+        let mut state = self.state();
+        state.state.message = TabExpandedString::new(msg.into(), state.tab_width);
+        state.update_estimate_and_draw(Instant::now());
     }
 
     /// Creates a new weak reference to this `ProgressBar`
@@ -515,6 +533,16 @@ impl ProgressBar {
     /// Index in the `MultiState`
     pub(crate) fn index(&self) -> Option<usize> {
         self.state().draw_target.remote().map(|(_, idx)| idx)
+    }
+
+    /// Current message
+    pub fn message(&self) -> String {
+        self.state().state.message.expanded().to_string()
+    }
+
+    /// Current prefix
+    pub fn prefix(&self) -> String {
+        self.state().state.prefix.expanded().to_string()
     }
 
     #[inline]

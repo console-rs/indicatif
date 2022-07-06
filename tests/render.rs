@@ -534,3 +534,63 @@ don't erase me either
 
     assert_eq!(in_mem.contents(), "don't erase me either");
 }
+
+#[test]
+fn basic_tab_expansion() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+    let mut spinner = mp.add(ProgressBar::new_spinner().with_message("Test\t:)"));
+    spinner.tick();
+
+    // 8 is the default number of spaces
+    assert_eq!(in_mem.contents(), "⠁ Test        :)");
+
+    spinner.set_tab_width(4);
+    assert_eq!(in_mem.contents(), "⠁ Test    :)");
+}
+
+#[test]
+fn tab_expansion_in_template() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+    let mut spinner = mp.add(
+        ProgressBar::new_spinner()
+            .with_message("Test\t:)")
+            .with_prefix("Pre\tfix!")
+            .with_style(ProgressStyle::with_template("{spinner}{prefix}\t{msg}").unwrap()),
+    );
+
+    spinner.tick();
+    assert_eq!(in_mem.contents(), "⠁Pre        fix!        Test        :)");
+
+    spinner.set_tab_width(4);
+    assert_eq!(in_mem.contents(), "⠁Pre    fix!    Test    :)");
+
+    spinner.set_tab_width(2);
+    assert_eq!(in_mem.contents(), "⠁Pre  fix!  Test  :)");
+}
+
+#[test]
+fn progress_style_tab_width_unification() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+    // Style will have default of 8 spaces for tabs
+    let style = ProgressStyle::with_template("{msg}\t{msg}").unwrap();
+
+    let spinner = mp.add(
+        ProgressBar::new_spinner()
+            .with_message("OK")
+            .with_tab_width(4),
+    );
+
+    // Setting the spinner's style to |style| should override the style's tab width with that of bar
+    spinner.set_style(style);
+    spinner.tick();
+    assert_eq!(in_mem.contents(), "OK    OK");
+}
