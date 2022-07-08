@@ -75,6 +75,11 @@ impl BarState {
         if let Reset::All = mode {
             self.state.pos.reset(now);
             self.state.status = Status::InProgress;
+
+            for (_, tracker) in self.style.format_map.iter_mut() {
+                tracker.reset(&self.state, now);
+            }
+
             let _ = self.draw(false, now);
         }
     }
@@ -117,6 +122,10 @@ impl BarState {
         let pos = self.state.pos.pos.load(Ordering::Relaxed);
         self.state.est.record(pos, now);
         let _ = self.draw(false, now);
+
+        for (_, tracker) in self.style.format_map.iter_mut() {
+            tracker.tick(&self.state, now);
+        }
     }
 
     pub(crate) fn println(&mut self, now: Instant, msg: &str) {
