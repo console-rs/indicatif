@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{self, Write};
 use std::mem;
+use std::time::Instant;
 
 use console::{measure_text_width, Style};
 #[cfg(feature = "unicode-segmentation")]
@@ -11,7 +12,6 @@ use crate::format::{
 };
 use crate::state::{ProgressState, TabExpandedString, DEFAULT_TAB_WIDTH};
 
-/// Controls the rendering style of progress bars
 #[derive(Clone)]
 pub struct ProgressStyle {
     tick_strings: Vec<Box<str>>,
@@ -19,8 +19,8 @@ pub struct ProgressStyle {
     template: Template,
     // how unicode-big each char in progress_chars is
     char_width: usize,
-    format_map: HashMap<&'static str, fn(&ProgressState) -> String>,
     tab_width: usize,
+    pub(crate) format_map: HashMap<&'static str, Box<dyn ProgressTracker>>,
 }
 
 #[cfg(feature = "unicode-segmentation")]
@@ -136,9 +136,13 @@ impl ProgressStyle {
         self
     }
 
-    /// Adds a custom key that references a `&ProgressState` to the template
-    pub fn with_key(mut self, key: &'static str, f: fn(&ProgressState) -> String) -> ProgressStyle {
-        self.format_map.insert(key, f);
+    /// Adds a custom key that owns a [`ProgressTracker`] to the template
+    pub fn with_key<S: ProgressTracker + 'static>(
+        mut self,
+        key: &'static str,
+        f: S,
+    ) -> ProgressStyle {
+        self.format_map.insert(key, Box::new(f));
         self
     }
 
@@ -150,7 +154,7 @@ impl ProgressStyle {
         Ok(self)
     }
 
-    pub(crate) fn current_tick_str(&self, state: &ProgressState) -> &str {
+    fn current_tick_str(&self, state: &ProgressState) -> &str {
         match state.is_finished() {
             true => self.get_final_tick_str(),
             false => self.get_tick_str(state.tick),
@@ -237,8 +241,8 @@ impl ProgressStyle {
                     alt_style,
                 } => {
                     buf.clear();
-                    if let Some(formatter) = self.format_map.get(key.as_str()) {
-                        buf.push_str(&formatter(state).replace('\t', &" ".repeat(self.tab_width)));
+                    if let Some(tracker) = self.format_map.get(key.as_str()) {
+                        tracker.write(state, &mut TabRewriter(&mut buf, self.tab_width));
                     } else {
                         match key.as_str() {
                             "wide_bar" => {
@@ -362,6 +366,15 @@ impl ProgressStyle {
                 None => mem::take(&mut cur),
             })
         }
+    }
+}
+
+struct TabRewriter<'a>(&'a mut dyn fmt::Write, usize);
+
+impl Write for TabRewriter<'_> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.0
+            .write_str(s.replace('\t', &" ".repeat(self.1)).as_str())
     }
 }
 
@@ -691,12 +704,99 @@ enum Alignment {
     Right,
 }
 
+/// Trait for defining stateful or stateless formatters
+pub trait ProgressTracker: Send {
+    /// Creates a new instance of the progress tracker
+    fn clone_box(&self) -> Box<dyn ProgressTracker>;
+    /// Notifies the progress tracker of a tick event
+    fn tick(&mut self, state: &ProgressState, now: Instant);
+    /// Notifies the progress tracker of a reset event
+    fn reset(&mut self, state: &ProgressState, now: Instant);
+    /// Provides access to the progress bar display buffer for custom messages
+    fn write(&self, state: &ProgressState, w: &mut dyn fmt::Write);
+}
+
+impl Clone for Box<dyn ProgressTracker> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
+
+impl<F: Fn(&ProgressState, &mut dyn fmt::Write) + Send + Clone + 'static> ProgressTracker for F {
+    fn clone_box(&self) -> Box<dyn ProgressTracker> {
+        Box::new(self.clone())
+    }
+
+    fn tick(&mut self, _: &ProgressState, _: Instant) {}
+
+    fn reset(&mut self, _: &ProgressState, _: Instant) {}
+
+    fn write(&self, state: &ProgressState, w: &mut dyn fmt::Write) {
+        (self)(state, w)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::state::{AtomicPosition, ProgressState, TabExpandedString};
+    use crate::state::{AtomicPosition, ProgressState};
+    use std::sync::Mutex;
+
+    #[test]
+    fn test_stateful_tracker() {
+        #[derive(Debug, Clone)]
+        struct TestTracker(Arc<Mutex<String>>);
+
+        impl ProgressTracker for TestTracker {
+            fn clone_box(&self) -> Box<dyn ProgressTracker> {
+                Box::new(self.clone())
+            }
+
+            fn tick(&mut self, state: &ProgressState, _: Instant) {
+                let mut m = self.0.lock().unwrap();
+                m.clear();
+                m.push_str(format!("{} {}", state.len().unwrap(), state.pos()).as_str());
+            }
+
+            fn reset(&mut self, _state: &ProgressState, _: Instant) {
+                let mut m = self.0.lock().unwrap();
+                m.clear();
+            }
+
+            fn write(&self, _state: &ProgressState, w: &mut dyn fmt::Write) {
+                w.write_str(self.0.lock().unwrap().as_str()).unwrap()
+            }
+        }
+
+        use crate::ProgressBar;
+
+        let pb = ProgressBar::new(1);
+        pb.set_style(
+            ProgressStyle::with_template("{{ {foo} }}")
+                .unwrap()
+                .with_key("foo", TestTracker(Arc::new(Mutex::new(String::default()))))
+                .progress_chars("#>-"),
+        );
+
+        let mut buf = Vec::new();
+        let style = pb.clone().style();
+
+        style.format_state(&pb.state().state, &mut buf, 16);
+        assert_eq!(&buf[0], "{  }");
+        buf.clear();
+        pb.inc(1);
+        style.format_state(&pb.state().state, &mut buf, 16);
+        assert_eq!(&buf[0], "{ 1 1 }");
+        pb.reset();
+        buf.clear();
+        style.format_state(&pb.state().state, &mut buf, 16);
+        assert_eq!(&buf[0], "{  }");
+        pb.finish_and_clear();
+    }
+
+    use crate::state::TabExpandedString;
 
     #[test]
     fn test_expand_template() {
@@ -706,8 +806,14 @@ mod tests {
         let mut buf = Vec::new();
 
         let mut style = ProgressStyle::default_bar();
-        style.format_map.insert("foo", |_| "FOO".into());
-        style.format_map.insert("bar", |_| "BAR".into());
+        style.format_map.insert(
+            "foo",
+            Box::new(|_: &ProgressState, w: &mut dyn Write| write!(w, "FOO").unwrap()),
+        );
+        style.format_map.insert(
+            "bar",
+            Box::new(|_: &ProgressState, w: &mut dyn Write| write!(w, "BAR").unwrap()),
+        );
 
         style.template = Template::from_str("{{ {foo} {bar} }}").unwrap();
         style.format_state(&state, &mut buf, WIDTH);
@@ -730,7 +836,10 @@ mod tests {
         let mut buf = Vec::new();
 
         let mut style = ProgressStyle::default_bar();
-        style.format_map.insert("foo", |_| "XXX".into());
+        style.format_map.insert(
+            "foo",
+            Box::new(|_: &ProgressState, w: &mut dyn Write| write!(w, "XXX").unwrap()),
+        );
 
         style.template = Template::from_str("{foo:5}").unwrap();
         style.format_state(&state, &mut buf, WIDTH);

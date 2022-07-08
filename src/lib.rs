@@ -225,7 +225,7 @@ mod progress_bar;
 #[cfg(feature = "rayon")]
 mod rayon;
 mod state;
-mod style;
+pub mod style;
 mod term_like;
 
 pub use crate::draw_target::ProgressDrawTarget;
