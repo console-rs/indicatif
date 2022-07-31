@@ -170,9 +170,7 @@ impl fmt::Display for HumanFloatCount {
         let frac_trimmed = frac_part.trim_end_matches('0');
         if !frac_trimmed.is_empty() {
             f.write_char('.')?;
-            for digit_char in frac_trimmed.chars().take(4) {
-                f.write_char(digit_char)?;
-            }
+            f.write_str(frac_trimmed)?;
         }
         Ok(())
     }
