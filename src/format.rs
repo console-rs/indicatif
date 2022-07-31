@@ -319,10 +319,16 @@ mod tests {
         assert_eq!("42", format!("{}", HumanFloatCount(42.0)));
         assert_eq!("7,654", format!("{}", HumanFloatCount(7654.0)));
         assert_eq!("12,345", format!("{}", HumanFloatCount(12345.0)));
-        assert_eq!("1,234,567,890", format!("{}", HumanFloatCount(1234567890.0)));
+        assert_eq!(
+            "1,234,567,890",
+            format!("{}", HumanFloatCount(1234567890.0))
+        );
         assert_eq!("42.5", format!("{}", HumanFloatCount(42.5)));
         assert_eq!("7,654.321", format!("{}", HumanFloatCount(7654.321)));
         assert_eq!("12,345.6789", format!("{}", HumanFloatCount(12345.6789)));
-        assert_eq!("1,234,567,890.1234", format!("{}", HumanFloatCount(1234567890.123456)));
+        assert_eq!(
+            "1,234,567,890.1234",
+            format!("{}", HumanFloatCount(1234567890.123456))
+        );
     }
 }

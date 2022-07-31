@@ -232,7 +232,8 @@ mod term_like;
 
 pub use crate::draw_target::ProgressDrawTarget;
 pub use crate::format::{
-    BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration, HumanFloatCount,
+    BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,
+    HumanFloatCount,
 };
 #[cfg(feature = "in_memory")]
 pub use crate::in_memory::InMemoryTerm;

@@ -8,7 +8,8 @@ use console::{measure_text_width, Style};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::format::{
-    BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanFloatCount, HumanDuration,
+    BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,
+    HumanFloatCount,
 };
 use crate::state::{ProgressState, TabExpandedString, DEFAULT_TAB_WIDTH};
 
