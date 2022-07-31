@@ -206,7 +206,7 @@
 //! assert_eq!("3.00 MiB", HumanBytes(3*1024*1024).to_string());
 //! assert_eq!("8 seconds", HumanDuration(Duration::from_secs(8)).to_string());
 //! assert_eq!("33,857,009", HumanCount(33857009).to_string());
-//! assert_eq!("33,857,009.1234", HumanFloatCount(33857009.123456).to_string());
+//! assert_eq!("33,857,009.1235", HumanFloatCount(33857009.123456).to_string());
 //! ```
 //!
 //! # Feature Flags

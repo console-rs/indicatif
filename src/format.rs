@@ -154,7 +154,7 @@ impl fmt::Display for HumanFloatCount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use fmt::Write;
 
-        let num = self.0.to_string();
+        let num = format!("{:.4}", self.0);
         let (int_part, frac_part) = match num.split_once('.') {
             Some((int_str, fract_str)) => (int_str.to_string(), fract_str),
             None => (self.0.trunc().to_string(), ""),
@@ -167,9 +167,10 @@ impl fmt::Display for HumanFloatCount {
                 f.write_char(',')?;
             }
         }
-        if !frac_part.is_empty() {
+        let frac_trimmed = frac_part.trim_end_matches('0');
+        if !frac_trimmed.is_empty() {
             f.write_char('.')?;
-            for digit_char in frac_part.chars().take(4) {
+            for digit_char in frac_trimmed.chars().take(4) {
                 f.write_char(digit_char)?;
             }
         }
@@ -324,11 +325,18 @@ mod tests {
             format!("{}", HumanFloatCount(1234567890.0))
         );
         assert_eq!("42.5", format!("{}", HumanFloatCount(42.5)));
+        assert_eq!("42.5", format!("{}", HumanFloatCount(42.500012345)));
+        assert_eq!("42.502", format!("{}", HumanFloatCount(42.502012345)));
         assert_eq!("7,654.321", format!("{}", HumanFloatCount(7654.321)));
+        assert_eq!("7,654.321", format!("{}", HumanFloatCount(7654.3210123456)));
         assert_eq!("12,345.6789", format!("{}", HumanFloatCount(12345.6789)));
         assert_eq!(
+            "1,234,567,890.1235",
+            format!("{}", HumanFloatCount(1234567890.1234567))
+        );
+        assert_eq!(
             "1,234,567,890.1234",
-            format!("{}", HumanFloatCount(1234567890.123456))
+            format!("{}", HumanFloatCount(1234567890.1234321))
         );
     }
 }
