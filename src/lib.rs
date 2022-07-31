@@ -201,7 +201,7 @@
 //!
 //! ```rust
 //! # use std::time::Duration;
-//! use indicatif::{HumanBytes, HumanCount, HumanDuration, HumanFloatCount      };
+//! use indicatif::{HumanBytes, HumanCount, HumanDuration, HumanFloatCount};
 //!
 //! assert_eq!("3.00 MiB", HumanBytes(3*1024*1024).to_string());
 //! assert_eq!("8 seconds", HumanDuration(Duration::from_secs(8)).to_string());
