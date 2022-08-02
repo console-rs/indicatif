@@ -359,23 +359,30 @@ impl ProgressStyle {
                     }
                 }
                 TemplatePart::Literal(s) => cur.push_str(s.expanded()),
-                TemplatePart::NewLine => lines.push(match wide {
-                    Some(inner) => {
-                        inner.expand(mem::take(&mut cur), self, state, &mut buf, target_width)
-                    }
-                    None => mem::take(&mut cur),
-                }),
+                TemplatePart::NewLine => {
+                    self.push_line(lines, &mut cur, state, &mut buf, target_width, &wide)
+                }
             }
         }
 
         if !cur.is_empty() {
-            lines.push(match wide {
-                Some(inner) => {
-                    inner.expand(mem::take(&mut cur), self, state, &mut buf, target_width)
-                }
-                None => mem::take(&mut cur),
-            })
+            self.push_line(lines, &mut cur, state, &mut buf, target_width, &wide);
         }
+    }
+
+    fn push_line(
+        &self,
+        lines: &mut Vec<String>,
+        cur: &mut String,
+        state: &ProgressState,
+        buf: &mut String,
+        target_width: u16,
+        wide: &Option<WideElement>,
+    ) {
+        lines.push(match wide {
+            Some(inner) => inner.expand(mem::take(cur), self, state, buf, target_width),
+            None => mem::take(cur),
+        });
     }
 }
 
