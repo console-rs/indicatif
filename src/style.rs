@@ -9,6 +9,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::format::{
     BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,
+    HumanFloatCount,
 };
 use crate::state::{ProgressState, TabExpandedString, DEFAULT_TAB_WIDTH};
 
@@ -300,7 +301,7 @@ impl ProgressStyle {
                                 .write_fmt(format_args!("{:#}", HumanDuration(state.elapsed())))
                                 .unwrap(),
                             "per_sec" => buf
-                                .write_fmt(format_args!("{:.4}/s", state.per_sec()))
+                                .write_fmt(format_args!("{}/s", HumanFloatCount(state.per_sec())))
                                 .unwrap(),
                             "bytes_per_sec" => buf
                                 .write_fmt(format_args!("{}/s", HumanBytes(state.per_sec() as u64)))

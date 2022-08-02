@@ -24,6 +24,7 @@
 //!   * [`BinaryBytes`](struct.BinaryBytes.html) for formatting bytes using ISO/IEC prefixes
 //!   * [`HumanDuration`](struct.HumanDuration.html) for formatting durations
 //!   * [`HumanCount`](struct.HumanCount.html) for formatting large counts
+//!   * [`HumanFloatCount`](struct.HumanFloatCount.html) for formatting large float counts
 //!
 //! # Progress Bars and Spinners
 //!
@@ -200,11 +201,12 @@
 //!
 //! ```rust
 //! # use std::time::Duration;
-//! use indicatif::{HumanBytes, HumanCount, HumanDuration};
+//! use indicatif::{HumanBytes, HumanCount, HumanDuration, HumanFloatCount};
 //!
 //! assert_eq!("3.00 MiB", HumanBytes(3*1024*1024).to_string());
 //! assert_eq!("8 seconds", HumanDuration(Duration::from_secs(8)).to_string());
 //! assert_eq!("33,857,009", HumanCount(33857009).to_string());
+//! assert_eq!("33,857,009.1235", HumanFloatCount(33857009.123456).to_string());
 //! ```
 //!
 //! # Feature Flags
@@ -231,6 +233,7 @@ mod term_like;
 pub use crate::draw_target::ProgressDrawTarget;
 pub use crate::format::{
     BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,
+    HumanFloatCount,
 };
 #[cfg(feature = "in_memory")]
 pub use crate::in_memory::InMemoryTerm;
