@@ -379,10 +379,23 @@ impl ProgressStyle {
         target_width: u16,
         wide: &Option<WideElement>,
     ) {
-        lines.push(match wide {
+        let expanded = match wide {
             Some(inner) => inner.expand(mem::take(cur), self, state, buf, target_width),
             None => mem::take(cur),
-        });
+        };
+
+        // If there are newlines, we need to split them up
+        // and add the lines separately so that they're counted
+        // correctly on re-render.
+        for (i, line) in expanded.split('\n').enumerate() {
+            // No newlines found in this case
+            if i == 0 && line.len() == expanded.len() {
+                lines.push(expanded);
+                break;
+            }
+
+            lines.push(line.to_string());
+        }
     }
 }
 
@@ -937,5 +950,43 @@ mod tests {
         state.message = TabExpandedString::NoTabs("foobar".into());
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m foobar \u{1b}[0m");
+    }
+
+    #[test]
+    fn multiline_handling() {
+        const WIDTH: u16 = 80;
+        let pos = Arc::new(AtomicPosition::new());
+        let mut state = ProgressState::new(Some(10), pos);
+        let mut buf = Vec::new();
+
+        let mut style = ProgressStyle::default_bar();
+        state.message = TabExpandedString::new("foo\nbar\nbaz".into(), 2);
+        style.template = Template::from_str("{msg}").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+
+        assert_eq!(buf.len(), 3);
+        assert_eq!(&buf[0], "foo");
+        assert_eq!(&buf[1], "bar");
+        assert_eq!(&buf[2], "baz");
+
+        buf.clear();
+        style.template = Template::from_str("{wide_msg}").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+
+        assert_eq!(buf.len(), 3);
+        assert_eq!(&buf[0], "foo");
+        assert_eq!(&buf[1], "bar");
+        assert_eq!(&buf[2], "baz");
+
+        buf.clear();
+        state.prefix = TabExpandedString::new("prefix\nprefix".into(), 2);
+        style.template = Template::from_str("{prefix} {wide_msg}").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+
+        assert_eq!(buf.len(), 4);
+        assert_eq!(&buf[0], "prefix");
+        assert_eq!(&buf[1], "prefix foo");
+        assert_eq!(&buf[2], "bar");
+        assert_eq!(&buf[3], "baz");
     }
 }
