@@ -84,9 +84,11 @@ impl BarState {
         }
     }
 
-    pub(crate) fn update(&mut self, now: Instant, f: impl FnOnce(&mut ProgressState)) {
+    pub(crate) fn update(&mut self, now: Instant, f: impl FnOnce(&mut ProgressState), tick: bool) {
         f(&mut self.state);
-        self.tick(now);
+        if tick {
+            self.tick(now);
+        }
     }
 
     pub(crate) fn set_length(&mut self, now: Instant, len: u64) {
