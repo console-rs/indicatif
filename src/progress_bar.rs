@@ -201,7 +201,7 @@ impl ProgressBar {
     pub fn inc(&self, delta: u64) {
         self.pos.inc(delta);
         let now = Instant::now();
-        if self.pos.allow(now) {
+        if self.pos.allow(now) && self.ticker.lock().unwrap().is_none() {
             self.state().tick(now);
         }
     }
@@ -233,14 +233,15 @@ impl ProgressBar {
 
     /// Update the `ProgressBar`'s inner [`ProgressState`]
     pub fn update(&self, f: impl FnOnce(&mut ProgressState)) {
-        self.state().update(Instant::now(), f)
+        self.state()
+            .update(Instant::now(), f, self.ticker.lock().unwrap().is_none())
     }
 
     /// Sets the position of the progress bar
     pub fn set_position(&self, pos: u64) {
         self.pos.set(pos);
         let now = Instant::now();
-        if self.pos.allow(now) {
+        if self.pos.allow(now) && self.ticker.lock().unwrap().is_none() {
             self.state().tick(now);
         }
     }
