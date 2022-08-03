@@ -191,9 +191,13 @@ impl ProgressBar {
     ///
     /// This automatically happens on any other change to a progress bar.
     pub fn tick(&self) {
+        self.tick_inner(Instant::now());
+    }
+
+    fn tick_inner(&self, now: Instant) {
         // Only tick if a `Ticker` isn't installed
         if self.ticker.lock().unwrap().is_none() {
-            self.state().tick(Instant::now())
+            self.state().tick(now)
         }
     }
 
@@ -201,8 +205,8 @@ impl ProgressBar {
     pub fn inc(&self, delta: u64) {
         self.pos.inc(delta);
         let now = Instant::now();
-        if self.pos.allow(now) && self.ticker.lock().unwrap().is_none() {
-            self.state().tick(now);
+        if self.pos.allow(now) {
+            self.tick_inner(now);
         }
     }
 
@@ -241,8 +245,8 @@ impl ProgressBar {
     pub fn set_position(&self, pos: u64) {
         self.pos.set(pos);
         let now = Instant::now();
-        if self.pos.allow(now) && self.ticker.lock().unwrap().is_none() {
-            self.state().tick(now);
+        if self.pos.allow(now) {
+            self.tick_inner(now);
         }
     }
 
