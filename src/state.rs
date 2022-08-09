@@ -139,7 +139,7 @@ impl BarState {
 
         let mut draw_state = drawable.state();
         draw_state.lines.extend(msg.lines().map(Into::into));
-        draw_state.orphan_lines = draw_state.lines.len();
+        draw_state.orphan_lines_count = draw_state.lines.len();
         if !matches!(self.state.status, Status::DoneHidden) {
             self.style
                 .format_state(&self.state, &mut draw_state.lines, width);
