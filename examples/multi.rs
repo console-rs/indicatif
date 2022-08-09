@@ -48,7 +48,7 @@ fn main() {
     });
 
     let m_clone = m.clone();
-    let _ = thread::spawn(move || {
+    let h3 = thread::spawn(move || {
         for i in 0..1024 {
             pb3.set_message(format!("item #{}", i + 1));
             pb3.inc(1);
@@ -60,5 +60,6 @@ fn main() {
 
     let _ = h1.join();
     let _ = h2.join();
+    let _ = h3.join();
     m.clear().unwrap();
 }
