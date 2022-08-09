@@ -324,8 +324,8 @@ impl std::ops::DerefMut for DrawStateWrapper<'_> {
 impl Drop for DrawStateWrapper<'_> {
     fn drop(&mut self) {
         if let Some(orphaned) = &mut self.orphan_lines {
-            orphaned.extend(self.state.lines.drain(..self.state.orphan_lines));
-            self.state.orphan_lines = 0;
+            orphaned.extend(self.state.lines.drain(..self.state.orphan_lines_count));
+            self.state.orphan_lines_count = 0;
         }
     }
 }
@@ -385,7 +385,7 @@ pub(crate) struct DrawState {
     /// The lines to print (can contain ANSI codes)
     pub(crate) lines: Vec<String>,
     /// The number of lines that shouldn't be reaped by the next tick.
-    pub(crate) orphan_lines: usize,
+    pub(crate) orphan_lines_count: usize,
     /// True if we should move the cursor up when possible instead of clearing lines.
     pub(crate) move_cursor: bool,
     /// Controls how the multi progress is aligned if some of its progress bars get removed, default is `Top`
@@ -444,13 +444,13 @@ impl DrawState {
         }
 
         term.flush()?;
-        *last_line_count = self.lines.len() - self.orphan_lines + shift;
+        *last_line_count = self.lines.len() - self.orphan_lines_count + shift;
         Ok(())
     }
 
     fn reset(&mut self) {
         self.lines.clear();
-        self.orphan_lines = 0;
+        self.orphan_lines_count = 0;
     }
 }
 

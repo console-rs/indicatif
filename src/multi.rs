@@ -237,11 +237,11 @@ impl MultiState {
         };
 
         let mut draw_state = drawable.state();
-        draw_state.orphan_lines = orphan_lines_count;
+        draw_state.orphan_lines_count = orphan_lines_count;
 
         if let Some(extra_lines) = &extra_lines {
             draw_state.lines.extend_from_slice(extra_lines.as_slice());
-            draw_state.orphan_lines += extra_lines.len();
+            draw_state.orphan_lines_count += extra_lines.len();
         }
 
         // Make orphaned lines appear at the top, so they can be properly forgotten.
