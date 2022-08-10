@@ -334,6 +334,9 @@ fn ticker_drop() {
     let mut spinner: Option<ProgressBar> = None;
 
     for i in 0..5 {
+        let old_spinner = spinner.take();
+        drop(old_spinner);
+
         let new_spinner = mp.add(
             ProgressBar::new_spinner()
                 .with_finish(ProgressFinish::AndLeave)
