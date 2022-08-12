@@ -186,7 +186,8 @@ pub(crate) struct MultiState {
     move_cursor: bool,
     /// Controls how the multi progress is aligned if some of its progress bars get removed, default is `Top`
     alignment: MultiProgressAlignment,
-    /// Orphaned lines are carried over across draw operations
+    /// Lines to be drawn above everything else in the MultiProgress. These specifically come from
+    /// calling `ProgressBar::println` on a pb that is connected to a `MultiProgress`.
     orphan_lines: Vec<String>,
 }
 
