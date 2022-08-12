@@ -1,12 +1,11 @@
 use std::fmt::{Debug, Formatter};
 use std::io;
-use std::sync::{Arc, Mutex, RwLock, Weak};
+use std::sync::{Arc, RwLock};
 use std::thread::panicking;
 use std::time::Instant;
 
-use crate::draw_target::{DrawState, DrawStateWrapper, ProgressDrawTarget};
+use crate::draw_target::{DrawState, DrawStateWrapper, LineAdjust, ProgressDrawTarget};
 use crate::progress_bar::ProgressBar;
-use crate::state::BarState;
 
 /// Manages multiple progress bars from different threads
 #[derive(Debug, Clone)]
@@ -135,7 +134,6 @@ impl MultiProgress {
 
         let idx = state.insert(location);
         pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
-        state.members.get_mut(idx).unwrap().pb = pb.weak_bar_state();
         pb
     }
 
@@ -189,6 +187,8 @@ pub(crate) struct MultiState {
     /// Lines to be drawn above everything else in the MultiProgress. These specifically come from
     /// calling `ProgressBar::println` on a pb that is connected to a `MultiProgress`.
     orphan_lines: Vec<String>,
+    /// The count of currently visible zombie lines.
+    zombie_lines_count: usize,
 }
 
 impl MultiState {
@@ -201,7 +201,34 @@ impl MultiState {
             move_cursor: false,
             alignment: Default::default(),
             orphan_lines: Vec::new(),
+            zombie_lines_count: 0,
         }
+    }
+
+    pub(crate) fn mark_zombie(&mut self, index: usize) {
+        let member = &mut self.members[index];
+
+        // If the zombie is the first visual bar then we can reap it right now instead of
+        // deferring it to the next draw.
+        if index != self.ordering.first().copied().unwrap() {
+            member.is_zombie = true;
+            return;
+        }
+
+        let line_count = member
+            .draw_state
+            .as_ref()
+            .map(|d| d.lines.len())
+            .unwrap_or_default();
+
+        // Track the total number of zombie lines on the screen
+        self.zombie_lines_count += line_count;
+
+        // Make `DrawTarget` forget about the zombie lines so that they aren't cleared on next draw.
+        self.draw_target
+            .adjust_last_line_count(LineAdjust::Keep(line_count));
+
+        self.remove_idx(index);
     }
 
     pub(crate) fn draw(
@@ -214,25 +241,44 @@ impl MultiState {
             return Ok(());
         }
 
-        // Reap all consecutive 'zombie' progress bars from head of the list
+        // Assumption: if extra_lines is not None, then it has at least one line
+        debug_assert_eq!(
+            extra_lines.is_some(),
+            extra_lines.as_ref().map(Vec::len).unwrap_or_default() > 0
+        );
+
+        let mut reap_indices = vec![];
+
+        // Reap all consecutive 'zombie' progress bars from head of the list.
         let mut adjust = 0;
-        while let Some(index) = self.ordering.first().copied() {
+        for &index in self.ordering.iter() {
             let member = &self.members[index];
             if !member.is_zombie {
                 break;
             }
 
-            adjust += member
+            let line_count = member
                 .draw_state
                 .as_ref()
                 .map(|d| d.lines.len())
                 .unwrap_or_default();
-            self.remove_idx(index);
+
+            // Track the total number of zombie lines on the screen.
+            self.zombie_lines_count += line_count;
+
+            // Track the number of zombie lines that will be drawn by this call to draw.
+            adjust += line_count;
+
+            reap_indices.push(index);
         }
 
-        // Adjust last line count so we don't clear too many lines
-        if let Some(last_line_count) = self.draw_target.last_line_count() {
-            *last_line_count -= adjust;
+        // If this draw is due to a `println`, then we need to erase all the zombie lines.
+        // This is because `println` is supposed to appear above all other elements in the
+        // `MultiProgress`.
+        if extra_lines.is_some() {
+            self.draw_target
+                .adjust_last_line_count(LineAdjust::Clear(self.zombie_lines_count));
+            self.zombie_lines_count = 0;
         }
 
         let orphan_lines_count = self.orphan_lines.len();
@@ -250,23 +296,31 @@ impl MultiState {
             draw_state.orphan_lines_count += extra_lines.len();
         }
 
-        // Make orphaned lines appear at the top, so they can be properly forgotten.
+        // Add lines from `ProgressBar::println` call.
         draw_state.lines.append(&mut self.orphan_lines);
 
         for index in self.ordering.iter() {
-            let member = &mut self.members[*index];
+            let member = &self.members[*index];
             if let Some(state) = &member.draw_state {
                 draw_state.lines.extend_from_slice(&state.lines[..]);
-            }
-
-            // Mark the dead progress bar as a zombie - will be reaped on next draw
-            if member.pb.upgrade().is_none() {
-                member.is_zombie = true;
             }
         }
 
         drop(draw_state);
-        drawable.draw()
+        let drawable = drawable.draw();
+
+        for index in reap_indices.drain(..) {
+            self.remove_idx(index);
+        }
+
+        // The zombie lines were drawn for the last time, so make `DrawTarget` forget about them
+        // so they aren't cleared on next draw.
+        if extra_lines.is_none() {
+            self.draw_target
+                .adjust_last_line_count(LineAdjust::Keep(adjust));
+        }
+
+        drawable
     }
 
     pub(crate) fn println<I: AsRef<str>>(&mut self, msg: I, now: Instant) -> io::Result<()> {
@@ -350,7 +404,12 @@ impl MultiState {
 
     fn clear(&mut self, now: Instant) -> io::Result<()> {
         match self.draw_target.drawable(true, now) {
-            Some(drawable) => drawable.clear(),
+            Some(mut drawable) => {
+                // Make the clear operation also wipe out zombie lines
+                drawable.adjust_last_line_count(LineAdjust::Clear(self.zombie_lines_count));
+                self.zombie_lines_count = 0;
+                drawable.clear()
+            }
             None => Ok(()),
         }
     }
@@ -381,8 +440,7 @@ struct MultiStateMember {
     /// Draw state will be `None` for members that haven't been drawn before, or for entries that
     /// correspond to something in the free set.
     draw_state: Option<DrawState>,
-    /// This will be a valid reference unless the containing member is actually in the free set.
-    pb: Weak<Mutex<BarState>>,
+    /// Whether the corresponding progress bar (more precisely, `BarState`) has been dropped.
     is_zombie: bool,
 }
 
