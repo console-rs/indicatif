@@ -117,6 +117,14 @@ impl ProgressDrawTarget {
         }
     }
 
+    /// Notifies the backing `MultiProgress` (if applicable) that the associated progress bar should
+    /// be marked a zombie.
+    pub(crate) fn mark_zombie(&self) {
+        if let TargetKind::Multi { idx, state } = &self.kind {
+            state.write().unwrap().mark_zombie(*idx);
+        }
+    }
+
     /// Apply the given draw state (draws it).
     pub(crate) fn drawable(&mut self, force_draw: bool, now: Instant) -> Option<Drawable<'_>> {
         match &mut self.kind {
@@ -188,8 +196,8 @@ impl ProgressDrawTarget {
         }
     }
 
-    pub(crate) fn last_line_count(&mut self) -> Option<&mut usize> {
-        self.kind.last_line_count()
+    pub(crate) fn adjust_last_line_count(&mut self, adjust: LineAdjust) {
+        self.kind.adjust_last_line_count(adjust);
     }
 }
 
@@ -214,15 +222,21 @@ enum TargetKind {
 }
 
 impl TargetKind {
-    fn last_line_count(&mut self) -> Option<&mut usize> {
-        match self {
+    /// Adjust `last_line_count` such that the next draw operation keeps/clears additional lines
+    fn adjust_last_line_count(&mut self, adjust: LineAdjust) {
+        let last_line_count: &mut usize = match self {
             TargetKind::Term {
                 last_line_count, ..
-            } => Some(last_line_count),
+            } => last_line_count,
             TargetKind::TermLike {
                 last_line_count, ..
-            } => Some(last_line_count),
-            _ => None,
+            } => last_line_count,
+            _ => return,
+        };
+
+        match adjust {
+            LineAdjust::Clear(count) => *last_line_count = last_line_count.saturating_add(count),
+            LineAdjust::Keep(count) => *last_line_count = last_line_count.saturating_sub(count),
         }
     }
 }
@@ -247,6 +261,24 @@ pub(crate) enum Drawable<'a> {
 }
 
 impl<'a> Drawable<'a> {
+    /// Adjust `last_line_count` such that the next draw operation keeps/clears additional lines
+    pub(crate) fn adjust_last_line_count(&mut self, adjust: LineAdjust) {
+        let last_line_count: &mut usize = match self {
+            Drawable::Term {
+                last_line_count, ..
+            } => last_line_count,
+            Drawable::TermLike {
+                last_line_count, ..
+            } => last_line_count,
+            _ => return,
+        };
+
+        match adjust {
+            LineAdjust::Clear(count) => *last_line_count = last_line_count.saturating_add(count),
+            LineAdjust::Keep(count) => *last_line_count = last_line_count.saturating_sub(count),
+        }
+    }
+
     pub(crate) fn state(&mut self) -> DrawStateWrapper<'_> {
         let mut state = match self {
             Drawable::Term { draw_state, .. } => DrawStateWrapper::for_term(draw_state),
@@ -284,6 +316,13 @@ impl<'a> Drawable<'a> {
             } => draw_state.draw_to_term(term_like, last_line_count),
         }
     }
+}
+
+pub(crate) enum LineAdjust {
+    /// Adds to `last_line_count` so that the next draw also clears those lines
+    Clear(usize),
+    /// Subtracts from `last_line_count` so that the next draw retains those lines
+    Keep(usize),
 }
 
 pub(crate) struct DrawStateWrapper<'a> {

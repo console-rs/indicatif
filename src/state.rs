@@ -184,12 +184,17 @@ impl BarState {
 
 impl Drop for BarState {
     fn drop(&mut self) {
-        // Progress bar is already finished.  Do not need to do anything.
+        // Progress bar is already finished.  Do not need to do anything other than notify
+        // the `MultiProgress` that we're now a zombie.
         if self.state.is_finished() {
+            self.draw_target.mark_zombie();
             return;
         }
 
         self.finish_using_style(Instant::now(), self.on_finish.clone());
+
+        // Notify the `MultiProgress` that we're now a zombie.
+        self.draw_target.mark_zombie();
     }
 }
 
