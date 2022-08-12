@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::io;
 use std::sync::{Arc, Mutex, RwLock, Weak};
+use std::thread::panicking;
 use std::time::Instant;
 
 use crate::draw_target::{DrawState, DrawStateWrapper, ProgressDrawTarget};
@@ -208,6 +209,10 @@ impl MultiState {
         extra_lines: Option<Vec<String>>,
         now: Instant,
     ) -> io::Result<()> {
+        if panicking() {
+            return Ok(());
+        }
+
         // Reap all consecutive 'zombie' progress bars from head of the list
         let mut adjust = 0;
         while let Some(index) = self.ordering.first().copied() {
