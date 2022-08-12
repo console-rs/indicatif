@@ -130,6 +130,14 @@ fn multi_progress_two_bars() {
     );
 
     drop(pb1);
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+██████████████████████████████████████████████████████████████████████████ 10/10
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/5"#
+            .trim_start()
+    );
+
     drop(pb2);
 
     assert_eq!(
@@ -177,7 +185,24 @@ fn multi_progress() {
     );
 
     drop(pb1);
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+██████████████████████████████████████████████████████████████████████████ 10/10
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/5
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/100"#
+            .trim_start()
+    );
+
     drop(pb2);
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+██████████████████████████████████████████████████████████████████████████ 10/10
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/100"#
+            .trim_start()
+    );
+
     drop(pb3);
 
     assert_eq!(
@@ -397,7 +422,7 @@ fn multi_progress_prune_zombies() {
     drop(pb0);
 
     // Clear the screen
-    in_mem.reset();
+    mp.clear().unwrap();
 
     // Write a line that we expect to remain. This helps ensure the adjustment to last_line_count is
     // working as expected, and `MultiState` isn't erasing lines when it shouldn't.
@@ -467,9 +492,11 @@ fn multi_progress_prune_zombies_2() {
             .trim_start()
     );
 
-    in_mem.reset();
+    mp.clear().unwrap();
 
-    // Another sacrificial line we expect shouldn't be touched
+    assert_eq!(in_mem.contents(), "");
+
+    // A sacrificial line we expect shouldn't be touched
     in_mem.write_line("don't erase plz").unwrap();
 
     mp.println("Test friend :)").unwrap();
@@ -492,18 +519,34 @@ Test friend :)
     );
 
     drop(pb4);
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+don't erase plz
+Test friend :)
+████████████████████████████████████████████████████████████████████████ 500/500"#
+            .trim_start()
+    );
 
-    in_mem.reset();
+    mp.clear().unwrap();
+    assert_eq!(in_mem.contents(), "don't erase plz\nTest friend :)");
+
     pb5.tick();
     assert_eq!(
         in_mem.contents(),
-        "░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/7"
+        r#"
+don't erase plz
+Test friend :)
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/7"#
+            .trim_start()
     );
 
     mp.println("not your friend, buddy").unwrap();
     assert_eq!(
         in_mem.contents(),
         r#"
+don't erase plz
+Test friend :)
 not your friend, buddy
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/7"#
             .trim_start()
@@ -513,18 +556,23 @@ not your friend, buddy
     assert_eq!(
         in_mem.contents(),
         r#"
+don't erase plz
+Test friend :)
 not your friend, buddy
 ██████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 1/7"#
             .trim_start()
     );
 
-    in_mem.reset();
+    mp.clear().unwrap();
     in_mem.write_line("don't erase me either").unwrap();
 
     pb5.inc(1);
     assert_eq!(
         in_mem.contents(),
         r#"
+don't erase plz
+Test friend :)
+not your friend, buddy
 don't erase me either
 █████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 2/7"#
             .trim_start()
@@ -532,7 +580,15 @@ don't erase me either
 
     drop(pb5);
 
-    assert_eq!(in_mem.contents(), "don't erase me either");
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+don't erase plz
+Test friend :)
+not your friend, buddy
+don't erase me either"#
+            .trim_start()
+    );
 }
 
 #[test]
