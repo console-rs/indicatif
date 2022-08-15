@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{self, Write};
 use std::mem;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use console::{measure_text_width, Style};
@@ -21,7 +22,7 @@ pub struct ProgressStyle {
     // how unicode-big each char in progress_chars is
     char_width: usize,
     tab_width: usize,
-    pub(crate) format_map: HashMap<&'static str, Box<dyn ProgressTracker>>,
+    pub(crate) format_map: HashMap<&'static str, ArcTracker>,
 }
 
 #[cfg(feature = "unicode-segmentation")]
@@ -143,7 +144,7 @@ impl ProgressStyle {
         key: &'static str,
         f: S,
     ) -> ProgressStyle {
-        self.format_map.insert(key, Box::new(f));
+        self.format_map.insert(key, ArcTracker::new(f));
         self
     }
 
@@ -707,8 +708,6 @@ enum Alignment {
 
 /// Trait for defining stateful or stateless formatters
 pub trait ProgressTracker: Send {
-    /// Creates a new instance of the progress tracker
-    fn clone_box(&self) -> Box<dyn ProgressTracker>;
     /// Notifies the progress tracker of a tick event
     fn tick(&mut self, state: &ProgressState, now: Instant);
     /// Notifies the progress tracker of a reset event
@@ -717,17 +716,7 @@ pub trait ProgressTracker: Send {
     fn write(&self, state: &ProgressState, w: &mut dyn fmt::Write);
 }
 
-impl Clone for Box<dyn ProgressTracker> {
-    fn clone(&self) -> Self {
-        self.clone_box()
-    }
-}
-
 impl<F: Fn(&ProgressState, &mut dyn fmt::Write) + Send + Clone + 'static> ProgressTracker for F {
-    fn clone_box(&self) -> Box<dyn ProgressTracker> {
-        Box::new(self.clone())
-    }
-
     fn tick(&mut self, _: &ProgressState, _: Instant) {}
 
     fn reset(&mut self, _: &ProgressState, _: Instant) {}
@@ -737,37 +726,62 @@ impl<F: Fn(&ProgressState, &mut dyn fmt::Write) + Send + Clone + 'static> Progre
     }
 }
 
+/// Temporary name
+pub struct ArcTracker {
+    pub(crate) tracker: Arc<Mutex<Box<dyn ProgressTracker>>>,
+}
+
+impl ArcTracker {
+    fn new<S: ProgressTracker + 'static>(tracker: S) -> Self {
+        Self { tracker: Arc::new(Mutex::new(Box::new(tracker))) }
+    }
+
+    pub(crate) fn reset(&mut self, state: &ProgressState, now: Instant) {
+        let mut tracker = self.tracker.lock().expect("mutex was poisoned");
+        tracker.reset(state, now);
+    }
+
+    pub(crate) fn tick(&mut self, state: &ProgressState, now: Instant) {
+        let mut tracker = self.tracker.lock().expect("mutex was poisoned");
+        tracker.tick(state, now);
+    }
+    
+    pub(crate) fn write(&self, state: &ProgressState, w: &mut dyn fmt::Write) {
+        let tracker = self.tracker.lock().expect("mutex was poisoned");
+        tracker.write(state, w);
+    }
+}
+
+impl Clone for ArcTracker {
+    fn clone(&self) -> Self {
+        Self { tracker: self.tracker.clone() }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
     use super::*;
     use crate::state::{AtomicPosition, ProgressState};
-    use std::sync::Mutex;
 
     #[test]
     fn test_stateful_tracker() {
         #[derive(Debug, Clone)]
-        struct TestTracker(Arc<Mutex<String>>);
+        struct TestTracker(String);
 
         impl ProgressTracker for TestTracker {
-            fn clone_box(&self) -> Box<dyn ProgressTracker> {
-                Box::new(self.clone())
-            }
-
             fn tick(&mut self, state: &ProgressState, _: Instant) {
-                let mut m = self.0.lock().unwrap();
-                m.clear();
-                m.push_str(format!("{} {}", state.len().unwrap(), state.pos()).as_str());
+                self.0.clear();
+                self.0.push_str(format!("{} {}", state.len().unwrap(), state.pos()).as_str());
             }
 
             fn reset(&mut self, _state: &ProgressState, _: Instant) {
-                let mut m = self.0.lock().unwrap();
-                m.clear();
+                self.0.clear();
             }
 
             fn write(&self, _state: &ProgressState, w: &mut dyn fmt::Write) {
-                w.write_str(self.0.lock().unwrap().as_str()).unwrap()
+                w.write_str(self.0.as_str()).unwrap()
             }
         }
 
@@ -777,7 +791,7 @@ mod tests {
         pb.set_style(
             ProgressStyle::with_template("{{ {foo} }}")
                 .unwrap()
-                .with_key("foo", TestTracker(Arc::new(Mutex::new(String::default()))))
+                .with_key("foo", TestTracker(String::default()))
                 .progress_chars("#>-"),
         );
 
@@ -809,11 +823,11 @@ mod tests {
         let mut style = ProgressStyle::default_bar();
         style.format_map.insert(
             "foo",
-            Box::new(|_: &ProgressState, w: &mut dyn Write| write!(w, "FOO").unwrap()),
+            ArcTracker::new(|_: &ProgressState, w: &mut dyn Write| write!(w, "FOO").unwrap()),
         );
         style.format_map.insert(
             "bar",
-            Box::new(|_: &ProgressState, w: &mut dyn Write| write!(w, "BAR").unwrap()),
+            ArcTracker::new(|_: &ProgressState, w: &mut dyn Write| write!(w, "BAR").unwrap()),
         );
 
         style.template = Template::from_str("{{ {foo} {bar} }}").unwrap();
@@ -839,7 +853,7 @@ mod tests {
         let mut style = ProgressStyle::default_bar();
         style.format_map.insert(
             "foo",
-            Box::new(|_: &ProgressState, w: &mut dyn Write| write!(w, "XXX").unwrap()),
+            ArcTracker::new(|_: &ProgressState, w: &mut dyn Write| write!(w, "XXX").unwrap()),
         );
 
         style.template = Template::from_str("{foo:5}").unwrap();
