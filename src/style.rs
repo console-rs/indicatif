@@ -727,8 +727,8 @@ impl<F: Fn(&ProgressState, &mut dyn fmt::Write) + Send + Clone + 'static> Progre
 }
 
 /// Temporary name
-pub struct ArcTracker {
-    pub(crate) tracker: Arc<Mutex<Box<dyn ProgressTracker>>>,
+pub(crate) struct ArcTracker {
+    tracker: Arc<Mutex<Box<dyn ProgressTracker>>>,
 }
 
 impl ArcTracker {
