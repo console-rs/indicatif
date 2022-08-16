@@ -733,7 +733,9 @@ pub(crate) struct ArcTracker {
 
 impl ArcTracker {
     fn new<S: ProgressTracker + 'static>(tracker: S) -> Self {
-        Self { tracker: Arc::new(Mutex::new(Box::new(tracker))) }
+        Self {
+            tracker: Arc::new(Mutex::new(Box::new(tracker))),
+        }
     }
 
     pub(crate) fn reset(&mut self, state: &ProgressState, now: Instant) {
@@ -745,7 +747,7 @@ impl ArcTracker {
         let mut tracker = self.tracker.lock().expect("mutex was poisoned");
         tracker.tick(state, now);
     }
-    
+
     pub(crate) fn write(&self, state: &ProgressState, w: &mut dyn fmt::Write) {
         let tracker = self.tracker.lock().expect("mutex was poisoned");
         tracker.write(state, w);
@@ -754,7 +756,9 @@ impl ArcTracker {
 
 impl Clone for ArcTracker {
     fn clone(&self) -> Self {
-        Self { tracker: self.tracker.clone() }
+        Self {
+            tracker: self.tracker.clone(),
+        }
     }
 }
 
@@ -773,7 +777,8 @@ mod tests {
         impl ProgressTracker for TestTracker {
             fn tick(&mut self, state: &ProgressState, _: Instant) {
                 self.0.clear();
-                self.0.push_str(format!("{} {}", state.len().unwrap(), state.pos()).as_str());
+                self.0
+                    .push_str(format!("{} {}", state.len().unwrap(), state.pos()).as_str());
             }
 
             fn reset(&mut self, _state: &ProgressState, _: Instant) {
