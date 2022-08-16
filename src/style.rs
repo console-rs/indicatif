@@ -72,6 +72,9 @@ impl ProgressStyle {
         Self::new(Template::from_str("{spinner} {msg}").unwrap())
     }
 
+    /// Sets the template string for the progress bar
+    ///
+    /// Review the [list of template keys](../index.html#templates) for more information.
     pub fn with_template(template: &str) -> Result<Self, TemplateError> {
         Ok(Self::new(Template::from_str(template)?))
     }
@@ -149,7 +152,7 @@ impl ProgressStyle {
 
     /// Sets the template string for the progress bar
     ///
-    /// Review the [list of template keys](./index.html#templates) for more information.
+    /// Review the [list of template keys](../index.html#templates) for more information.
     pub fn template(mut self, s: &str) -> Result<ProgressStyle, TemplateError> {
         self.template = Template::from_str(s)?;
         Ok(self)
