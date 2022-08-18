@@ -709,7 +709,7 @@ enum Alignment {
 }
 
 /// Trait for defining stateful or stateless formatters
-pub trait ProgressTracker: Send {
+pub trait ProgressTracker: Send + Sync {
     /// Creates a new instance of the progress tracker
     fn clone_box(&self) -> Box<dyn ProgressTracker>;
     /// Notifies the progress tracker of a tick event
@@ -726,7 +726,10 @@ impl Clone for Box<dyn ProgressTracker> {
     }
 }
 
-impl<F: Fn(&ProgressState, &mut dyn fmt::Write) + Send + Clone + 'static> ProgressTracker for F {
+impl<F> ProgressTracker for F
+where
+    F: Fn(&ProgressState, &mut dyn fmt::Write) + Send + Sync + Clone + 'static,
+{
     fn clone_box(&self) -> Box<dyn ProgressTracker> {
         Box::new(self.clone())
     }
