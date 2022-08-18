@@ -20,14 +20,14 @@ pub struct ProgressDrawTarget {
 }
 
 impl ProgressDrawTarget {
-    /// Draw to a buffered stdout terminal at a max of 15 times a second.
+    /// Draw to a buffered stdout terminal at a max of 20 times a second.
     ///
     /// For more information see `ProgressDrawTarget::to_term`.
     pub fn stdout() -> ProgressDrawTarget {
         ProgressDrawTarget::term(Term::buffered_stdout(), 20)
     }
 
-    /// Draw to a buffered stderr terminal at a max of 15 times a second.
+    /// Draw to a buffered stderr terminal at a max of 20 times a second.
     ///
     /// This is the default draw target for progress bars.  For more
     /// information see `ProgressDrawTarget::to_term`.
