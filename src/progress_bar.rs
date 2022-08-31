@@ -59,7 +59,7 @@ impl ProgressBar {
     }
 
     /// Get a clone of the current progress bar style.
-    pub fn style(self) -> ProgressStyle {
+    pub fn style(&self) -> ProgressStyle {
         self.state().style.clone()
     }
 
