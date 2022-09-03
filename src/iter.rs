@@ -287,12 +287,6 @@ impl<W: io::Write> io::Write for ProgressBarIter<W> {
         self.it.flush()
     }
 
-    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
-        self.it.write_all(buf).map(|()| {
-            self.progress.inc(buf.len() as u64);
-        })
-    }
-
     // write_fmt can not be captured with reasonable effort.
     // as it uses write_all internally by default that should not be a problem.
     // fn write_fmt(&mut self, fmt: fmt::Arguments) -> io::Result<()>;
