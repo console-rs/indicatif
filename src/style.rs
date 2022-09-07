@@ -101,6 +101,9 @@ impl ProgressStyle {
     }
 
     /// Sets the tick character sequence for spinners
+    ///
+    /// Note that the last character is used as the [final tick string][Self::get_final_tick_str()].
+    /// At least two characters are required to provide a non-final and final state.
     pub fn tick_chars(mut self, s: &str) -> ProgressStyle {
         self.tick_strings = s.chars().map(|c| c.to_string().into()).collect();
         // Format bar will panic with some potentially confusing message, better to panic here
@@ -113,6 +116,9 @@ impl ProgressStyle {
     }
 
     /// Sets the tick string sequence for spinners
+    ///
+    /// Note that the last string is used as the [final tick string][Self::get_final_tick_str()].
+    /// At least two strings are required to provide a non-final and final state.
     pub fn tick_strings(mut self, s: &[&str]) -> ProgressStyle {
         self.tick_strings = s.iter().map(|s| s.to_string().into()).collect();
         // Format bar will panic with some potentially confusing message, better to panic here
