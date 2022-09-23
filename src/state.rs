@@ -622,8 +622,11 @@ mod tests {
         let mut est = Estimator::new(now);
         est.record(0, now);
         est.record(1, now);
+        assert_eq!(est.len(), 1);
         // Should not panic.
         est.record(0, now);
+        // Assert that the state of the estimator reset on rewind
+        assert_eq!(est.len(), 0);
 
         let pb = ProgressBar::hidden();
         pb.set_length(10);
