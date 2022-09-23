@@ -385,6 +385,11 @@ impl Estimator {
     fn record(&mut self, new: u64, now: Instant) {
         let delta = new.saturating_sub(self.prev.0);
         if delta == 0 || now < self.prev.1 {
+            // Reset on backwards seek to prevent breakage from seeking to the end for length determination
+            // See https://github.com/console-rs/indicatif/issues/480
+            if new < self.prev.0 {
+                self.reset(now);
+            }
             return;
         }
 
