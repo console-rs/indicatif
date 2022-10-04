@@ -15,6 +15,7 @@ rust-version = "1.56"
 [dependencies]
 console = { version = "0.15", default-features = false, features = ["ansi-parsing"] }
 number_prefix = "0.4"
+portable-atomic = "0.3.15"
 rayon = { version = "1.1", optional = true }
 tokio = { version = "1", optional = true, features = ["fs", "io-util"] }
 unicode-segmentation = { version = "1", optional = true }

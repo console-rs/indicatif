@@ -1,6 +1,6 @@
-use std::borrow::Cow;
 #[cfg(test)]
-use std::sync::atomic::{AtomicBool, Ordering};
+use portable_atomic::{AtomicBool, Ordering};
+use std::borrow::Cow;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
 use std::{fmt, io, thread};

@@ -1,8 +1,9 @@
 use std::borrow::Cow;
-use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{fmt, io};
+
+use portable_atomic::{AtomicU64, AtomicU8, Ordering};
 
 use crate::draw_target::ProgressDrawTarget;
 use crate::style::ProgressStyle;
