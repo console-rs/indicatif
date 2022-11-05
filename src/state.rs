@@ -245,7 +245,7 @@ impl ProgressState {
     pub fn fraction(&self) -> f32 {
         let pos = self.pos.pos.load(Ordering::Relaxed);
         let pct = match (pos, self.len) {
-            (_, None) => 1.0,
+            (_, None) => 0.0,
             (_, Some(0)) => 1.0,
             (0, _) => 0.0,
             (pos, Some(len)) => pos as f32 / len as f32,
