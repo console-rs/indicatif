@@ -61,6 +61,39 @@ fn progress_bar_builder_method_order() {
 }
 
 #[test]
+fn progress_bar_percent_with_no_length() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let pb = ProgressBar::with_draw_target(
+        None,
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    )
+    .with_style(ProgressStyle::with_template("{wide_bar} {percent}%").unwrap());
+
+    assert_eq!(in_mem.contents(), String::new());
+
+    pb.tick();
+
+    assert_eq!(
+        in_mem.contents(),
+        "░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0%"
+    );
+
+    pb.set_length(10);
+
+    pb.inc(1);
+    assert_eq!(
+        in_mem.contents(),
+        "███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 10%"
+    );
+
+    pb.finish();
+    assert_eq!(
+        in_mem.contents(),
+        "███████████████████████████████████████████████████████████████████████████ 100%"
+    );
+}
+
+#[test]
 fn multi_progress_single_bar_and_leave() {
     let in_mem = InMemoryTerm::new(10, 80);
     let mp =
