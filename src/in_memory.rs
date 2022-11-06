@@ -67,7 +67,7 @@ impl TermLike for InMemoryTerm {
                 .state
                 .lock()
                 .unwrap()
-                .write_str(&*format!("\x1b[{}A", n)),
+                .write_str(&format!("\x1b[{}A", n)),
         }
     }
 
@@ -78,7 +78,7 @@ impl TermLike for InMemoryTerm {
                 .state
                 .lock()
                 .unwrap()
-                .write_str(&*format!("\x1b[{}B", n)),
+                .write_str(&format!("\x1b[{}B", n)),
         }
     }
 
@@ -89,7 +89,7 @@ impl TermLike for InMemoryTerm {
                 .state
                 .lock()
                 .unwrap()
-                .write_str(&*format!("\x1b[{}C", n)),
+                .write_str(&format!("\x1b[{}C", n)),
         }
     }
 
@@ -100,7 +100,7 @@ impl TermLike for InMemoryTerm {
                 .state
                 .lock()
                 .unwrap()
-                .write_str(&*format!("\x1b[{}D", n)),
+                .write_str(&format!("\x1b[{}D", n)),
         }
     }
 
