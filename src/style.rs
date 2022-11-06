@@ -190,11 +190,7 @@ impl ProgressStyle {
         let entirely_filled = fill as usize;
         // 1 if the bar is not entirely empty or full (meaning we need to draw the "current"
         // character between the filled and "to do" segment), 0 otherwise.
-        let head = if fill > 0.0 && entirely_filled < width {
-            1
-        } else {
-            0
-        };
+        let head = usize::from(fill > 0.0 && entirely_filled < width);
 
         let cur = if head == 1 {
             // Number of fine-grained progress entries in progress_chars.
@@ -423,7 +419,7 @@ impl<'a> WideElement<'a> {
         buf: &mut String,
         width: u16,
     ) -> String {
-        let left = (width as usize).saturating_sub(measure_text_width(&*cur.replace('\x00', "")));
+        let left = (width as usize).saturating_sub(measure_text_width(&cur.replace('\x00', "")));
         match self {
             Self::Bar { alt_style } => cur.replace(
                 '\x00',
