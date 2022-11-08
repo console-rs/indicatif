@@ -38,14 +38,14 @@ impl ProgressDrawTarget {
     /// Draw to a buffered stdout terminal at a max of `refresh_rate` times a second.
     ///
     /// For more information see `ProgressDrawTarget::to_term`.
-    pub fn stdout_with_hz(refresh_rate: u8) -> ProgressDrawTarget {
+    pub fn stdout_with_hz<T: Into<f64>>(refresh_rate: T) -> ProgressDrawTarget {
         ProgressDrawTarget::term(Term::buffered_stdout(), refresh_rate)
     }
 
     /// Draw to a buffered stderr terminal at a max of `refresh_rate` times a second.
     ///
     /// For more information see `ProgressDrawTarget::to_term`.
-    pub fn stderr_with_hz(refresh_rate: u8) -> ProgressDrawTarget {
+    pub fn stderr_with_hz<T: Into<f64>>(refresh_rate: T) -> ProgressDrawTarget {
         ProgressDrawTarget::term(Term::buffered_stderr(), refresh_rate)
     }
 
@@ -63,7 +63,7 @@ impl ProgressDrawTarget {
     /// useless escape codes in that file.
     ///
     /// Will panic if refresh_rate is `Some(0)`. To disable rate limiting use `None` instead.
-    pub fn term(term: Term, refresh_rate: u8) -> ProgressDrawTarget {
+    pub fn term<T: Into<f64>>(term: Term, refresh_rate: T) -> ProgressDrawTarget {
         ProgressDrawTarget {
             kind: TargetKind::Term {
                 term,
@@ -378,9 +378,10 @@ struct RateLimiter {
 
 /// Rate limit but allow occasional bursts above desired rate
 impl RateLimiter {
-    fn new(rate: u8) -> Self {
+    /// New rate limiter with `rate` Hz limit
+    fn new<T: Into<f64>>(rate: T) -> Self {
         Self {
-            interval: 1000 / (rate as u16), // between 3 and 1000 milliseconds
+            interval: (1000.0 / rate.into()).round() as u16,
             capacity: MAX_BURST,
             prev: Instant::now(),
         }
