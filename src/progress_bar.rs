@@ -640,8 +640,7 @@ impl TickerControl {
                 break;
             }
 
-            state.state.tick = state.state.tick.saturating_add(1);
-            state.draw(false, Instant::now()).ok();
+            state.tick(Instant::now());
 
             drop(state); // Don't forget to drop the lock before sleeping
             drop(arc); // Also need to drop Arc otherwise BarState won't be dropped
