@@ -63,7 +63,7 @@ fn width(c: &[Box<str>]) -> usize {
 
 impl ProgressStyle {
     /// Returns the default progress bar style for bars
-    pub fn default_bar() -> ProgressStyle {
+    pub fn default_bar() -> Self {
         Self::new(Template::from_str("{wide_bar} {pos}/{len}").unwrap())
     }
 
@@ -104,7 +104,7 @@ impl ProgressStyle {
     ///
     /// Note that the last character is used as the [final tick string][Self::get_final_tick_str()].
     /// At least two characters are required to provide a non-final and final state.
-    pub fn tick_chars(mut self, s: &str) -> ProgressStyle {
+    pub fn tick_chars(mut self, s: &str) -> Self {
         self.tick_strings = s.chars().map(|c| c.to_string().into()).collect();
         // Format bar will panic with some potentially confusing message, better to panic here
         // with a message explicitly informing of the problem
@@ -119,7 +119,7 @@ impl ProgressStyle {
     ///
     /// Note that the last string is used as the [final tick string][Self::get_final_tick_str()].
     /// At least two strings are required to provide a non-final and final state.
-    pub fn tick_strings(mut self, s: &[&str]) -> ProgressStyle {
+    pub fn tick_strings(mut self, s: &[&str]) -> Self {
         self.tick_strings = s.iter().map(|s| s.to_string().into()).collect();
         // Format bar will panic with some potentially confusing message, better to panic here
         // with a message explicitly informing of the problem
@@ -134,7 +134,7 @@ impl ProgressStyle {
     ///
     /// You can pass more than three for a more detailed display.
     /// All passed grapheme clusters need to be of equal width.
-    pub fn progress_chars(mut self, s: &str) -> ProgressStyle {
+    pub fn progress_chars(mut self, s: &str) -> Self {
         self.progress_chars = segment(s);
         // Format bar will panic with some potentially confusing message, better to panic here
         // with a message explicitly informing of the problem
@@ -147,11 +147,7 @@ impl ProgressStyle {
     }
 
     /// Adds a custom key that owns a [`ProgressTracker`] to the template
-    pub fn with_key<S: ProgressTracker + 'static>(
-        mut self,
-        key: &'static str,
-        f: S,
-    ) -> ProgressStyle {
+    pub fn with_key<S: ProgressTracker + 'static>(mut self, key: &'static str, f: S) -> Self {
         self.format_map.insert(key, Box::new(f));
         self
     }
@@ -159,7 +155,7 @@ impl ProgressStyle {
     /// Sets the template string for the progress bar
     ///
     /// Review the [list of template keys](../index.html#templates) for more information.
-    pub fn template(mut self, s: &str) -> Result<ProgressStyle, TemplateError> {
+    pub fn template(mut self, s: &str) -> Result<Self, TemplateError> {
         self.template = Template::from_str(s)?;
         Ok(self)
     }
