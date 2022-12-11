@@ -590,7 +590,7 @@ impl Template {
     }
 
     fn set_tab_width(&mut self, new_tab_width: usize) {
-        for part in self.parts.iter_mut() {
+        for part in &mut self.parts {
             if let TemplatePart::Literal(s) = part {
                 s.set_tab_width(new_tab_width);
             }

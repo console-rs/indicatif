@@ -251,7 +251,7 @@ impl MultiState {
 
         // Reap all consecutive 'zombie' progress bars from head of the list.
         let mut adjust = 0;
-        for &index in self.ordering.iter() {
+        for &index in &self.ordering {
             let member = &self.members[index];
             if !member.is_zombie {
                 break;
@@ -299,7 +299,7 @@ impl MultiState {
         // Add lines from `ProgressBar::println` call.
         draw_state.lines.append(&mut self.orphan_lines);
 
-        for index in self.ordering.iter() {
+        for index in &self.ordering {
             let member = &self.members[*index];
             if let Some(state) = &member.draw_state {
                 draw_state.lines.extend_from_slice(&state.lines[..]);
@@ -309,7 +309,7 @@ impl MultiState {
         drop(draw_state);
         let drawable = drawable.draw();
 
-        for index in reap_indices.into_iter() {
+        for index in reap_indices {
             self.remove_idx(index);
         }
 
