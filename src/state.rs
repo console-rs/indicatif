@@ -348,7 +348,7 @@ impl TabExpandedString {
     }
 
     pub(crate) fn set_tab_width(&mut self, new_tab_width: usize) {
-        if let TabExpandedString::WithTabs {
+        if let Self::WithTabs {
             original,
             expanded,
             tab_width,

@@ -23,30 +23,30 @@ impl ProgressDrawTarget {
     /// Draw to a buffered stdout terminal at a max of 20 times a second.
     ///
     /// For more information see `ProgressDrawTarget::to_term`.
-    pub fn stdout() -> ProgressDrawTarget {
-        ProgressDrawTarget::term(Term::buffered_stdout(), 20)
+    pub fn stdout() -> Self {
+        Self::term(Term::buffered_stdout(), 20)
     }
 
     /// Draw to a buffered stderr terminal at a max of 20 times a second.
     ///
     /// This is the default draw target for progress bars.  For more
     /// information see `ProgressDrawTarget::to_term`.
-    pub fn stderr() -> ProgressDrawTarget {
-        ProgressDrawTarget::term(Term::buffered_stderr(), 20)
+    pub fn stderr() -> Self {
+        Self::term(Term::buffered_stderr(), 20)
     }
 
     /// Draw to a buffered stdout terminal at a max of `refresh_rate` times a second.
     ///
     /// For more information see `ProgressDrawTarget::to_term`.
-    pub fn stdout_with_hz(refresh_rate: u8) -> ProgressDrawTarget {
-        ProgressDrawTarget::term(Term::buffered_stdout(), refresh_rate)
+    pub fn stdout_with_hz(refresh_rate: u8) -> Self {
+        Self::term(Term::buffered_stdout(), refresh_rate)
     }
 
     /// Draw to a buffered stderr terminal at a max of `refresh_rate` times a second.
     ///
     /// For more information see `ProgressDrawTarget::to_term`.
-    pub fn stderr_with_hz(refresh_rate: u8) -> ProgressDrawTarget {
-        ProgressDrawTarget::term(Term::buffered_stderr(), refresh_rate)
+    pub fn stderr_with_hz(refresh_rate: u8) -> Self {
+        Self::term(Term::buffered_stderr(), refresh_rate)
     }
 
     pub(crate) fn new_remote(state: Arc<RwLock<MultiState>>, idx: usize) -> Self {
@@ -63,8 +63,8 @@ impl ProgressDrawTarget {
     /// useless escape codes in that file.
     ///
     /// Will panic if refresh_rate is `Some(0)`. To disable rate limiting use `None` instead.
-    pub fn term(term: Term, refresh_rate: u8) -> ProgressDrawTarget {
-        ProgressDrawTarget {
+    pub fn term(term: Term, refresh_rate: u8) -> Self {
+        Self {
             kind: TargetKind::Term {
                 term,
                 last_line_count: 0,
@@ -75,8 +75,8 @@ impl ProgressDrawTarget {
     }
 
     /// Draw to a boxed object that implements the [`TermLike`] trait.
-    pub fn term_like(term_like: Box<dyn TermLike>) -> ProgressDrawTarget {
-        ProgressDrawTarget {
+    pub fn term_like(term_like: Box<dyn TermLike>) -> Self {
+        Self {
             kind: TargetKind::TermLike {
                 inner: term_like,
                 last_line_count: 0,
@@ -88,8 +88,8 @@ impl ProgressDrawTarget {
     /// A hidden draw target.
     ///
     /// This forces a progress bar to be not rendered at all.
-    pub fn hidden() -> ProgressDrawTarget {
-        ProgressDrawTarget {
+    pub fn hidden() -> Self {
+        Self {
             kind: TargetKind::Hidden,
         }
     }
@@ -225,10 +225,10 @@ impl TargetKind {
     /// Adjust `last_line_count` such that the next draw operation keeps/clears additional lines
     fn adjust_last_line_count(&mut self, adjust: LineAdjust) {
         let last_line_count: &mut usize = match self {
-            TargetKind::Term {
+            Self::Term {
                 last_line_count, ..
             } => last_line_count,
-            TargetKind::TermLike {
+            Self::TermLike {
                 last_line_count, ..
             } => last_line_count,
             _ => return,

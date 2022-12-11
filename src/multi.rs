@@ -14,8 +14,8 @@ pub struct MultiProgress {
 }
 
 impl Default for MultiProgress {
-    fn default() -> MultiProgress {
-        MultiProgress::with_draw_target(ProgressDrawTarget::stderr())
+    fn default() -> Self {
+        Self::with_draw_target(ProgressDrawTarget::stderr())
     }
 }
 
@@ -25,13 +25,13 @@ impl MultiProgress {
     /// Progress bars added to this object by default draw directly to stderr, and refresh
     /// a maximum of 15 times a second. To change the refresh rate set the draw target to
     /// one with a different refresh rate.
-    pub fn new() -> MultiProgress {
-        MultiProgress::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Creates a new multi progress object with the given draw target.
-    pub fn with_draw_target(draw_target: ProgressDrawTarget) -> MultiProgress {
-        MultiProgress {
+    pub fn with_draw_target(draw_target: ProgressDrawTarget) -> Self {
+        Self {
             state: Arc::new(RwLock::new(MultiState::new(draw_target))),
         }
     }
