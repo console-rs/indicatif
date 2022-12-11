@@ -199,7 +199,7 @@ impl MultiState {
             ordering: vec![],
             draw_target,
             move_cursor: false,
-            alignment: Default::default(),
+            alignment: MultiProgressAlignment::default(),
             orphan_lines: Vec::new(),
             zombie_lines_count: 0,
         }
