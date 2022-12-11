@@ -250,7 +250,7 @@ impl ProgressState {
             (0, _) => 0.0,
             (pos, Some(len)) => pos as f32 / len as f32,
         };
-        pct.max(0.0).min(1.0)
+        pct.clamp(0.0, 1.0)
     }
 
     /// The expected ETA
