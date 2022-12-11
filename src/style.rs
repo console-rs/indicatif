@@ -474,7 +474,7 @@ impl Template {
                 (Literal, c) => (Literal, Some(c)),
                 (DoubleClose, '}') => (Literal, None),
                 (MaybeOpen, '{') => (Literal, Some('{')),
-                (MaybeOpen, c) | (Key, c) if c.is_ascii_whitespace() => {
+                (MaybeOpen | Key, c) if c.is_ascii_whitespace() => {
                     // If we find whitespace where the variable key is supposed to go,
                     // backtrack and act as if this was a literal.
                     buf.push(c);
@@ -515,7 +515,7 @@ impl Template {
                     (Width, None)
                 }
                 (Align, c @ '0'..='9') => (Width, Some(c)),
-                (Align, '!') | (Width, '!') => {
+                (Align | Width, '!') => {
                     if let Some(TemplatePart::Placeholder { truncate, .. }) = parts.last_mut() {
                         *truncate = true;
                     }
@@ -538,7 +538,7 @@ impl Template {
                 (MaybeOpen, Key) if !buf.is_empty() => parts.push(TemplatePart::Literal(
                     TabExpandedString::new(mem::take(&mut buf).into(), tab_width),
                 )),
-                (Key, Align) | (Key, Literal) if !buf.is_empty() => {
+                (Key, Align | Literal) if !buf.is_empty() => {
                     parts.push(TemplatePart::Placeholder {
                         key: mem::take(&mut buf),
                         align: Alignment::Left,
@@ -548,13 +548,13 @@ impl Template {
                         alt_style: None,
                     });
                 }
-                (Width, FirstStyle) | (Width, Literal) if !buf.is_empty() => {
+                (Width, FirstStyle | Literal) if !buf.is_empty() => {
                     if let Some(TemplatePart::Placeholder { width, .. }) = parts.last_mut() {
                         *width = Some(buf.parse().unwrap());
                         buf.clear();
                     }
                 }
-                (FirstStyle, AltStyle) | (FirstStyle, Literal) if !buf.is_empty() => {
+                (FirstStyle, AltStyle | Literal) if !buf.is_empty() => {
                     if let Some(TemplatePart::Placeholder { style, .. }) = parts.last_mut() {
                         *style = Some(Style::from_dotted_str(&buf));
                         buf.clear();
