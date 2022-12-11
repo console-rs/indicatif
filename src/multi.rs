@@ -309,7 +309,7 @@ impl MultiState {
         drop(draw_state);
         let drawable = drawable.draw();
 
-        for index in reap_indices.drain(..) {
+        for index in reap_indices.into_iter() {
             self.remove_idx(index);
         }
 
