@@ -55,7 +55,7 @@ impl BarState {
             }
             ProgressFinish::Abandon => {}
             ProgressFinish::AbandonWithMessage(msg) => {
-                self.state.message = TabExpandedString::new(msg, self.tab_width)
+                self.state.message = TabExpandedString::new(msg, self.tab_width);
             }
         }
 

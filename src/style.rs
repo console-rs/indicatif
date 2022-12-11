@@ -270,18 +270,18 @@ impl ProgressStyle {
                             "prefix" => buf.push_str(state.prefix.expanded()),
                             "pos" => buf.write_fmt(format_args!("{}", pos)).unwrap(),
                             "human_pos" => {
-                                buf.write_fmt(format_args!("{}", HumanCount(pos))).unwrap()
+                                buf.write_fmt(format_args!("{}", HumanCount(pos))).unwrap();
                             }
                             "len" => buf.write_fmt(format_args!("{}", len)).unwrap(),
                             "human_len" => {
-                                buf.write_fmt(format_args!("{}", HumanCount(len))).unwrap()
+                                buf.write_fmt(format_args!("{}", HumanCount(len))).unwrap();
                             }
                             "percent" => buf
                                 .write_fmt(format_args!("{:.*}", 0, state.fraction() * 100f32))
                                 .unwrap(),
                             "bytes" => buf.write_fmt(format_args!("{}", HumanBytes(pos))).unwrap(),
                             "total_bytes" => {
-                                buf.write_fmt(format_args!("{}", HumanBytes(len))).unwrap()
+                                buf.write_fmt(format_args!("{}", HumanBytes(len))).unwrap();
                             }
                             "decimal_bytes" => buf
                                 .write_fmt(format_args!("{}", DecimalBytes(pos)))
@@ -290,10 +290,10 @@ impl ProgressStyle {
                                 .write_fmt(format_args!("{}", DecimalBytes(len)))
                                 .unwrap(),
                             "binary_bytes" => {
-                                buf.write_fmt(format_args!("{}", BinaryBytes(pos))).unwrap()
+                                buf.write_fmt(format_args!("{}", BinaryBytes(pos))).unwrap();
                             }
                             "binary_total_bytes" => {
-                                buf.write_fmt(format_args!("{}", BinaryBytes(len))).unwrap()
+                                buf.write_fmt(format_args!("{}", BinaryBytes(len))).unwrap();
                             }
                             "elapsed_precise" => buf
                                 .write_fmt(format_args!("{}", FormattedDuration(state.elapsed())))
@@ -352,7 +352,7 @@ impl ProgressStyle {
                 }
                 TemplatePart::Literal(s) => cur.push_str(s.expanded()),
                 TemplatePart::NewLine => {
-                    self.push_line(lines, &mut cur, state, &mut buf, target_width, &wide)
+                    self.push_line(lines, &mut cur, state, &mut buf, target_width, &wide);
                 }
             }
         }
@@ -546,7 +546,7 @@ impl Template {
                         truncate: false,
                         style: None,
                         alt_style: None,
-                    })
+                    });
                 }
                 (Width, FirstStyle) | (Width, Literal) if !buf.is_empty() => {
                     if let Some(TemplatePart::Placeholder { width, .. }) = parts.last_mut() {
@@ -592,7 +592,7 @@ impl Template {
     fn set_tab_width(&mut self, new_tab_width: usize) {
         for part in self.parts.iter_mut() {
             if let TemplatePart::Literal(s) = part {
-                s.set_tab_width(new_tab_width)
+                s.set_tab_width(new_tab_width);
             }
         }
     }
@@ -757,7 +757,7 @@ where
     fn reset(&mut self, _: &ProgressState, _: Instant) {}
 
     fn write(&self, state: &ProgressState, w: &mut dyn fmt::Write) {
-        (self)(state, w)
+        (self)(state, w);
     }
 }
 
@@ -791,7 +791,7 @@ mod tests {
             }
 
             fn write(&self, _state: &ProgressState, w: &mut dyn fmt::Write) {
-                w.write_str(self.0.lock().unwrap().as_str()).unwrap()
+                w.write_str(self.0.lock().unwrap().as_str()).unwrap();
             }
         }
 
