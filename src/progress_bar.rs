@@ -567,7 +567,7 @@ impl WeakProgressBar {
     ///
     /// [`upgrade`]: WeakProgressBar::upgrade
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
 
     /// Attempts to upgrade the Weak pointer to a [`ProgressBar`], delaying dropping of the inner
