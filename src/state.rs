@@ -77,7 +77,7 @@ impl BarState {
             self.state.pos.reset(now);
             self.state.status = Status::InProgress;
 
-            for (_, tracker) in self.style.format_map.iter_mut() {
+            for tracker in self.style.format_map.values_mut() {
                 tracker.reset(&self.state, now);
             }
 
@@ -126,7 +126,7 @@ impl BarState {
         self.state.est.record(pos, now);
         let _ = self.draw(false, now);
 
-        for (_, tracker) in self.style.format_map.iter_mut() {
+        for tracker in self.style.format_map.values_mut() {
             tracker.tick(&self.state, now);
         }
     }
