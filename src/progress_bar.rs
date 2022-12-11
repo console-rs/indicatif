@@ -197,7 +197,7 @@ impl ProgressBar {
     fn tick_inner(&self, now: Instant) {
         // Only tick if a `Ticker` isn't installed
         if self.ticker.lock().unwrap().is_none() {
-            self.state().tick(now)
+            self.state().tick(now);
         }
     }
 
@@ -232,13 +232,13 @@ impl ProgressBar {
     /// [`suspend`]: ProgressBar::suspend
     /// [`MultiProgress`]: crate::MultiProgress
     pub fn println<I: AsRef<str>>(&self, msg: I) {
-        self.state().println(Instant::now(), msg.as_ref())
+        self.state().println(Instant::now(), msg.as_ref());
     }
 
     /// Update the `ProgressBar`'s inner [`ProgressState`]
     pub fn update(&self, f: impl FnOnce(&mut ProgressState)) {
         self.state()
-            .update(Instant::now(), f, self.ticker.lock().unwrap().is_none())
+            .update(Instant::now(), f, self.ticker.lock().unwrap().is_none());
     }
 
     /// Sets the position of the progress bar
@@ -252,12 +252,12 @@ impl ProgressBar {
 
     /// Sets the length of the progress bar
     pub fn set_length(&self, len: u64) {
-        self.state().set_length(Instant::now(), len)
+        self.state().set_length(Instant::now(), len);
     }
 
     /// Increase the length of the progress bar
     pub fn inc_length(&self, delta: u64) {
-        self.state().inc_length(Instant::now(), delta)
+        self.state().inc_length(Instant::now(), delta);
     }
 
     /// Sets the current prefix of the progress bar
@@ -294,17 +294,17 @@ impl ProgressBar {
     /// This can be useful if the progress bars made a large jump or was paused for a prolonged
     /// time.
     pub fn reset_eta(&self) {
-        self.state().reset(Instant::now(), Reset::Eta)
+        self.state().reset(Instant::now(), Reset::Eta);
     }
 
     /// Resets elapsed time
     pub fn reset_elapsed(&self) {
-        self.state().reset(Instant::now(), Reset::Elapsed)
+        self.state().reset(Instant::now(), Reset::Elapsed);
     }
 
     /// Resets all of the progress bar state
     pub fn reset(&self) {
-        self.state().reset(Instant::now(), Reset::All)
+        self.state().reset(Instant::now(), Reset::All);
     }
 
     /// Finishes the progress bar and leaves the current message
@@ -319,7 +319,7 @@ impl ProgressBar {
     /// [`ProgressStyle`]).
     pub fn finish_with_message(&self, msg: impl Into<Cow<'static, str>>) {
         self.state()
-            .finish_using_style(Instant::now(), ProgressFinish::WithMessage(msg.into()))
+            .finish_using_style(Instant::now(), ProgressFinish::WithMessage(msg.into()));
     }
 
     /// Finishes the progress bar and completely clears it
@@ -342,7 +342,7 @@ impl ProgressBar {
         self.state().finish_using_style(
             Instant::now(),
             ProgressFinish::AbandonWithMessage(msg.into()),
-        )
+        );
     }
 
     /// Finishes the progress bar using the behavior stored in the [`ProgressStyle`]
