@@ -150,7 +150,7 @@ fn main() {
 }
 
 /// The function guarantees to return the action, that is valid for the current tree.
-fn get_action<'a>(rng: &'a mut dyn RngCore, tree: &Mutex<Vec<&Elem>>) -> Option<Action> {
+fn get_action(rng: &mut dyn RngCore, tree: &Mutex<Vec<&Elem>>) -> Option<Action> {
     let elem_len = ELEMENTS.len() as u64;
     let list_len = tree.lock().unwrap().len() as u64;
     let sum_free = tree

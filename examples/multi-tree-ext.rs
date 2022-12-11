@@ -255,7 +255,7 @@ pub fn main() {
 }
 
 /// The function guarantees to return the action, that is valid for the current tree.
-fn get_action<'a>(rng: &'a mut dyn RngCore, items: &[&Item]) -> Action {
+fn get_action(rng: &mut dyn RngCore, items: &[&Item]) -> Action {
     let elem_idx = ELEM_IDX.load(Ordering::SeqCst);
     // the indices of those items, that not completed yet
     let uncompleted = items
