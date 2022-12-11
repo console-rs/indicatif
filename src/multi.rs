@@ -362,15 +362,12 @@ impl MultiState {
     }
 
     fn insert(&mut self, location: InsertLocation) -> usize {
-        let idx = match self.free_set.pop() {
-            Some(idx) => {
-                self.members[idx] = MultiStateMember::default();
-                idx
-            }
-            None => {
-                self.members.push(MultiStateMember::default());
-                self.members.len() - 1
-            }
+        let idx = if let Some(idx) = self.free_set.pop() {
+            self.members[idx] = MultiStateMember::default();
+            idx
+        } else {
+            self.members.push(MultiStateMember::default());
+            self.members.len() - 1
         };
 
         match location {
