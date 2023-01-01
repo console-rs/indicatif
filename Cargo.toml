@@ -17,7 +17,7 @@ console = { version = "0.15", default-features = false, features = ["ansi-parsin
 number_prefix = "0.4"
 portable-atomic = "0.3.15"
 rayon = { version = "1.1", optional = true }
-tokio = { version = "1", optional = true, features = ["fs", "io-util"] }
+tokio = { version = "1", optional = true, features = ["io-util"] }
 unicode-segmentation = { version = "1", optional = true }
 unicode-width = { version = "0.1", optional = true }
 vt100 = { version = "0.15.1", optional = true }
