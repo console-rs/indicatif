@@ -2,9 +2,13 @@
 use portable_atomic::{AtomicBool, Ordering};
 use std::borrow::Cow;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, Weak};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
 use std::{fmt, io, thread};
 
+#[cfg(target_arch = "wasm32")]
+use instant::Instant;
 #[cfg(test)]
 use once_cell::sync::Lazy;
 

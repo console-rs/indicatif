@@ -28,6 +28,9 @@ rand = "0.8"
 structopt = "0.3"
 tokio = { version = "1", features = ["fs", "time", "rt"] }
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+instant = "0.1"
+
 [features]
 default = ["unicode-width", "console/unicode-width"]
 improved_unicode = ["unicode-segmentation", "unicode-width", "console/unicode-width"]
