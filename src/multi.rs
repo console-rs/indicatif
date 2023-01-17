@@ -2,10 +2,13 @@ use std::fmt::{Debug, Formatter};
 use std::io;
 use std::sync::{Arc, RwLock};
 use std::thread::panicking;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
 use crate::draw_target::{DrawState, DrawStateWrapper, LineAdjust, ProgressDrawTarget};
 use crate::progress_bar::ProgressBar;
+#[cfg(target_arch = "wasm32")]
+use instant::Instant;
 
 /// Manages multiple progress bars from different threads
 #[derive(Debug, Clone)]

@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 use std::fmt::{self, Write};
 use std::mem;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
 use console::{measure_text_width, Style};
+#[cfg(target_arch = "wasm32")]
+use instant::Instant;
 #[cfg(feature = "unicode-segmentation")]
 use unicode_segmentation::UnicodeSegmentation;
 
