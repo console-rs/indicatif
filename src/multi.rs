@@ -64,6 +64,9 @@ impl MultiProgress {
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
+    ///
+    /// Adding a progress bar that is already a member of the `MultiProgress`
+    /// will have no effect.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::End, pb)
     }
@@ -76,6 +79,9 @@ impl MultiProgress {
     ///
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the end of the list.
+    ///
+    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// will have no effect.
     pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::Index(index), pb)
     }
@@ -89,6 +95,9 @@ impl MultiProgress {
     ///
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the start of the list.
+    ///
+    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// will have no effect.
     pub fn insert_from_back(&self, index: usize, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::IndexFromBack(index), pb)
     }
@@ -98,6 +107,9 @@ impl MultiProgress {
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
+    ///
+    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// will have no effect.
     pub fn insert_before(&self, before: &ProgressBar, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::Before(before.index().unwrap()), pb)
     }
@@ -107,6 +119,9 @@ impl MultiProgress {
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
+    ///
+    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// will have no effect.
     pub fn insert_after(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::After(after.index().unwrap()), pb)
     }
@@ -134,8 +149,9 @@ impl MultiProgress {
 
     fn internalize(&self, location: InsertLocation, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
-
         let idx = state.insert(location);
+        drop(state);
+
         pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
         pb
     }
@@ -652,5 +668,12 @@ mod tests {
         assert_eq!(state.ordering, vec![1]);
         assert_eq!(p0.index(), None);
         assert_eq!(p1.index().unwrap(), 1);
+    }
+
+    #[test]
+    fn mp_no_crash_double_add() {
+        let mp = MultiProgress::new();
+        let pb = mp.add(ProgressBar::new(10));
+        mp.add(pb);
     }
 }
