@@ -103,7 +103,7 @@ impl ProgressBar {
 
     /// A convenience builder-like function for a progress bar with a given elapsed time
     pub fn with_elapsed(self, elapsed: Duration) -> Self {
-        self.state().state.started = Instant::now() - elapsed;
+        self.state().state.started = Instant::now().checked_sub(elapsed).unwrap();
         self
     }
 

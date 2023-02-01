@@ -415,7 +415,10 @@ impl RateLimiter {
         // then make sure it does not exceed a maximum of `MAX_BURST`, then store it.
         self.capacity = Ord::min(MAX_BURST as u128, (self.capacity as u128) + new - 1) as u8;
         // Store `prev` for the next iteration after subtracting the `remainder`.
-        self.prev = now - Duration::from_nanos(remainder as u64);
+        // Just use `unwrap` here because it shouldn't be possible for this to underflow.
+        self.prev = now
+            .checked_sub(Duration::from_nanos(remainder as u64))
+            .unwrap();
         true
     }
 }
