@@ -3,8 +3,8 @@
 use std::time::Duration;
 
 use indicatif::{
-    InMemoryTerm, MultiProgress, ProgressBar, ProgressDrawTarget, ProgressFinish, ProgressStyle,
-    TermLike,
+    InMemoryTerm, MultiProgress, MultiProgressAlignment, ProgressBar, ProgressDrawTarget,
+    ProgressFinish, ProgressStyle, TermLike,
 };
 
 #[test]
@@ -892,4 +892,27 @@ fn multi_progress_multiline_msg() {
         r#"  test1 done!
   test2 done!"#
     );
+}
+
+#[test]
+fn multi_progress_bottom_alignment() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+    mp.set_alignment(MultiProgressAlignment::Bottom);
+
+    let pb1 = mp.add(ProgressBar::new_spinner().with_message("test1"));
+    let pb2 = mp.add(ProgressBar::new_spinner().with_message("test2"));
+
+    pb1.tick();
+    pb2.tick();
+    pb1.finish_and_clear();
+
+    assert_eq!(in_mem.contents(), "\n⠁ test2");
+
+    pb2.finish_and_clear();
+    // `InMemoryTerm::contents` normally gets rid of trailing newlines, so write some text to ensure
+    // the newlines are seen.
+    in_mem.write_line("anchor").unwrap();
+    assert_eq!(in_mem.contents(), "\n\nanchor");
 }

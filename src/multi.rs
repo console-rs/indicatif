@@ -293,6 +293,7 @@ impl MultiState {
 
         let mut draw_state = drawable.state();
         draw_state.orphan_lines_count = orphan_lines_count;
+        draw_state.alignment = self.alignment;
 
         if let Some(extra_lines) = &extra_lines {
             draw_state.lines.extend_from_slice(extra_lines.as_slice());
@@ -340,9 +341,10 @@ impl MultiState {
 
     pub(crate) fn draw_state(&mut self, idx: usize) -> DrawStateWrapper<'_> {
         let member = self.members.get_mut(idx).unwrap();
+        // alignment is handled by the `MultiProgress`'s underlying draw target, so there is no
+        // point in propagating it here.
         let state = member.draw_state.get_or_insert(DrawState {
             move_cursor: self.move_cursor,
-            alignment: self.alignment,
             ..Default::default()
         });
 
