@@ -1,3 +1,4 @@
+use clap::Parser;
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -9,7 +10,6 @@ use indicatif::{MultiProgress, MultiProgressAlignment, ProgressBar, ProgressStyl
 use once_cell::sync::Lazy;
 use rand::rngs::ThreadRng;
 use rand::{Rng, RngCore};
-use structopt::StructOpt;
 
 #[derive(Debug, Clone)]
 enum Action {
@@ -160,10 +160,9 @@ static ELEMENTS: Lazy<[Elem; 27]> = Lazy::new(|| {
     ]
 });
 
-#[derive(Debug, StructOpt)]
-#[structopt(setting = structopt::clap::AppSettings::ColoredHelp)]
+#[derive(Debug, Parser)]
 pub struct Config {
-    #[structopt(long)]
+    #[clap(long)]
     bottom_alignment: bool,
 }
 
@@ -178,7 +177,7 @@ pub struct Config {
 /// cargo run --example multi-tree-ext -- --bottom-alignment
 /// ```
 pub fn main() {
-    let conf: Config = Config::from_args();
+    let conf: Config = Config::parse();
     let mp = Arc::new(MultiProgress::new());
     let alignment = if conf.bottom_alignment {
         MultiProgressAlignment::Bottom
