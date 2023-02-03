@@ -63,44 +63,28 @@ impl TermLike for InMemoryTerm {
     fn move_cursor_up(&self, n: usize) -> std::io::Result<()> {
         match n {
             0 => Ok(()),
-            _ => self
-                .state
-                .lock()
-                .unwrap()
-                .write_str(&format!("\x1b[{}A", n)),
+            _ => self.state.lock().unwrap().write_str(&format!("\x1b[{n}A")),
         }
     }
 
     fn move_cursor_down(&self, n: usize) -> std::io::Result<()> {
         match n {
             0 => Ok(()),
-            _ => self
-                .state
-                .lock()
-                .unwrap()
-                .write_str(&format!("\x1b[{}B", n)),
+            _ => self.state.lock().unwrap().write_str(&format!("\x1b[{n}B")),
         }
     }
 
     fn move_cursor_right(&self, n: usize) -> std::io::Result<()> {
         match n {
             0 => Ok(()),
-            _ => self
-                .state
-                .lock()
-                .unwrap()
-                .write_str(&format!("\x1b[{}C", n)),
+            _ => self.state.lock().unwrap().write_str(&format!("\x1b[{n}C")),
         }
     }
 
     fn move_cursor_left(&self, n: usize) -> std::io::Result<()> {
         match n {
             0 => Ok(()),
-            _ => self
-                .state
-                .lock()
-                .unwrap()
-                .write_str(&format!("\x1b[{}D", n)),
+            _ => self.state.lock().unwrap().write_str(&format!("\x1b[{n}D")),
         }
     }
 

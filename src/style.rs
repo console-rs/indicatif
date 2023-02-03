@@ -271,11 +271,11 @@ impl ProgressStyle {
                             }
                             "msg" => buf.push_str(state.message.expanded()),
                             "prefix" => buf.push_str(state.prefix.expanded()),
-                            "pos" => buf.write_fmt(format_args!("{}", pos)).unwrap(),
+                            "pos" => buf.write_fmt(format_args!("{pos}")).unwrap(),
                             "human_pos" => {
                                 buf.write_fmt(format_args!("{}", HumanCount(pos))).unwrap();
                             }
-                            "len" => buf.write_fmt(format_args!("{}", len)).unwrap(),
+                            "len" => buf.write_fmt(format_args!("{len}")).unwrap(),
                             "human_len" => {
                                 buf.write_fmt(format_args!("{}", HumanCount(len))).unwrap();
                             }
@@ -344,7 +344,7 @@ impl ProgressStyle {
                                 Some(s) => cur
                                     .write_fmt(format_args!("{}", s.apply_to(padded)))
                                     .unwrap(),
-                                None => cur.write_fmt(format_args!("{}", padded)).unwrap(),
+                                None => cur.write_fmt(format_args!("{padded}")).unwrap(),
                             }
                         }
                         None => match style {

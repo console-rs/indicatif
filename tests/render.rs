@@ -395,7 +395,7 @@ fn ticker_drop() {
         let new_spinner = mp.add(
             ProgressBar::new_spinner()
                 .with_finish(ProgressFinish::AndLeave)
-                .with_message(format!("doing stuff {}", i)),
+                .with_message(format!("doing stuff {i}")),
         );
         new_spinner.enable_steady_tick(Duration::from_millis(100));
         spinner.replace(new_spinner);
