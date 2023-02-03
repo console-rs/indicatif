@@ -574,6 +574,8 @@ mod tests {
     use super::*;
     use crate::ProgressBar;
 
+    // https://github.com/rust-lang/rust-clippy/issues/10281
+    #[allow(clippy::uninlined_format_args)]
     #[test]
     fn test_time_per_step() {
         let test_rate = |items_per_second| {

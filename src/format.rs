@@ -49,9 +49,9 @@ impl fmt::Display for FormattedDuration {
         t /= 24;
         if t > 0 {
             let days = t;
-            write!(f, "{}d {:02}:{:02}:{:02}", days, hours, minutes, seconds)
+            write!(f, "{days}d {hours:02}:{minutes:02}:{seconds:02}")
         } else {
-            write!(f, "{:02}:{:02}:{:02}", hours, minutes, seconds)
+            write!(f, "{hours:02}:{minutes:02}:{seconds:02}")
         }
     }
 }
@@ -90,9 +90,9 @@ impl fmt::Display for HumanDuration {
         }
 
         match (f.alternate(), t) {
-            (true, _) => write!(f, "{}{}", t, alt),
-            (false, 1) => write!(f, "{} {}", t, name),
-            (false, _) => write!(f, "{} {}s", t, name),
+            (true, _) => write!(f, "{t}{alt}"),
+            (false, 1) => write!(f, "{t} {name}"),
+            (false, _) => write!(f, "{t} {name}s"),
         }
     }
 }
@@ -109,8 +109,8 @@ const UNITS: &[(Duration, &str, &str)] = &[
 impl fmt::Display for HumanBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match NumberPrefix::binary(self.0 as f64) {
-            NumberPrefix::Standalone(number) => write!(f, "{:.0}B", number),
-            NumberPrefix::Prefixed(prefix, number) => write!(f, "{:.2} {}B", number, prefix),
+            NumberPrefix::Standalone(number) => write!(f, "{number:.0}B"),
+            NumberPrefix::Prefixed(prefix, number) => write!(f, "{number:.2} {prefix}B"),
         }
     }
 }
@@ -118,8 +118,8 @@ impl fmt::Display for HumanBytes {
 impl fmt::Display for DecimalBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match NumberPrefix::decimal(self.0 as f64) {
-            NumberPrefix::Standalone(number) => write!(f, "{:.0}B", number),
-            NumberPrefix::Prefixed(prefix, number) => write!(f, "{:.2} {}B", number, prefix),
+            NumberPrefix::Standalone(number) => write!(f, "{number:.0}B"),
+            NumberPrefix::Prefixed(prefix, number) => write!(f, "{number:.2} {prefix}B"),
         }
     }
 }
@@ -127,8 +127,8 @@ impl fmt::Display for DecimalBytes {
 impl fmt::Display for BinaryBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match NumberPrefix::binary(self.0 as f64) {
-            NumberPrefix::Standalone(number) => write!(f, "{:.0}B", number),
-            NumberPrefix::Prefixed(prefix, number) => write!(f, "{:.2} {}B", number, prefix),
+            NumberPrefix::Standalone(number) => write!(f, "{number:.0}B"),
+            NumberPrefix::Prefixed(prefix, number) => write!(f, "{number:.2} {prefix}B"),
         }
     }
 }
@@ -185,10 +185,7 @@ mod tests {
     #[test]
     fn human_duration_alternate() {
         for (unit, _, alt) in UNITS {
-            assert_eq!(
-                format!("2{}", alt),
-                format!("{:#}", HumanDuration(2 * *unit))
-            );
+            assert_eq!(format!("2{alt}"), format!("{:#}", HumanDuration(2 * *unit)));
         }
     }
 
@@ -226,15 +223,15 @@ mod tests {
         // this one is actually done at 1.5 unit - half of the next smaller unit - epsilon
         // and should display the next smaller unit
         let d = HumanDuration(MINUTE + MINUTE / 2 - SECOND / 2 - MILLI);
-        assert_eq!("89 seconds", format!("{}", d));
+        assert_eq!("89 seconds", format!("{d}"));
         let d = HumanDuration(HOUR + HOUR / 2 - MINUTE / 2 - MILLI);
-        assert_eq!("89 minutes", format!("{}", d));
+        assert_eq!("89 minutes", format!("{d}"));
         let d = HumanDuration(DAY + DAY / 2 - HOUR / 2 - MILLI);
-        assert_eq!("35 hours", format!("{}", d));
+        assert_eq!("35 hours", format!("{d}"));
         let d = HumanDuration(WEEK + WEEK / 2 - DAY / 2 - MILLI);
-        assert_eq!("10 days", format!("{}", d));
+        assert_eq!("10 days", format!("{d}"));
         let d = HumanDuration(YEAR + YEAR / 2 - WEEK / 2 - MILLI);
-        assert_eq!("78 weeks", format!("{}", d));
+        assert_eq!("78 weeks", format!("{d}"));
     }
 
     #[test]
@@ -242,15 +239,15 @@ mod tests {
         // this one is actually done at 1.5 unit - half of the next smaller unit
         // and should still display "2 units"
         let d = HumanDuration(MINUTE + MINUTE / 2 - SECOND / 2);
-        assert_eq!("2 minutes", format!("{}", d));
+        assert_eq!("2 minutes", format!("{d}"));
         let d = HumanDuration(HOUR + HOUR / 2 - MINUTE / 2);
-        assert_eq!("2 hours", format!("{}", d));
+        assert_eq!("2 hours", format!("{d}"));
         let d = HumanDuration(DAY + DAY / 2 - HOUR / 2);
-        assert_eq!("2 days", format!("{}", d));
+        assert_eq!("2 days", format!("{d}"));
         let d = HumanDuration(WEEK + WEEK / 2 - DAY / 2);
-        assert_eq!("2 weeks", format!("{}", d));
+        assert_eq!("2 weeks", format!("{d}"));
         let d = HumanDuration(YEAR + YEAR / 2 - WEEK / 2);
-        assert_eq!("2 years", format!("{}", d));
+        assert_eq!("2 years", format!("{d}"));
     }
 
     #[test]
@@ -266,33 +263,33 @@ mod tests {
     #[test]
     fn human_duration_less_than_two_and_a_half_units() {
         let d = HumanDuration(2 * SECOND + SECOND / 2 - MILLI);
-        assert_eq!("2 seconds", format!("{}", d));
+        assert_eq!("2 seconds", format!("{d}"));
         let d = HumanDuration(2 * MINUTE + MINUTE / 2 - MILLI);
-        assert_eq!("2 minutes", format!("{}", d));
+        assert_eq!("2 minutes", format!("{d}"));
         let d = HumanDuration(2 * HOUR + HOUR / 2 - MILLI);
-        assert_eq!("2 hours", format!("{}", d));
+        assert_eq!("2 hours", format!("{d}"));
         let d = HumanDuration(2 * DAY + DAY / 2 - MILLI);
-        assert_eq!("2 days", format!("{}", d));
+        assert_eq!("2 days", format!("{d}"));
         let d = HumanDuration(2 * WEEK + WEEK / 2 - MILLI);
-        assert_eq!("2 weeks", format!("{}", d));
+        assert_eq!("2 weeks", format!("{d}"));
         let d = HumanDuration(2 * YEAR + YEAR / 2 - MILLI);
-        assert_eq!("2 years", format!("{}", d));
+        assert_eq!("2 years", format!("{d}"));
     }
 
     #[test]
     fn human_duration_two_and_a_half_units() {
         let d = HumanDuration(2 * SECOND + SECOND / 2);
-        assert_eq!("3 seconds", format!("{}", d));
+        assert_eq!("3 seconds", format!("{d}"));
         let d = HumanDuration(2 * MINUTE + MINUTE / 2);
-        assert_eq!("3 minutes", format!("{}", d));
+        assert_eq!("3 minutes", format!("{d}"));
         let d = HumanDuration(2 * HOUR + HOUR / 2);
-        assert_eq!("3 hours", format!("{}", d));
+        assert_eq!("3 hours", format!("{d}"));
         let d = HumanDuration(2 * DAY + DAY / 2);
-        assert_eq!("3 days", format!("{}", d));
+        assert_eq!("3 days", format!("{d}"));
         let d = HumanDuration(2 * WEEK + WEEK / 2);
-        assert_eq!("3 weeks", format!("{}", d));
+        assert_eq!("3 weeks", format!("{d}"));
         let d = HumanDuration(2 * YEAR + YEAR / 2);
-        assert_eq!("3 years", format!("{}", d));
+        assert_eq!("3 years", format!("{d}"));
     }
 
     #[test]

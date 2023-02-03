@@ -80,7 +80,7 @@ pub fn main() {
                 let pkg = PACKAGES.choose(&mut rng).unwrap();
                 for _ in 0..count {
                     let cmd = COMMANDS.choose(&mut rng).unwrap();
-                    pb.set_message(format!("{}: {}", pkg, cmd));
+                    pb.set_message(format!("{pkg}: {cmd}"));
                     pb.inc(1);
                     thread::sleep(Duration::from_millis(rng.gen_range(25..200)));
                 }
