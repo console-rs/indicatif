@@ -21,7 +21,7 @@ jobs:
             rust: beta
             features: --all-features
           - os: ubuntu-latest
-            rust: 1.56
+            rust: 1.58
             features: --features improved_unicode
           - os: ubuntu-latest
             rust: stable
