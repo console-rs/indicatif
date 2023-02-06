@@ -23,7 +23,7 @@ unicode-width = { version = "0.1", optional = true }
 vt100 = { version = "0.15.1", optional = true }
 
 [dev-dependencies]
-clap = { version = "3", features = ["color", "derive"] }
+clap = { version = "4", features = ["color", "derive"] }
 once_cell = "1"
 rand = "0.8"
 tokio = { version = "1", features = ["fs", "time", "rt"] }
