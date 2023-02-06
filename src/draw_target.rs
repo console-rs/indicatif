@@ -476,10 +476,11 @@ impl DrawState {
 
         let len = self.lines.len();
         for (idx, line) in self.lines.iter().enumerate() {
-            if idx + 1 != len {
+            if idx + 1 != len || self.lines.len() == self.orphan_lines_count {
                 term.write_line(line)?;
             } else {
-                // Don't append a '\n' if this is the last line
+                // Don't append a '\n' if this is the last line and we're not
+                // just going to orphan all the lines
                 term.write_str(line)?;
                 // Keep the cursor on the right terminal side
                 // So that next user writes/prints will happen on the next line
@@ -511,5 +512,18 @@ mod tests {
         let pb = mp.add(ProgressBar::new(100));
         assert!(mp.is_hidden());
         assert!(pb.is_hidden());
+    }
+
+    #[cfg(feature = "in_memory")]
+    #[test]
+    fn multi_progress_println_newline() {
+        let in_mem = crate::InMemoryTerm::new(10, 10);
+        let mp =
+            MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+        mp.println("This line is tooooooo long for the terminal\r\n").unwrap();
+        mp.println("but it should wrap correctly\r\n").unwrap();
+
+        assert_eq!(in_mem.contents(), "This line\nis toooooo\no long for\n the termi\nnal\nbut it sho\nuld wrap c\norrectly");
     }
 }
