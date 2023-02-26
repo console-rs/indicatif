@@ -58,8 +58,8 @@ pub fn main() {
     let deps = 1232;
     let pb = ProgressBar::new(deps);
     for _ in 0..deps {
-        pb.inc(1);
         thread::sleep(Duration::from_millis(3));
+        pb.inc(1);
     }
     pb.finish_and_clear();
 
@@ -80,9 +80,9 @@ pub fn main() {
                 let pkg = PACKAGES.choose(&mut rng).unwrap();
                 for _ in 0..count {
                     let cmd = COMMANDS.choose(&mut rng).unwrap();
+                    thread::sleep(Duration::from_millis(rng.gen_range(25..200)));
                     pb.set_message(format!("{pkg}: {cmd}"));
                     pb.inc(1);
-                    thread::sleep(Duration::from_millis(rng.gen_range(25..200)));
                 }
                 pb.finish_with_message("waiting...");
             })

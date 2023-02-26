@@ -18,8 +18,8 @@ fn main() {
         let pb2 = m.add(ProgressBar::new(128));
         pb2.set_style(sty.clone());
         for _ in 0..128 {
-            pb2.inc(1);
             thread::sleep(Duration::from_millis(5));
+            pb2.inc(1);
         }
         pb2.finish();
         pb.inc(1);
