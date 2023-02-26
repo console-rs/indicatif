@@ -110,6 +110,7 @@ fn main() {
         let mut rng = ThreadRng::default();
         pb_main.tick();
         loop {
+            thread::sleep(Duration::from_millis(15));
             match get_action(&mut rng, &tree) {
                 None => {
                     // all elements were exhausted
@@ -137,7 +138,6 @@ fn main() {
                     pb_main.inc(1);
                 }
             }
-            thread::sleep(Duration::from_millis(15));
         }
     })
     .join();
