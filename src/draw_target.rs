@@ -26,7 +26,7 @@ pub struct ProgressDrawTarget {
 impl ProgressDrawTarget {
     /// Draw to a buffered stdout terminal at a max of 20 times a second.
     ///
-    /// For more information see `ProgressDrawTarget::to_term`.
+    /// For more information see [`ProgressDrawTarget::term`].
     pub fn stdout() -> Self {
         Self::term(Term::buffered_stdout(), 20)
     }
@@ -34,21 +34,21 @@ impl ProgressDrawTarget {
     /// Draw to a buffered stderr terminal at a max of 20 times a second.
     ///
     /// This is the default draw target for progress bars.  For more
-    /// information see `ProgressDrawTarget::to_term`.
+    /// information see [`ProgressDrawTarget::term`].
     pub fn stderr() -> Self {
         Self::term(Term::buffered_stderr(), 20)
     }
 
     /// Draw to a buffered stdout terminal at a max of `refresh_rate` times a second.
     ///
-    /// For more information see `ProgressDrawTarget::to_term`.
+    /// For more information see [`ProgressDrawTarget::term`].
     pub fn stdout_with_hz(refresh_rate: u8) -> Self {
         Self::term(Term::buffered_stdout(), refresh_rate)
     }
 
     /// Draw to a buffered stderr terminal at a max of `refresh_rate` times a second.
     ///
-    /// For more information see `ProgressDrawTarget::to_term`.
+    /// For more information see [`ProgressDrawTarget::term`].
     pub fn stderr_with_hz(refresh_rate: u8) -> Self {
         Self::term(Term::buffered_stderr(), refresh_rate)
     }
@@ -59,14 +59,14 @@ impl ProgressDrawTarget {
         }
     }
 
-    /// Draw to a terminal, optionally with a specific refresh rate.
+    /// Draw to a terminal, with a specific refresh rate.
     ///
     /// Progress bars are by default drawn to terminals however if the
     /// terminal is not user attended the entire progress bar will be
     /// hidden.  This is done so that piping to a file will not produce
     /// useless escape codes in that file.
     ///
-    /// Will panic if refresh_rate is `Some(0)`. To disable rate limiting use `None` instead.
+    /// Will panic if refresh_rate is `0`.
     pub fn term(term: Term, refresh_rate: u8) -> Self {
         Self {
             kind: TargetKind::Term {
