@@ -10,6 +10,8 @@ use instant::Instant;
 #[cfg(feature = "unicode-segmentation")]
 use unicode_segmentation::UnicodeSegmentation;
 
+use json;
+
 use crate::format::{
     BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,
     HumanFloatCount,
@@ -25,6 +27,7 @@ pub struct ProgressStyle {
     char_width: usize,
     tab_width: usize,
     pub(crate) format_map: HashMap<&'static str, Box<dyn ProgressTracker>>,
+    json_strings: bool,
 }
 
 #[cfg(feature = "unicode-segmentation")]
@@ -82,6 +85,12 @@ impl ProgressStyle {
         Ok(Self::new(Template::from_str(template)?))
     }
 
+    /// Set a template that will render a JSON object with the given keys,
+    /// and enable JSON escaping.
+    pub fn with_json_keys(keys: &[&str]) -> Result<Self, TemplateError> {
+        Ok(Self::new(Template::from_json_keys(keys)?).json_strings(true))
+    }
+
     pub(crate) fn set_tab_width(&mut self, new_tab_width: usize) {
         self.tab_width = new_tab_width;
         self.template.set_tab_width(new_tab_width);
@@ -100,7 +109,14 @@ impl ProgressStyle {
             template,
             format_map: HashMap::default(),
             tab_width: DEFAULT_TAB_WIDTH,
+            json_strings: false,
         }
+    }
+
+    /// Sets whether strings should be output as JSON strings.
+    pub fn json_strings(mut self, flag: bool) -> Self {
+        self.json_strings = flag;
+        self
     }
 
     /// Sets the tick character sequence for spinners
@@ -340,17 +356,41 @@ impl ProgressStyle {
                                 align: *align,
                                 truncate: *truncate,
                             };
-                            match style {
-                                Some(s) => cur
-                                    .write_fmt(format_args!("{}", s.apply_to(padded)))
-                                    .unwrap(),
-                                None => cur.write_fmt(format_args!("{padded}")).unwrap(),
+                            if self.json_strings {
+                                match style {
+                                    Some(s) => cur.push_str(&json::stringify(format!(
+                                        "{}",
+                                        s.apply_to(padded)
+                                    ))),
+                                    None => cur.push_str(&json::stringify(format!("{padded}"))),
+                                }
+                            } else {
+                                match style {
+                                    Some(s) => cur
+                                        .write_fmt(format_args!("{}", s.apply_to(padded)))
+                                        .unwrap(),
+                                    None => cur.write_fmt(format_args!("{padded}")).unwrap(),
+                                }
                             }
                         }
-                        None => match style {
-                            Some(s) => cur.write_fmt(format_args!("{}", s.apply_to(&buf))).unwrap(),
-                            None => cur.push_str(&buf),
-                        },
+                        None => {
+                            if self.json_strings {
+                                match style {
+                                    Some(s) => cur.push_str(&json::stringify(format!(
+                                        "{}",
+                                        s.apply_to(&buf)
+                                    ))),
+                                    None => cur.push_str(&json::stringify(buf.clone())),
+                                }
+                            } else {
+                                match style {
+                                    Some(s) => {
+                                        cur.write_fmt(format_args!("{}", s.apply_to(&buf))).unwrap()
+                                    }
+                                    None => cur.push_str(&buf),
+                                }
+                            }
+                        }
                     }
                 }
                 TemplatePart::Literal(s) => cur.push_str(s.expanded()),
@@ -590,6 +630,24 @@ impl Template {
 
     fn from_str(s: &str) -> Result<Self, TemplateError> {
         Self::from_str_with_tab_width(s, DEFAULT_TAB_WIDTH)
+    }
+
+    fn from_json_keys(keys: &[&str]) -> Result<Self, TemplateError> {
+        let json_template = keys
+            .iter()
+            .enumerate()
+            .map(|(i, k)| {
+                // Prefix first segment with JSON object opening brace,
+                // otherwise a key-value separator comma.
+                let prefix = if i == 0 { "{{" } else { ", " };
+                // Suffix last segment with JSON object closing brace,
+                // otherwise nothing (separator is in the prefix of the previous segment).
+                let suffix = if i == keys.len() - 1 { "}}" } else { "" };
+                format!("{prefix}\"{k}\": {{{k}}}{suffix}")
+            })
+            .collect::<Vec<String>>()
+            .join("");
+        Self::from_str_with_tab_width(&json_template, DEFAULT_TAB_WIDTH)
     }
 
     fn set_tab_width(&mut self, new_tab_width: usize) {
@@ -983,5 +1041,25 @@ mod tests {
         assert_eq!(&buf[1], "prefix foo");
         assert_eq!(&buf[2], "bar");
         assert_eq!(&buf[3], "baz");
+    }
+
+    #[test]
+    fn json_strings() {
+        const WIDTH: u16 = 80;
+        let pos = Arc::new(AtomicPosition::new());
+        let mut state = ProgressState::new(Some(10), pos);
+        let mut buf = Vec::new();
+        let style = ProgressStyle::with_json_keys(&["pos", "len", "prefix", "msg"]).unwrap();
+        let prefix = "a\ne\ni";
+        state.prefix = TabExpandedString::new(prefix.into(), 2);
+        let msg = "'ö\"";
+        state.message = TabExpandedString::new(msg.into(), 2);
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(buf.len(), 1);
+        let obj = json::parse(&buf[0]).unwrap();
+        assert_eq!(obj["pos"], "0");
+        assert_eq!(obj["len"], "10");
+        assert_eq!(obj["prefix"], prefix);
+        assert_eq!(obj["msg"], msg);
     }
 }

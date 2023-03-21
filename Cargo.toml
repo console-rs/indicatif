@@ -21,6 +21,7 @@ tokio = { version = "1", optional = true, features = ["io-util"] }
 unicode-segmentation = { version = "1", optional = true }
 unicode-width = { version = "0.1", optional = true }
 vt100 = { version = "0.15.1", optional = true }
+json = { version = "0.12.4" }
 
 [dev-dependencies]
 clap = { version = "3", features = ["color", "derive"] }
