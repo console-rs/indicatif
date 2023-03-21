@@ -84,6 +84,20 @@ impl ProgressDrawTarget {
             kind: TargetKind::TermLike {
                 inner: term_like,
                 last_line_count: 0,
+                rate_limiter: None,
+                draw_state: DrawState::default(),
+            },
+        }
+    }
+
+    /// Draw to a boxed object that implements the [`TermLike`] trait,
+    /// with a specific refresh rate.
+    pub fn term_like_with_hz(term_like: Box<dyn TermLike>, refresh_rate: u8) -> Self {
+        Self {
+            kind: TargetKind::TermLike {
+                inner: term_like,
+                last_line_count: 0,
+                rate_limiter: Option::from(RateLimiter::new(refresh_rate)),
                 draw_state: DrawState::default(),
             },
         }
@@ -163,12 +177,16 @@ impl ProgressDrawTarget {
             TargetKind::TermLike {
                 inner,
                 last_line_count,
+                rate_limiter,
                 draw_state,
-            } => Some(Drawable::TermLike {
-                term_like: &**inner,
-                last_line_count,
-                draw_state,
-            }),
+            } => match force_draw || rate_limiter.as_mut().map_or(true, |r| r.allow(now)) {
+                true => Some(Drawable::TermLike {
+                    term_like: &**inner,
+                    last_line_count,
+                    draw_state,
+                }),
+                false => None, // rate limited
+            },
             // Hidden, finished, or no need to refresh yet
             _ => None,
         }
@@ -221,6 +239,7 @@ enum TargetKind {
     TermLike {
         inner: Box<dyn TermLike>,
         last_line_count: usize,
+        rate_limiter: Option<RateLimiter>,
         draw_state: DrawState,
     },
 }
