@@ -53,6 +53,45 @@ impl InMemoryTerm {
         rows.reverse();
         rows.join("\n")
     }
+
+    pub fn contents_formatted(&self) -> Vec<u8> {
+        let state = self.state.lock().unwrap();
+
+        // For some reason, the `Screen::contents` method doesn't include newlines in what it
+        // returns, making it useless for our purposes. So we need to manually reconstruct the
+        // contents by iterating over the rows in the terminal buffer.
+        let mut rows = state
+            .parser
+            .screen()
+            .rows_formatted(0, state.width)
+            .collect::<Vec<_>>();
+
+        // Reverse the rows and trim empty lines from the end
+        rows = rows
+            .into_iter()
+            .rev()
+            .skip_while(|line| line.is_empty())
+            .collect();
+
+        // Un-reverse the rows
+        rows.reverse();
+
+        // Calculate buffer size
+        let reset = b"[m";
+        let len = rows.iter().map(|line| line.len() + reset.len() + 1).sum();
+
+        // Join rows up with reset codes and newlines
+        let mut contents = rows.iter().fold(Vec::with_capacity(len), |mut acc, cur| {
+            acc.extend_from_slice(cur);
+            acc.extend_from_slice(reset);
+            acc.push(b'\n');
+            acc
+        });
+
+        // Remove last newline again, but leave the reset code
+        contents.truncate(len.saturating_sub(1));
+        contents
+    }
 }
 
 impl TermLike for InMemoryTerm {
