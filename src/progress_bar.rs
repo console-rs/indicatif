@@ -80,6 +80,9 @@ impl ProgressBar {
     }
 
     /// A convenience builder-like function for a progress bar with a given prefix
+    ///
+    /// For the prefix to be visible, the `{prefix}` placeholder must be present in the template
+    /// (see [`ProgressStyle`]).
     pub fn with_prefix(self, prefix: impl Into<Cow<'static, str>>) -> Self {
         let mut state = self.state();
         state.state.prefix = TabExpandedString::new(prefix.into(), state.tab_width);
@@ -88,6 +91,9 @@ impl ProgressBar {
     }
 
     /// A convenience builder-like function for a progress bar with a given message
+    ///
+    /// For the message to be visible, the `{msg}` placeholder must be present in the template (see
+    /// [`ProgressStyle`]).
     pub fn with_message(self, message: impl Into<Cow<'static, str>>) -> Self {
         let mut state = self.state();
         state.state.message = TabExpandedString::new(message.into(), state.tab_width);
