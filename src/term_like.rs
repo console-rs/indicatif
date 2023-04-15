@@ -2,13 +2,14 @@ use std::fmt::Debug;
 use std::io;
 
 use console::Term;
+use dyn_clone::DynClone;
 
 /// A trait for minimal terminal-like behavior.
 ///
 /// Anything that implements this trait can be used a draw target via [`ProgressDrawTarget::term_like`].
 ///
 /// [`ProgressDrawTarget::term_like`]: crate::ProgressDrawTarget::term_like
-pub trait TermLike: Debug + Send + Sync {
+pub trait TermLike: Debug + Send + Sync + DynClone {
     /// Return the terminal width
     fn width(&self) -> u16;
 
@@ -30,6 +31,8 @@ pub trait TermLike: Debug + Send + Sync {
 
     fn flush(&self) -> io::Result<()>;
 }
+
+dyn_clone::clone_trait_object!(TermLike);
 
 impl TermLike for Term {
     fn width(&self) -> u16 {

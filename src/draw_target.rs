@@ -18,7 +18,7 @@ use crate::TermLike;
 /// The draw target is a stateful wrapper over a drawing destination and
 /// internally optimizes how often the state is painted to the output
 /// device.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ProgressDrawTarget {
     kind: TargetKind,
 }
@@ -205,7 +205,7 @@ impl ProgressDrawTarget {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum TargetKind {
     Term {
         term: Term,
@@ -373,7 +373,7 @@ impl Drop for DrawStateWrapper<'_> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct RateLimiter {
     interval: u16, // in milliseconds
     capacity: u8,
