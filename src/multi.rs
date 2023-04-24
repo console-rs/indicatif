@@ -259,6 +259,14 @@ impl MultiState {
         if panicking() {
             return Ok(());
         }
+        let width = self.width() as f64;
+        // Calculate real length based on terminal width
+        // This take in account linewrap from terminal
+        fn real_len(lines: &[String], width: f64) -> usize {
+            lines.iter().fold(0, |sum, val| {
+                sum + (console::measure_text_width(val) as f64 / width).ceil() as usize
+            })
+        }
 
         // Assumption: if extra_lines is not None, then it has at least one line
         debug_assert_eq!(
@@ -279,9 +287,8 @@ impl MultiState {
             let line_count = member
                 .draw_state
                 .as_ref()
-                .map(|d| d.lines.len())
+                .map(|d| real_len(&d.lines, width))
                 .unwrap_or_default();
-
             // Track the total number of zombie lines on the screen.
             self.zombie_lines_count += line_count;
 
@@ -300,7 +307,7 @@ impl MultiState {
             self.zombie_lines_count = 0;
         }
 
-        let orphan_lines_count = self.orphan_lines.len();
+        let orphan_lines_count = real_len(&self.orphan_lines, width);
         force_draw |= orphan_lines_count > 0;
         let mut drawable = match self.draw_target.drawable(force_draw, now) {
             Some(drawable) => drawable,
@@ -313,7 +320,7 @@ impl MultiState {
 
         if let Some(extra_lines) = &extra_lines {
             draw_state.lines.extend_from_slice(extra_lines.as_slice());
-            draw_state.orphan_lines_count += extra_lines.len();
+            draw_state.orphan_lines_count += real_len(extra_lines, width);
         }
 
         // Add lines from `ProgressBar::println` call.
