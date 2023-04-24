@@ -370,7 +370,8 @@ impl TabExpandedString {
 /// Ring buffer with constant capacity. Used by `ProgressBar`s to display `{eta}`,
 /// `{eta_precise}`, and `{*_per_sec}`.
 pub(crate) struct Estimator {
-    steps: [f64; 16],
+    steps: [u64; 16],
+    step_instants: [Instant; 16],
     pos: u8,
     full: bool,
     prev: (u64, Instant),
@@ -379,16 +380,16 @@ pub(crate) struct Estimator {
 impl Estimator {
     fn new(now: Instant) -> Self {
         Self {
-            steps: [0.0; 16],
-            pos: 0,
+            steps: [0; 16],
+            step_instants: [now; 16],
+            pos: 1,
             full: false,
             prev: (0, now),
         }
     }
 
     fn record(&mut self, new: u64, now: Instant) {
-        let delta = new.saturating_sub(self.prev.0);
-        if delta == 0 || now < self.prev.1 {
+        if new <= self.prev.0 || now < self.prev.1 {
             // Reset on backwards seek to prevent breakage from seeking to the end for length determination
             // See https://github.com/console-rs/indicatif/issues/480
             if new < self.prev.0 {
@@ -397,14 +398,9 @@ impl Estimator {
             return;
         }
 
-        let elapsed = now - self.prev.1;
-        let divisor = delta as f64;
-        let mut batch = 0.0;
-        if divisor != 0.0 {
-            batch = duration_to_secs(elapsed) / divisor;
-        };
+        self.steps[self.pos as usize] = new;
+        self.step_instants[self.pos as usize] = now;
 
-        self.steps[self.pos as usize] = batch;
         self.pos = (self.pos + 1) % 16;
         if !self.full && self.pos == 0 {
             self.full = true;
@@ -414,15 +410,23 @@ impl Estimator {
     }
 
     pub(crate) fn reset(&mut self, now: Instant) {
-        self.pos = 0;
+        self.pos = 1;
         self.full = false;
         self.prev = (0, now);
+        self.steps[0] = 0;
+        self.step_instants[0] = now;
     }
 
     /// Average time per step in seconds, using rolling buffer of last 15 steps
     fn seconds_per_step(&self) -> f64 {
-        let len = self.len();
-        self.steps[0..len].iter().sum::<f64>() / len as f64
+        let now = Instant::now();
+        let first_pos = (self.pos as usize) % self.len();
+        let steps = self.prev.0 - self.steps[first_pos];
+        let mut duration: f64 = 0.0;
+        if steps != 0 {
+            duration = duration_to_secs(now - self.step_instants[first_pos]);
+        }
+        duration / steps as f64
     }
 
     fn len(&self) -> usize {
@@ -582,25 +586,35 @@ mod tests {
             let mut now = Instant::now();
             let mut est = Estimator::new(now);
             let mut pos = 0;
+            let buffer_size = est.steps.len() as u64;
 
-            for _ in 0..est.steps.len() {
+            now -= Duration::from_secs(buffer_size);
+            let start_time = now;
+            est.reset(now);
+
+            for _ in 0..buffer_size {
                 pos += items_per_second;
                 now += Duration::from_secs(1);
                 est.record(pos, now);
             }
+            let before = Instant::now();
             let avg_seconds_per_step = est.seconds_per_step();
+            let after = Instant::now();
 
             assert!(avg_seconds_per_step > 0.0);
             assert!(avg_seconds_per_step.is_finite());
 
             let expected_rate = 1.0 / items_per_second as f64;
-            let absolute_error = (avg_seconds_per_step - expected_rate).abs();
+            let expected_rate_upper =
+                expected_rate * duration_to_secs(after - start_time) / buffer_size as f64;
+            let expected_rate_lower =
+                expected_rate * duration_to_secs(before - start_time) / buffer_size as f64;
             assert!(
-                absolute_error < f64::EPSILON,
-                "Expected rate: {}, actual: {}, absolute error: {}",
-                expected_rate,
+                avg_seconds_per_step > expected_rate_lower && expected_rate < expected_rate_upper,
+                "Expected rate (min): {}, actual: {}, Expected rate (max): {}",
+                expected_rate_lower,
                 avg_seconds_per_step,
-                absolute_error
+                expected_rate_upper
             );
         };
 
@@ -628,11 +642,11 @@ mod tests {
         let mut est = Estimator::new(now);
         est.record(0, now);
         est.record(1, now);
-        assert_eq!(est.len(), 1);
+        assert_eq!(est.len(), 2);
         // Should not panic.
         est.record(0, now);
         // Assert that the state of the estimator reset on rewind
-        assert_eq!(est.len(), 0);
+        assert_eq!(est.len(), 1);
 
         let pb = ProgressBar::hidden();
         pb.set_length(10);
