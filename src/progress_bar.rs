@@ -307,7 +307,7 @@ impl ProgressBar {
         self.state().reset(Instant::now(), Reset::Eta);
     }
 
-    /// Resets elapsed time
+    /// Resets elapsed time and the ETA calculation
     pub fn reset_elapsed(&self) {
         self.state().reset(Instant::now(), Reset::Elapsed);
     }

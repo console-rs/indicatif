@@ -69,9 +69,9 @@ impl BarState {
     }
 
     pub(crate) fn reset(&mut self, now: Instant, mode: Reset) {
-        if let Reset::Eta | Reset::All = mode {
-            self.state.est.reset(now);
-        }
+        // Always reset the estimator; this is the only reset that will occur if mode is
+        // `Reset::Eta`.
+        self.state.est.reset(now);
 
         if let Reset::Elapsed | Reset::All = mode {
             self.state.started = now;
