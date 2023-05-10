@@ -275,8 +275,16 @@ impl ProgressState {
         };
 
         let pos = self.pos.pos.load(Ordering::Relaxed);
-        let t = self.est.seconds_per_step();
-        secs_to_duration(t * len.saturating_sub(pos) as f64)
+
+        let sps = self.est.steps_per_second();
+
+        // Infinite duration should only ever happen at the beginning, so in this case it's okay to
+        // just show an ETA of 0 until progress starts to occur.
+        if sps == 0.0 {
+            return Duration::new(0, 0);
+        }
+
+        secs_to_duration(len.saturating_sub(pos) as f64 / sps)
     }
 
     /// The expected total duration (that is, elapsed time + expected ETA)
@@ -290,10 +298,7 @@ impl ProgressState {
     /// The number of steps per second
     pub fn per_sec(&self) -> f64 {
         if let Status::InProgress = self.status {
-            match 1.0 / self.est.seconds_per_step() {
-                per_sec if per_sec.is_nan() => 0.0,
-                per_sec => per_sec,
-            }
+            self.est.steps_per_second()
         } else {
             let len = self.len.unwrap_or_else(|| self.pos());
             len as f64 / self.started.elapsed().as_secs_f64()
@@ -426,9 +431,9 @@ impl Estimator {
     }
 
     /// Average time per step in seconds, using rolling buffer of last 15 steps
-    fn seconds_per_step(&self) -> f64 {
+    fn steps_per_second(&self) -> f64 {
         let len = self.len();
-        self.steps[0..len].iter().sum::<f64>() / len as f64
+        len as f64 / self.steps[0..len].iter().sum::<f64>()
     }
 
     fn len(&self) -> usize {
@@ -583,7 +588,7 @@ mod tests {
     // https://github.com/rust-lang/rust-clippy/issues/10281
     #[allow(clippy::uninlined_format_args)]
     #[test]
-    fn test_time_per_step() {
+    fn test_steps_per_second() {
         let test_rate = |items_per_second| {
             let mut now = Instant::now();
             let mut est = Estimator::new(now);
@@ -594,19 +599,20 @@ mod tests {
                 now += Duration::from_secs(1);
                 est.record(pos, now);
             }
-            let avg_seconds_per_step = est.seconds_per_step();
+            let avg_steps_per_second = est.steps_per_second();
 
-            assert!(avg_seconds_per_step > 0.0);
-            assert!(avg_seconds_per_step.is_finite());
+            assert!(avg_steps_per_second > 0.0);
+            assert!(avg_steps_per_second.is_finite());
 
-            let expected_rate = 1.0 / items_per_second as f64;
-            let absolute_error = (avg_seconds_per_step - expected_rate).abs();
+            let expected_rate = items_per_second as f64;
+            let absolute_error = (avg_steps_per_second - expected_rate).abs();
+            let relative_error = absolute_error / expected_rate;
             assert!(
-                absolute_error < f64::EPSILON,
-                "Expected rate: {}, actual: {}, absolute error: {}",
+                relative_error < 1.0 / 1e9,
+                "Expected rate: {}, actual: {}, relative error: {}",
                 expected_rate,
-                avg_seconds_per_step,
-                absolute_error
+                avg_steps_per_second,
+                relative_error
             );
         };
 
