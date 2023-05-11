@@ -143,7 +143,13 @@ impl BarState {
         };
 
         let mut draw_state = drawable.state();
-        draw_state.lines.extend(msg.lines().map(Into::into));
+        let lines: Vec<String> = msg.lines().map(Into::into).collect();
+        // Empty msg should trigger newline as we are in println
+        if lines.is_empty() {
+            draw_state.lines.push(String::new());
+        } else {
+            draw_state.lines.extend(lines);
+        }
         draw_state.orphan_lines_count = draw_state.lines.len();
         if !matches!(self.state.status, Status::DoneHidden) {
             self.style

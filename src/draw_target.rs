@@ -496,11 +496,15 @@ impl DrawState {
         let len = self.lines.len();
         let mut real_len = 0;
         for (idx, line) in self.lines.iter().enumerate() {
-            // Calculate real length based on terminal width
-            // This take in account linewrap from terminal
-            real_len +=
-                (console::measure_text_width(line) as f64 / term.width() as f64).ceil() as usize;
-
+            if line.is_empty() {
+                // Empty line are new line
+                real_len += 1;
+            } else {
+                // Calculate real length based on terminal width
+                // This take in account linewrap from terminal
+                real_len += (console::measure_text_width(line) as f64 / term.width() as f64).ceil()
+                    as usize;
+            }
             if idx + 1 != len {
                 term.write_line(line)?;
             } else {

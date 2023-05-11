@@ -1044,3 +1044,42 @@ n terminal width"#
             .trim()
     );
 }
+
+#[test]
+fn basic_progress_bar_newline() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let pb = ProgressBar::with_draw_target(
+        Some(10),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    );
+
+    assert_eq!(in_mem.contents(), String::new());
+
+    pb.println("\nhello");
+    pb.tick();
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+hello
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10"#
+    );
+
+    pb.inc(1);
+    pb.println("");
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+hello
+
+███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 1/10"#
+    );
+
+    pb.finish();
+    assert_eq!(
+        in_mem.contents(),
+        "
+hello
+
+██████████████████████████████████████████████████████████████████████████ 10/10"
+    );
+}
