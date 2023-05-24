@@ -70,7 +70,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: "1.58"
+          toolchain: "1.62.1"
           override: true
       - uses: actions-rs/cargo@v1
         with:

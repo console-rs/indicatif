@@ -10,7 +10,7 @@ documentation = "https://docs.rs/indicatif"
 readme = "README.md"
 edition = "2018"
 exclude = ["screenshots/*"]
-rust-version = "1.58"
+rust-version = "1.62.1"
 
 [dependencies]
 console = { version = "0.15", default-features = false, features = ["ansi-parsing"] }
