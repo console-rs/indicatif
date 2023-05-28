@@ -384,7 +384,8 @@ pub(crate) struct Estimator {
     steps: [f64; 16],
     pos: u8,
     full: bool,
-    prev: (u64, Instant),
+    prev_steps: u64,
+    prev_time: Instant,
 }
 
 impl Estimator {
@@ -393,22 +394,23 @@ impl Estimator {
             steps: [0.0; 16],
             pos: 0,
             full: false,
-            prev: (0, now),
+            prev_steps: 0,
+            prev_time: now,
         }
     }
 
-    fn record(&mut self, new: u64, now: Instant) {
-        let delta = new.saturating_sub(self.prev.0);
-        if delta == 0 || now < self.prev.1 {
+    fn record(&mut self, new_steps: u64, now: Instant) {
+        let delta = new_steps.saturating_sub(self.prev_steps);
+        if delta == 0 || now < self.prev_time {
             // Reset on backwards seek to prevent breakage from seeking to the end for length determination
             // See https://github.com/console-rs/indicatif/issues/480
-            if new < self.prev.0 {
+            if new_steps < self.prev_steps {
                 self.reset(now);
             }
             return;
         }
 
-        let elapsed = now - self.prev.1;
+        let elapsed = now - self.prev_time;
         let divisor = delta as f64;
         let mut batch = 0.0;
         if divisor != 0.0 {
@@ -421,13 +423,15 @@ impl Estimator {
             self.full = true;
         }
 
-        self.prev = (new, now);
+        self.prev_steps = new_steps;
+        self.prev_time = now;
     }
 
     pub(crate) fn reset(&mut self, now: Instant) {
         self.pos = 0;
         self.full = false;
-        self.prev = (0, now);
+        self.prev_steps = 0;
+        self.prev_time = now;
     }
 
     /// Average time per step in seconds, using rolling buffer of last 15 steps
@@ -448,7 +452,8 @@ impl fmt::Debug for Estimator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Estimate")
             .field("steps", &&self.steps[..self.len()])
-            .field("prev", &self.prev)
+            .field("prev_steps", &self.prev_steps)
+            .field("prev_time", &self.prev_time)
             .finish()
     }
 }
