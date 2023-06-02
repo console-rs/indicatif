@@ -13,6 +13,7 @@ use tokio::io::{ReadBuf, SeekFrom};
 
 use crate::progress_bar::ProgressBar;
 use crate::style::ProgressStyle;
+use crate::state::ProgressFinish;
 
 /// Wraps an iterator to display its progress.
 pub trait ProgressIterator
@@ -101,6 +102,14 @@ impl<T> ProgressBarIter<T> {
     /// See [ProgressBar::with_elapsed].
     pub fn with_elapsed(mut self, elapsed: Duration) -> Self {
         self.progress = self.progress.with_elapsed(elapsed);
+        self
+    }
+
+    /// Builder-like function for setting underlying progress bar's finish behavior.
+    ///
+    /// See [ProgressBar::with_finish].
+    pub fn with_finish(mut self, finish: ProgressFinish) -> Self {
+        self.progress = self.progress.with_finish(finish);
         self
     }
 }
