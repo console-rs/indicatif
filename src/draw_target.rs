@@ -502,8 +502,14 @@ impl DrawState {
             } else {
                 // Calculate real length based on terminal width
                 // This take in account linewrap from terminal
-                real_len += (console::measure_text_width(line) as f64 / term.width() as f64).ceil()
-                    as usize;
+                let terminal_len = (console::measure_text_width(line) as f64 / term.width() as f64)
+                    .ceil() as usize;
+
+                // If the line is effectively empty (for example when it consists
+                // solely of ANSI color code sequences, count it the same as a
+                // new line. If the line is measured to be len = 0, we will
+                // subtract with overflow later.
+                real_len += usize::max(terminal_len, 1);
             }
             if idx + 1 != len {
                 term.write_line(line)?;
