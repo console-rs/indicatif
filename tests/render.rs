@@ -982,6 +982,25 @@ s"#
 }
 
 #[test]
+fn spinner_terminal_cleared_log_line_with_ansi_codes() {
+    let in_mem = InMemoryTerm::new(10, 100);
+
+    let pb = ProgressBar::with_draw_target(
+        Some(10),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    );
+    pb.set_style(ProgressStyle::default_spinner());
+    assert_eq!(in_mem.contents(), String::new());
+
+    pb.finish_and_clear();
+    // Visually empty, but consists of an ANSII code
+    pb.println("\u{1b}[1m");
+
+    pb.println("text\u{1b}[0m");
+    assert_eq!(in_mem.contents(), "\ntext");
+}
+
+#[test]
 fn multi_progress_println_terminal_wrap() {
     let in_mem = InMemoryTerm::new(10, 48);
     let mp =
