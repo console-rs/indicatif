@@ -5,7 +5,7 @@
 //! Platform support:
 //!
 //! * Linux
-//! * OS X
+//! * macOS
 //! * Windows (colors require Windows 10)
 //!
 //! Best paired with other libraries in the family:

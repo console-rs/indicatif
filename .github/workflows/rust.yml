@@ -21,9 +21,6 @@ jobs:
             rust: beta
             features: --all-features
           - os: ubuntu-latest
-            rust: 1.58
-            features: --features improved_unicode
-          - os: ubuntu-latest
             rust: stable
             features: --all-features
             target: --target armv5te-unknown-linux-gnueabi
@@ -65,6 +62,20 @@ jobs:
           use-cross: ${{ matrix.use-cross }}
           command: test
           args: --workspace ${{ matrix.features }} ${{ matrix.target }}
+
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: "1.62.1"
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --lib --all-features
 
   lint:
     runs-on: ubuntu-latest

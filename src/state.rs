@@ -69,9 +69,9 @@ impl BarState {
     }
 
     pub(crate) fn reset(&mut self, now: Instant, mode: Reset) {
-        if let Reset::Eta | Reset::All = mode {
-            self.state.est.reset(now);
-        }
+        // Always reset the estimator; this is the only reset that will occur if mode is
+        // `Reset::Eta`.
+        self.state.est.reset(now);
 
         if let Reset::Elapsed | Reset::All = mode {
             self.state.started = now;
@@ -143,7 +143,13 @@ impl BarState {
         };
 
         let mut draw_state = drawable.state();
-        draw_state.lines.extend(msg.lines().map(Into::into));
+        let lines: Vec<String> = msg.lines().map(Into::into).collect();
+        // Empty msg should trigger newline as we are in println
+        if lines.is_empty() {
+            draw_state.lines.push(String::new());
+        } else {
+            draw_state.lines.extend(lines);
+        }
         draw_state.orphan_lines_count = draw_state.lines.len();
         if !matches!(self.state.status, Status::DoneHidden) {
             self.style

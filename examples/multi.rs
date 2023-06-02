@@ -25,9 +25,9 @@ fn main() {
     let m_clone = m.clone();
     let h1 = thread::spawn(move || {
         for i in 0..128 {
+            thread::sleep(Duration::from_millis(15));
             pb.set_message(format!("item #{}", i + 1));
             pb.inc(1);
-            thread::sleep(Duration::from_millis(15));
         }
         m_clone.println("pb1 is done!").unwrap();
         pb.finish_with_message("done");
@@ -38,9 +38,9 @@ fn main() {
         for _ in 0..3 {
             pb2.set_position(0);
             for i in 0..128 {
+                thread::sleep(Duration::from_millis(8));
                 pb2.set_message(format!("item #{}", i + 1));
                 pb2.inc(1);
-                thread::sleep(Duration::from_millis(8));
             }
         }
         m_clone.println("pb2 is done!").unwrap();
@@ -50,9 +50,9 @@ fn main() {
     let m_clone = m.clone();
     let h3 = thread::spawn(move || {
         for i in 0..1024 {
+            thread::sleep(Duration::from_millis(2));
             pb3.set_message(format!("item #{}", i + 1));
             pb3.inc(1);
-            thread::sleep(Duration::from_millis(2));
         }
         m_clone.println("pb3 is done!").unwrap();
         pb3.finish_with_message("done");

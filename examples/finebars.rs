@@ -28,9 +28,9 @@ fn main() {
             let wait = Duration::from_millis(thread_rng().gen_range(10..30));
             thread::spawn(move || {
                 for i in 0..512 {
+                    thread::sleep(wait);
                     pb.inc(1);
                     pb.set_message(format!("{:3}%", 100 * i / 512));
-                    thread::sleep(wait);
                 }
                 pb.finish_with_message("100%");
             })

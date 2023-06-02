@@ -26,7 +26,7 @@ pub struct ProgressDrawTarget {
 impl ProgressDrawTarget {
     /// Draw to a buffered stdout terminal at a max of 20 times a second.
     ///
-    /// For more information see `ProgressDrawTarget::to_term`.
+    /// For more information see [`ProgressDrawTarget::term`].
     pub fn stdout() -> Self {
         Self::term(Term::buffered_stdout(), 20)
     }
@@ -34,21 +34,21 @@ impl ProgressDrawTarget {
     /// Draw to a buffered stderr terminal at a max of 20 times a second.
     ///
     /// This is the default draw target for progress bars.  For more
-    /// information see `ProgressDrawTarget::to_term`.
+    /// information see [`ProgressDrawTarget::term`].
     pub fn stderr() -> Self {
         Self::term(Term::buffered_stderr(), 20)
     }
 
     /// Draw to a buffered stdout terminal at a max of `refresh_rate` times a second.
     ///
-    /// For more information see `ProgressDrawTarget::to_term`.
+    /// For more information see [`ProgressDrawTarget::term`].
     pub fn stdout_with_hz(refresh_rate: u8) -> Self {
         Self::term(Term::buffered_stdout(), refresh_rate)
     }
 
     /// Draw to a buffered stderr terminal at a max of `refresh_rate` times a second.
     ///
-    /// For more information see `ProgressDrawTarget::to_term`.
+    /// For more information see [`ProgressDrawTarget::term`].
     pub fn stderr_with_hz(refresh_rate: u8) -> Self {
         Self::term(Term::buffered_stderr(), refresh_rate)
     }
@@ -59,14 +59,14 @@ impl ProgressDrawTarget {
         }
     }
 
-    /// Draw to a terminal, optionally with a specific refresh rate.
+    /// Draw to a terminal, with a specific refresh rate.
     ///
     /// Progress bars are by default drawn to terminals however if the
     /// terminal is not user attended the entire progress bar will be
     /// hidden.  This is done so that piping to a file will not produce
     /// useless escape codes in that file.
     ///
-    /// Will panic if refresh_rate is `Some(0)`. To disable rate limiting use `None` instead.
+    /// Will panic if refresh_rate is `0`.
     pub fn term(term: Term, refresh_rate: u8) -> Self {
         Self {
             kind: TargetKind::Term {
@@ -84,6 +84,20 @@ impl ProgressDrawTarget {
             kind: TargetKind::TermLike {
                 inner: term_like,
                 last_line_count: 0,
+                rate_limiter: None,
+                draw_state: DrawState::default(),
+            },
+        }
+    }
+
+    /// Draw to a boxed object that implements the [`TermLike`] trait,
+    /// with a specific refresh rate.
+    pub fn term_like_with_hz(term_like: Box<dyn TermLike>, refresh_rate: u8) -> Self {
+        Self {
+            kind: TargetKind::TermLike {
+                inner: term_like,
+                last_line_count: 0,
+                rate_limiter: Option::from(RateLimiter::new(refresh_rate)),
                 draw_state: DrawState::default(),
             },
         }
@@ -163,12 +177,16 @@ impl ProgressDrawTarget {
             TargetKind::TermLike {
                 inner,
                 last_line_count,
+                rate_limiter,
                 draw_state,
-            } => Some(Drawable::TermLike {
-                term_like: &**inner,
-                last_line_count,
-                draw_state,
-            }),
+            } => match force_draw || rate_limiter.as_mut().map_or(true, |r| r.allow(now)) {
+                true => Some(Drawable::TermLike {
+                    term_like: &**inner,
+                    last_line_count,
+                    draw_state,
+                }),
+                false => None, // rate limited
+            },
             // Hidden, finished, or no need to refresh yet
             _ => None,
         }
@@ -221,6 +239,7 @@ enum TargetKind {
     TermLike {
         inner: Box<dyn TermLike>,
         last_line_count: usize,
+        rate_limiter: Option<RateLimiter>,
         draw_state: DrawState,
     },
 }
@@ -475,7 +494,18 @@ impl DrawState {
         };
 
         let len = self.lines.len();
+        let mut real_len = 0;
         for (idx, line) in self.lines.iter().enumerate() {
+            if line.is_empty() {
+                // Empty line are new line
+                real_len += 1;
+            } else {
+                // Calculate real length based on terminal width
+                // This take in account linewrap from terminal
+                real_len += (console::measure_text_width(line) as f64 / term.width() as f64).ceil()
+                    as usize;
+            }
+          
             if idx + 1 != len || self.lines.len() == self.orphan_lines_count {
                 term.write_line(line)?;
             } else {
@@ -491,7 +521,7 @@ impl DrawState {
         }
 
         term.flush()?;
-        *last_line_count = self.lines.len() - self.orphan_lines_count + shift;
+        *last_line_count = real_len - self.orphan_lines_count + shift;
         Ok(())
     }
 

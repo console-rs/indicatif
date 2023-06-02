@@ -1,7 +1,7 @@
 [package]
 name = "indicatif"
 description = "A progress bar and cli reporting library for Rust"
-version = "0.17.3"
+version = "0.17.4"
 keywords = ["cli", "progress", "pb", "colors", "progressbar"]
 categories = ["command-line-interface"]
 license = "MIT"
@@ -10,7 +10,7 @@ documentation = "https://docs.rs/indicatif"
 readme = "README.md"
 edition = "2018"
 exclude = ["screenshots/*"]
-rust-version = "1.58"
+rust-version = "1.62.1"
 
 [dependencies]
 console = { version = "0.15", default-features = false, features = ["ansi-parsing"] }
@@ -23,7 +23,7 @@ unicode-width = { version = "0.1", optional = true }
 vt100 = { version = "0.15.1", optional = true }
 
 [dev-dependencies]
-clap = { version = "3", features = ["color", "derive"] }
+clap = { version = "4", features = ["color", "derive"] }
 once_cell = "1"
 rand = "0.8"
 tokio = { version = "1", features = ["fs", "time", "rt"] }
