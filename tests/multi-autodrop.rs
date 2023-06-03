@@ -12,6 +12,7 @@ fn main() {
     };
 
     {
+        #[allow(clippy::redundant_clone)]
         let pb2 = pb.clone();
         for _ in 0..10 {
             pb2.inc(1);
