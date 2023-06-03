@@ -12,8 +12,8 @@ use std::time::Duration;
 use tokio::io::{ReadBuf, SeekFrom};
 
 use crate::progress_bar::ProgressBar;
-use crate::style::ProgressStyle;
 use crate::state::ProgressFinish;
+use crate::style::ProgressStyle;
 
 /// Wraps an iterator to display its progress.
 pub trait ProgressIterator
