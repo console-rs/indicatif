@@ -175,9 +175,17 @@
 //! * `len`: renders the amount of work to be done as an integer
 //! * `human_len`: renders the total length of the bar as an integer, with commas as the thousands
 //! separator.
-//! * `bytes`: renders the current position of the bar as bytes.
 //! * `percent`: renders the current position of the bar as a percentage of the total length.
+//! * `bytes`: renders the current position of the bar as bytes.
 //! * `total_bytes`: renders the total length of the bar as bytes.
+//! * `decimal_bytes`: renders the current position of the bar as bytes using
+//!   SI units, i.e. `MB`, `kB`, etc.
+//! * `decimal_total_bytes`: renders the total length of the bar as bytes using
+//!   SI units, i.e. `MB`, `kB`, etc.
+//! * `binary_bytes`: renders the current position of the bar as bytes using
+//!   power-of-two units, i.e. `MiB`, `KiB`, etc.
+//! * `binary_total_bytes`: renders the total length of the bar as bytes using
+//!   power-of-two units, i.e. `MiB`, `KiB`, etc.
 //! * `elapsed_precise`: renders the elapsed time as `HH:MM:SS`.
 //! * `elapsed`: renders the elapsed time as `42s`, `1m` etc.
 //! * `per_sec`: renders the speed in steps per second.
