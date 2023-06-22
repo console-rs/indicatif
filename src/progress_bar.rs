@@ -511,6 +511,30 @@ impl ProgressBar {
         }
     }
 
+    /// Wraps a [`futures::Stream`](https://docs.rs/futures/0.3/futures/stream/trait.StreamExt.html) with the progress bar
+    ///
+    /// ```
+    /// # use indicatif::ProgressBar;
+    /// use futures::stream::{self, StreamExt};
+    /// # async fn test() {
+    /// let pb = ProgressBar::new(10);
+    ///
+    /// let stream = pb.wrap_stream(stream::iter(1..=10));
+    /// assert_eq!(
+    ///     stream.count().await,
+    ///     10,
+    /// );
+    /// # }
+    /// ```
+    #[cfg(feature = "futures")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "futures")))]
+    pub fn wrap_stream<S: futures_core::Stream>(&self, stream: S) -> ProgressBarIter<S> {
+        ProgressBarIter {
+            progress: self.clone(),
+            it: stream,
+        }
+    }
+
     /// Returns the current position
     pub fn position(&self) -> u64 {
         self.state().state.pos()
