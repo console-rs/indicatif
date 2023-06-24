@@ -129,6 +129,7 @@
 //! <^>             for an optional alignment specification (left, center and right respectively)
 //! WIDTH           an optional width as positive integer
 //! !               an optional exclamation mark to enable truncation
+//! -               an optional separator to specify precision
 //! .STYLE          an optional dot separated style string
 //! /STYLE          an optional dot separated alternative style string
 //! ```
