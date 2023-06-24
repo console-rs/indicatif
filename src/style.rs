@@ -244,6 +244,7 @@ impl ProgressStyle {
                     truncate,
                     style,
                     alt_style,
+                    float_precision,
                 } => {
                     buf.clear();
                     if let Some(tracker) = self.format_map.get(key.as_str()) {
@@ -279,9 +280,18 @@ impl ProgressStyle {
                             "human_len" => {
                                 buf.write_fmt(format_args!("{}", HumanCount(len))).unwrap();
                             }
-                            "percent" => buf
-                                .write_fmt(format_args!("{:.*}", 0, state.fraction() * 100f32))
-                                .unwrap(),
+                            "percent" => {
+                                let mut precision = 4;
+                                if let Some(w) = float_precision {
+                                    precision = *w as usize;
+                                }
+                                buf.write_fmt(format_args!(
+                                    "{:.*}",
+                                    precision,
+                                    state.fraction() * 100f32
+                                ))
+                                .unwrap()
+                            }
                             "bytes" => buf.write_fmt(format_args!("{}", HumanBytes(pos))).unwrap(),
                             "total_bytes" => {
                                 buf.write_fmt(format_args!("{}", HumanBytes(len))).unwrap();
@@ -298,15 +308,31 @@ impl ProgressStyle {
                             "binary_total_bytes" => {
                                 buf.write_fmt(format_args!("{}", BinaryBytes(len))).unwrap();
                             }
-                            "elapsed_precise" => buf
-                                .write_fmt(format_args!("{}", FormattedDuration(state.elapsed())))
-                                .unwrap(),
+                            "elapsed_precise" => {
+                                let mut precision = 0;
+                                if let Some(w) = float_precision {
+                                    precision = *w as usize;
+                                }
+                                buf.write_fmt(format_args!(
+                                    "{}",
+                                    FormattedDuration(state.elapsed(), precision)
+                                ))
+                                .unwrap()
+                            }
                             "elapsed" => buf
                                 .write_fmt(format_args!("{:#}", HumanDuration(state.elapsed())))
                                 .unwrap(),
-                            "per_sec" => buf
-                                .write_fmt(format_args!("{}/s", HumanFloatCount(state.per_sec())))
-                                .unwrap(),
+                            "per_sec" => {
+                                let mut precision = 4;
+                                if let Some(w) = float_precision {
+                                    precision = *w as usize;
+                                }
+                                buf.write_fmt(format_args!(
+                                    "{}/s",
+                                    HumanFloatCount(state.per_sec(), precision)
+                                ))
+                                .unwrap()
+                            }
                             "bytes_per_sec" => buf
                                 .write_fmt(format_args!("{}/s", HumanBytes(state.per_sec() as u64)))
                                 .unwrap(),
@@ -316,15 +342,31 @@ impl ProgressStyle {
                                     BinaryBytes(state.per_sec() as u64)
                                 ))
                                 .unwrap(),
-                            "eta_precise" => buf
-                                .write_fmt(format_args!("{}", FormattedDuration(state.eta())))
-                                .unwrap(),
+                            "eta_precise" => {
+                                let mut precision = 0;
+                                if let Some(w) = float_precision {
+                                    precision = *w as usize;
+                                }
+                                buf.write_fmt(format_args!(
+                                    "{}",
+                                    FormattedDuration(state.eta(), precision)
+                                ))
+                                .unwrap()
+                            }
                             "eta" => buf
                                 .write_fmt(format_args!("{:#}", HumanDuration(state.eta())))
                                 .unwrap(),
-                            "duration_precise" => buf
-                                .write_fmt(format_args!("{}", FormattedDuration(state.duration())))
-                                .unwrap(),
+                            "duration_precise" => {
+                                let mut precision = 0;
+                                if let Some(w) = float_precision {
+                                    precision = *w as usize;
+                                }
+                                buf.write_fmt(format_args!(
+                                    "{}",
+                                    FormattedDuration(state.duration(), precision)
+                                ))
+                                .unwrap()
+                            }
                             "duration" => buf
                                 .write_fmt(format_args!("{:#}", HumanDuration(state.duration())))
                                 .unwrap(),
@@ -502,6 +544,7 @@ impl Template {
                         truncate: true,
                         style: None,
                         alt_style: None,
+                        float_precision: None,
                     });
                     (Width, None)
                 }
@@ -527,8 +570,10 @@ impl Template {
                 (Align, '.') => (FirstStyle, None),
                 (Align, '}') => (Literal, None),
                 (Width, c @ '0'..='9') => (Width, Some(c)),
-                (Width, '.') => (FirstStyle, None),
-                (Width, '}') => (Literal, None),
+                (Width | Separator, '.') => (FirstStyle, None),
+                (Width | Separator, '}') => (Literal, None),
+                (Align | Width | FirstStyle | AltStyle, '-') => (Separator, None),
+                (Separator, c @ '0'..='9') => (Separator, Some(c)),
                 (FirstStyle, '/') => (AltStyle, None),
                 (FirstStyle, '}') => (Literal, None),
                 (FirstStyle, c) => (FirstStyle, Some(c)),
@@ -549,11 +594,21 @@ impl Template {
                         truncate: false,
                         style: None,
                         alt_style: None,
+                        float_precision: None,
                     });
                 }
-                (Width, FirstStyle | Literal) if !buf.is_empty() => {
+                (Width, Separator | FirstStyle | Literal) if !buf.is_empty() => {
                     if let Some(TemplatePart::Placeholder { width, .. }) = parts.last_mut() {
                         *width = Some(buf.parse().unwrap());
+                        buf.clear();
+                    }
+                }
+                (Separator, FirstStyle | Literal) if !buf.is_empty() => {
+                    if let Some(TemplatePart::Placeholder {
+                        float_precision, ..
+                    }) = parts.last_mut()
+                    {
+                        *float_precision = Some(buf.parse().unwrap());
                         buf.clear();
                     }
                 }
@@ -629,6 +684,7 @@ enum TemplatePart {
         truncate: bool,
         style: Option<Style>,
         alt_style: Option<Style>,
+        float_precision: Option<u16>,
     },
     NewLine,
 }
@@ -643,6 +699,7 @@ enum State {
     Width,
     FirstStyle,
     AltStyle,
+    Separator,
 }
 
 struct BarDisplay<'a> {

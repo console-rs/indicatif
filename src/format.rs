@@ -12,7 +12,7 @@ const YEAR: Duration = Duration::from_secs(365 * 24 * 60 * 60);
 
 /// Wraps an std duration for human basic formatting.
 #[derive(Debug)]
-pub struct FormattedDuration(pub Duration);
+pub struct FormattedDuration(pub Duration, pub usize);
 
 /// Wraps an std duration for human readable formatting.
 #[derive(Debug)]
@@ -36,22 +36,26 @@ pub struct HumanCount(pub u64);
 
 /// Formats counts for human readability using commas for floats
 #[derive(Debug)]
-pub struct HumanFloatCount(pub f64);
+pub struct HumanFloatCount(pub f64, pub usize);
 
 impl fmt::Display for FormattedDuration {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut t = self.0.as_secs();
-        let seconds = t % 60;
-        t /= 60;
-        let minutes = t % 60;
-        t /= 60;
-        let hours = t % 24;
-        t /= 24;
-        if t > 0 {
+        let mut t = self.0.as_secs_f64();
+        let seconds = t % 60.;
+        t /= 60.;
+        let minutes = t % 60.;
+        t /= 60.;
+        let hours = t % 24.;
+        t /= 24.;
+        if t >= 1. {
             let days = t;
-            write!(f, "{days}d {hours:02}:{minutes:02}:{seconds:02}")
+            write!(
+                f,
+                "{days:.0}d {hours:02.0}:{minutes:02.0}:{seconds:02.*}",
+                self.1
+            )
         } else {
-            write!(f, "{hours:02}:{minutes:02}:{seconds:02}")
+            write!(f, "{hours:02.0}:{minutes:02.0}:{seconds:02.*}", self.1)
         }
     }
 }
@@ -154,7 +158,7 @@ impl fmt::Display for HumanFloatCount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use fmt::Write;
 
-        let num = format!("{:.4}", self.0);
+        let num = format!("{:.*}", self.1, self.0);
         let (int_part, frac_part) = match num.split_once('.') {
             Some((int_str, fract_str)) => (int_str.to_string(), fract_str),
             None => (self.0.trunc().to_string(), ""),
@@ -312,26 +316,34 @@ mod tests {
 
     #[test]
     fn human_float_count() {
-        assert_eq!("42", format!("{}", HumanFloatCount(42.0)));
-        assert_eq!("7,654", format!("{}", HumanFloatCount(7654.0)));
-        assert_eq!("12,345", format!("{}", HumanFloatCount(12345.0)));
+        assert_eq!("42", format!("{}", HumanFloatCount(42.0, 0)));
+        assert_eq!("7,654", format!("{}", HumanFloatCount(7654.0, 0)));
+        assert_eq!("12,345", format!("{}", HumanFloatCount(12345.0, 0)));
         assert_eq!(
             "1,234,567,890",
-            format!("{}", HumanFloatCount(1234567890.0))
+            format!("{}", HumanFloatCount(1234567890.0, 0))
         );
-        assert_eq!("42.5", format!("{}", HumanFloatCount(42.5)));
-        assert_eq!("42.5", format!("{}", HumanFloatCount(42.500012345)));
-        assert_eq!("42.502", format!("{}", HumanFloatCount(42.502012345)));
-        assert_eq!("7,654.321", format!("{}", HumanFloatCount(7654.321)));
-        assert_eq!("7,654.321", format!("{}", HumanFloatCount(7654.3210123456)));
-        assert_eq!("12,345.6789", format!("{}", HumanFloatCount(12345.6789)));
+        assert_eq!("42.5", format!("{}", HumanFloatCount(42.5, 1)));
+        assert_eq!("42.5", format!("{}", HumanFloatCount(42.500012345, 1)));
+        assert_eq!("42.502", format!("{}", HumanFloatCount(42.502012345, 3)));
+        assert_eq!("7,654.321", format!("{}", HumanFloatCount(7654.321, 3)));
+        assert_eq!(
+            "7,654.321",
+            format!("{}", HumanFloatCount(7654.3210123456, 3))
+        );
+        assert_eq!("12,345.6789", format!("{}", HumanFloatCount(12345.6789, 4)));
         assert_eq!(
             "1,234,567,890.1235",
-            format!("{}", HumanFloatCount(1234567890.1234567))
+            format!("{}", HumanFloatCount(1234567890.1234567, 4))
         );
         assert_eq!(
             "1,234,567,890.1234",
-            format!("{}", HumanFloatCount(1234567890.1234321))
+            format!("{}", HumanFloatCount(1234567890.1234321, 4))
         );
+        assert_eq!("123", format!("{}", HumanFloatCount(123.45678, 0)));
+        assert_eq!("123.5", format!("{}", HumanFloatCount(123.45678, 1)));
+        assert_eq!("123.46", format!("{}", HumanFloatCount(123.45678, 2)));
+        assert_eq!("123.457", format!("{}", HumanFloatCount(123.45678, 3)));
+        assert_eq!("123.4568", format!("{}", HumanFloatCount(123.45678, 4)));
     }
 }
