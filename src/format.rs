@@ -77,7 +77,7 @@ impl fmt::Display for HumanDuration {
         for (i, &(cur, _, _)) in UNITS.iter().enumerate() {
             idx = i;
             match UNITS.get(i + 1) {
-                Some(&next) if self.0 + next.0 / 2 >= cur + cur / 2 => break,
+                Some(&next) if self.0.saturating_add(next.0 / 2) >= cur + cur / 2 => break,
                 _ => continue,
             }
         }
