@@ -515,16 +515,14 @@ impl ProgressBar {
     ///
     /// ```
     /// # use indicatif::ProgressBar;
+    /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
-    /// # async fn test() {
     /// let pb = ProgressBar::new(10);
+    /// let mut stream = pb.wrap_stream(stream::iter('a'..='z'));
     ///
-    /// let stream = pb.wrap_stream(stream::iter(1..=10));
-    /// assert_eq!(
-    ///     stream.count().await,
-    ///     10,
-    /// );
-    /// # }
+    /// assert_eq!(stream.next().await, Some('a'));
+    /// assert_eq!(stream.count().await, 25);
+    /// # }); // block_on
     /// ```
     #[cfg(feature = "futures")]
     #[cfg_attr(docsrs, doc(cfg(feature = "futures")))]
