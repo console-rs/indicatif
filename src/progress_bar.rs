@@ -526,10 +526,7 @@ impl ProgressBar {
     /// ```
     #[cfg(feature = "futures")]
     #[cfg_attr(docsrs, doc(cfg(feature = "futures")))]
-    pub fn wrap_stream(
-        &self,
-        stream: impl futures_core::Stream,
-    ) -> ProgressBarIter<impl futures_core::Stream> {
+    pub fn wrap_stream<S: futures_core::Stream>(&self, stream: S) -> ProgressBarIter<S> {
         ProgressBarIter {
             progress: self.clone(),
             it: stream,
