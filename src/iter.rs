@@ -277,6 +277,26 @@ impl<W: tokio::io::AsyncBufRead + Unpin + tokio::io::AsyncRead> tokio::io::Async
     }
 }
 
+#[cfg(feature = "futures")]
+#[cfg_attr(docsrs, doc(cfg(feature = "futures")))]
+impl<S: futures_core::Stream + Unpin> futures_core::Stream for ProgressBarIter<S> {
+    type Item = S::Item;
+
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        let item = std::pin::Pin::new(&mut this.it).poll_next(cx);
+        match &item {
+            std::task::Poll::Ready(Some(_)) => this.progress.inc(1),
+            std::task::Poll::Ready(None) => this.progress.finish_using_style(),
+            std::task::Poll::Pending => {}
+        }
+        item
+    }
+}
+
 impl<W: io::Write> io::Write for ProgressBarIter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.it.write(buf).map(|inc| {
