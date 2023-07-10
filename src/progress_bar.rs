@@ -391,6 +391,8 @@ impl ProgressBar {
     ///
     /// Useful for external code that writes to the standard output.
     ///
+    /// If the progress bar was added to a [`MultiProgress`], it will suspend the MultiProgress.
+    ///
     /// **Note:** The internal lock is held while `f` is executed. Other threads trying to print
     /// anything on the progress bar will be blocked until `f` finishes.
     /// Therefore, it is recommended to avoid long-running operations in `f`.
