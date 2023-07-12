@@ -293,7 +293,7 @@ impl ProgressState {
         if self.len.is_none() || self.is_finished() {
             return Duration::new(0, 0);
         }
-        self.started.elapsed() + self.eta()
+        self.started.elapsed().saturating_add(self.eta())
     }
 
     /// The number of steps per second
