@@ -939,7 +939,7 @@ fn progress_bar_terminal_wrap() {
         r#" Downloading ⠁ [00:0
 0:00] [-------------
 --------------------
--------] 0B/0B"#
+-------] 0 B/0 B"#
     );
 
     let new = min(downloaded + 223211, total_size);
