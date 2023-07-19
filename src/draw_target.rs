@@ -493,36 +493,42 @@ impl DrawState {
             _ => 0,
         };
 
+        let term_height = term.height() as usize;
+        let term_width = term.width() as usize;
         let len = self.lines.len();
         let mut real_len = 0;
+        let mut last_line_filler = 0;
         for (idx, line) in self.lines.iter().enumerate() {
-            if line.is_empty() {
+            let line_width = console::measure_text_width(line);
+            let diff = if line.is_empty() {
                 // Empty line are new line
-                real_len += 1;
+                1
             } else {
                 // Calculate real length based on terminal width
                 // This take in account linewrap from terminal
-                let terminal_len = (console::measure_text_width(line) as f64 / term.width() as f64)
-                    .ceil() as usize;
+                let terminal_len = (line_width as f64 / term_width as f64).ceil() as usize;
 
                 // If the line is effectively empty (for example when it consists
                 // solely of ANSI color code sequences, count it the same as a
                 // new line. If the line is measured to be len = 0, we will
                 // subtract with overflow later.
-                real_len += usize::max(terminal_len, 1);
+                usize::max(terminal_len, 1)
+            };
+            if real_len + diff > term_height {
+                break;
             }
-            if idx + 1 != len {
-                term.write_line(line)?;
-            } else {
-                // Don't append a '\n' if this is the last line
-                term.write_str(line)?;
+            real_len += diff;
+            if idx != 0 {
+                term.write_line("")?;
+            }
+            term.write_str(line)?;
+            if idx + 1 == len {
                 // Keep the cursor on the right terminal side
                 // So that next user writes/prints will happen on the next line
-                let term_width = term.width() as usize;
-                let line_width = console::measure_text_width(line);
-                term.write_str(&" ".repeat(term_width.saturating_sub(line_width)))?;
+                last_line_filler = term_width.saturating_sub(line_width);
             }
         }
+        term.write_str(&" ".repeat(last_line_filler))?;
 
         term.flush()?;
         *last_line_count = real_len - self.orphan_lines_count + shift;

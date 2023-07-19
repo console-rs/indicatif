@@ -1140,16 +1140,17 @@ Flush
     assert_eq!(
         in_mem.contents(),
         r#"
-⠁ 3
-⠁ 4
-⠁ 5
-⠁ 6"#
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10
+⠁ 0
+⠁ 1
+⠁ 2"#
             .trim_start()
     );
     assert_eq!(
         in_mem.moves_since_last_check(),
         r#"Clear
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
 Str("                                                                             ")
@@ -1160,8 +1161,10 @@ Down(1)
 Clear
 Up(1)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
 Str("                                                                             ")
@@ -1174,10 +1177,13 @@ Down(1)
 Clear
 Up(2)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
 Str("                                                                             ")
@@ -1192,17 +1198,18 @@ Down(1)
 Clear
 Up(3)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
-NewLine
-Str("⠁ 3")
-Str("                                                                             ")
+Str("")
 Flush
-Up(4)
+Up(3)
 Clear
 Down(1)
 Clear
@@ -1210,23 +1217,20 @@ Down(1)
 Clear
 Down(1)
 Clear
-Down(1)
-Clear
-Up(4)
+Up(3)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
-NewLine
-Str("⠁ 3")
-NewLine
-Str("⠁ 4")
-Str("                                                                             ")
+Str("")
 Flush
-Up(5)
+Up(3)
 Clear
 Down(1)
 Clear
@@ -1234,27 +1238,20 @@ Down(1)
 Clear
 Down(1)
 Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Up(5)
+Up(3)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
-NewLine
-Str("⠁ 3")
-NewLine
-Str("⠁ 4")
-NewLine
-Str("⠁ 5")
-Str("                                                                             ")
+Str("")
 Flush
-Up(6)
+Up(3)
 Clear
 Down(1)
 Clear
@@ -1262,29 +1259,18 @@ Down(1)
 Clear
 Down(1)
 Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Up(6)
+Up(3)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
-NewLine
-Str("⠁ 3")
-NewLine
-Str("⠁ 4")
-NewLine
-Str("⠁ 5")
-NewLine
-Str("⠁ 6")
-Str("                                                                             ")
+Str("")
 Flush
 "#
     );
@@ -1293,15 +1279,15 @@ Flush
     assert_eq!(
         in_mem.contents(),
         r#"
-⠁ 3
-⠁ 4
-⠁ 5
-⠁ 6"#
+██████████████████████████████████████████████████████████████████████████ 10/10
+⠁ 0
+⠁ 1
+⠁ 2"#
             .trim_start()
     );
     assert_eq!(
         in_mem.moves_since_last_check(),
-        r#"Up(7)
+        r#"Up(3)
 Clear
 Down(1)
 Clear
@@ -1309,31 +1295,18 @@ Down(1)
 Clear
 Down(1)
 Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Up(7)
+Up(3)
 Str("██████████████████████████████████████████████████████████████████████████ 10/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
-NewLine
-Str("⠁ 3")
-NewLine
-Str("⠁ 4")
-NewLine
-Str("⠁ 5")
-NewLine
-Str("⠁ 6")
-Str("                                                                             ")
+Str("")
 Flush
 "#
     );
@@ -1343,35 +1316,26 @@ Flush
     assert_eq!(in_mem.contents(), r#""#);
     assert_eq!(
         in_mem.moves_since_last_check(),
-        r#"Up(6)
+        r#"Up(2)
 Clear
 Down(1)
 Clear
 Down(1)
 Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Up(6)
+Up(2)
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
+Str("")
 NewLine
 Str("⠁ 3")
+Str("")
 NewLine
 Str("⠁ 4")
-NewLine
-Str("⠁ 5")
-NewLine
-Str("⠁ 6")
-Str("                                                                             ")
+Str("")
 Flush
-Up(5)
+Up(3)
 Clear
 Down(1)
 Clear
@@ -1379,23 +1343,20 @@ Down(1)
 Clear
 Down(1)
 Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Up(5)
+Up(3)
 Str("⠁ 2")
+Str("")
 NewLine
 Str("⠁ 3")
+Str("")
 NewLine
 Str("⠁ 4")
+Str("")
 NewLine
 Str("⠁ 5")
-NewLine
-Str("⠁ 6")
-Str("                                                                             ")
+Str("")
 Flush
-Up(4)
+Up(3)
 Clear
 Down(1)
 Clear
@@ -1403,14 +1364,15 @@ Down(1)
 Clear
 Down(1)
 Clear
-Down(1)
-Clear
-Up(4)
+Up(3)
 Str("⠁ 3")
+Str("")
 NewLine
 Str("⠁ 4")
+Str("")
 NewLine
 Str("⠁ 5")
+Str("")
 NewLine
 Str("⠁ 6")
 Str("                                                                             ")
@@ -1425,8 +1387,10 @@ Down(1)
 Clear
 Up(3)
 Str("⠁ 4")
+Str("")
 NewLine
 Str("⠁ 5")
+Str("")
 NewLine
 Str("⠁ 6")
 Str("                                                                             ")
@@ -1439,6 +1403,7 @@ Down(1)
 Clear
 Up(2)
 Str("⠁ 5")
+Str("")
 NewLine
 Str("⠁ 6")
 Str("                                                                             ")
@@ -1452,6 +1417,7 @@ Str("⠁ 6")
 Str("                                                                             ")
 Flush
 Clear
+Str("")
 Flush
 "#
     );
@@ -1493,10 +1459,10 @@ Flush
     assert_eq!(
         in_mem.contents(),
         r#"
-⠁ 3
-⠁ 4
-⠁ 5
-⠁ 6"#
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10
+⠁ 0
+⠁ 1
+⠁ 2"#
             .trim_start()
     );
 
@@ -1504,6 +1470,7 @@ Flush
         in_mem.moves_since_last_check(),
         r#"Clear
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
 Str("                                                                             ")
@@ -1514,8 +1481,10 @@ Down(1)
 Clear
 Up(1)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
 Str("                                                                             ")
@@ -1528,10 +1497,13 @@ Down(1)
 Clear
 Up(2)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
 Str("                                                                             ")
@@ -1546,17 +1518,18 @@ Down(1)
 Clear
 Up(3)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
-NewLine
-Str("⠁ 3")
-Str("                                                                             ")
+Str("")
 Flush
-Up(4)
+Up(3)
 Clear
 Down(1)
 Clear
@@ -1564,23 +1537,20 @@ Down(1)
 Clear
 Down(1)
 Clear
-Down(1)
-Clear
-Up(4)
+Up(3)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
-NewLine
-Str("⠁ 3")
-NewLine
-Str("⠁ 4")
-Str("                                                                             ")
+Str("")
 Flush
-Up(5)
+Up(3)
 Clear
 Down(1)
 Clear
@@ -1588,27 +1558,20 @@ Down(1)
 Clear
 Down(1)
 Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Up(5)
+Up(3)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
-NewLine
-Str("⠁ 3")
-NewLine
-Str("⠁ 4")
-NewLine
-Str("⠁ 5")
-Str("                                                                             ")
+Str("")
 Flush
-Up(6)
+Up(3)
 Clear
 Down(1)
 Clear
@@ -1616,29 +1579,18 @@ Down(1)
 Clear
 Down(1)
 Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Up(6)
+Up(3)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
-NewLine
-Str("⠁ 3")
-NewLine
-Str("⠁ 4")
-NewLine
-Str("⠁ 5")
-NewLine
-Str("⠁ 6")
-Str("                                                                             ")
+Str("")
 Flush
 "#
     );
@@ -1648,16 +1600,16 @@ Flush
     assert_eq!(
         in_mem.contents(),
         r#"
-⠁ 2
-⠁ 4
-⠁ 5
-⠁ 6"#
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10
+⠁ 0
+⠁ 1
+⠁ 2"#
             .trim_start()
     );
 
     assert_eq!(
         in_mem.moves_since_last_check(),
-        r#"Up(7)
+        r#"Up(3)
 Clear
 Down(1)
 Clear
@@ -1665,29 +1617,18 @@ Down(1)
 Clear
 Down(1)
 Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Up(7)
+Up(3)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
-NewLine
-Str("⠁ 4")
-NewLine
-Str("⠁ 5")
-NewLine
-Str("⠁ 6")
-Str("                                                                             ")
+Str("")
 Flush
 "#
     );
@@ -1697,15 +1638,15 @@ Flush
     assert_eq!(
         in_mem.contents(),
         r#"
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10
+⠁ 0
 ⠁ 1
-⠁ 2
-⠁ 4
-⠁ 6"#
+⠁ 2"#
             .trim_start()
     );
     assert_eq!(
         in_mem.moves_since_last_check(),
-        r#"Up(6)
+        r#"Up(3)
 Clear
 Down(1)
 Clear
@@ -1713,25 +1654,18 @@ Down(1)
 Clear
 Down(1)
 Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Up(6)
+Up(3)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 0")
+Str("")
 NewLine
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
-NewLine
-Str("⠁ 4")
-NewLine
-Str("⠁ 6")
-Str("                                                                             ")
+Str("")
 Flush
 "#
     );
@@ -1744,7 +1678,7 @@ Flush
     );
     assert_eq!(
         in_mem.moves_since_last_check(),
-        r#"Up(5)
+        r#"Up(3)
 Clear
 Down(1)
 Clear
@@ -1752,23 +1686,20 @@ Down(1)
 Clear
 Down(1)
 Clear
-Down(1)
-Clear
-Down(1)
-Clear
-Up(5)
+Up(3)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 1")
+Str("")
 NewLine
 Str("⠁ 2")
+Str("")
 NewLine
 Str("⠁ 4")
-NewLine
-Str("⠁ 6")
-Str("                                                                             ")
+Str("")
 Flush
-Up(4)
+Up(3)
 Clear
 Down(1)
 Clear
@@ -1776,14 +1707,15 @@ Down(1)
 Clear
 Down(1)
 Clear
-Down(1)
-Clear
-Up(4)
+Up(3)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 2")
+Str("")
 NewLine
 Str("⠁ 4")
+Str("")
 NewLine
 Str("⠁ 6")
 Str("                                                                             ")
@@ -1798,8 +1730,10 @@ Down(1)
 Clear
 Up(3)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 4")
+Str("")
 NewLine
 Str("⠁ 6")
 Str("                                                                             ")
@@ -1812,6 +1746,7 @@ Down(1)
 Clear
 Up(2)
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
 NewLine
 Str("⠁ 6")
 Str("                                                                             ")
