@@ -1102,3 +1102,123 @@ hello
 ██████████████████████████████████████████████████████████████████████████ 10/10"
     );
 }
+
+#[test]
+fn multi_progress_many_bars() {
+    let in_mem = InMemoryTerm::new(4, 80);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+    let pb1 = mp.add(ProgressBar::new(10).with_finish(ProgressFinish::AndLeave));
+    let mut spinners = vec![];
+    for i in 0..7 {
+        let spinner = ProgressBar::new_spinner().with_message(i.to_string());
+        mp.add(spinner.clone());
+        spinners.push(spinner);
+    }
+
+    assert_eq!(in_mem.contents(), String::new());
+
+    pb1.tick();
+    assert_eq!(
+        in_mem.contents(),
+        r#"░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10"#
+    );
+
+    for spinner in &spinners {
+        spinner.tick()
+    }
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+⠁ 3
+⠁ 4
+⠁ 5
+⠁ 6"#
+            .trim_start()
+    );
+
+    drop(pb1);
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+⠁ 3
+⠁ 4
+⠁ 5
+⠁ 6"#
+            .trim_start()
+    );
+
+    drop(spinners);
+
+    assert_eq!(in_mem.contents(), r#""#);
+}
+
+#[test]
+fn multi_progress_many_spinners() {
+    let in_mem = InMemoryTerm::new(4, 80);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+    let pb1 = mp.add(ProgressBar::new(10).with_finish(ProgressFinish::AndLeave));
+    let mut spinners = vec![];
+    for i in 0..7 {
+        let spinner = ProgressBar::new_spinner().with_message(i.to_string());
+        mp.add(spinner.clone());
+        spinners.push(spinner);
+    }
+
+    assert_eq!(in_mem.contents(), String::new());
+
+    pb1.tick();
+    assert_eq!(
+        in_mem.contents(),
+        r#"░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10"#
+    );
+
+    for spinner in &spinners {
+        spinner.tick()
+    }
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+⠁ 3
+⠁ 4
+⠁ 5
+⠁ 6"#
+            .trim_start()
+    );
+
+    spinners.remove(3);
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+⠁ 2
+⠁ 4
+⠁ 5
+⠁ 6"#
+            .trim_start()
+    );
+
+    spinners.remove(4);
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+⠁ 1
+⠁ 2
+⠁ 4
+⠁ 6"#
+            .trim_start()
+    );
+
+    drop(spinners);
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10"#
+    );
+}
