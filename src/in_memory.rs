@@ -1,5 +1,5 @@
-use std::fmt::{Debug, Formatter};
-use std::io::Write;
+use std::fmt::{Debug, Formatter, Write as _};
+use std::io::Write as _;
 use std::sync::{Arc, Mutex};
 
 use vt100::Parser;
@@ -92,6 +92,14 @@ impl InMemoryTerm {
         contents.truncate(len.saturating_sub(1));
         contents
     }
+
+    pub fn moves_since_last_check(&self) -> String {
+        let mut s = String::new();
+        for line in std::mem::take(&mut self.state.lock().unwrap().history) {
+            writeln!(s, "{line:?}").unwrap();
+        }
+        s
+    }
 }
 
 impl TermLike for InMemoryTerm {
@@ -106,33 +114,51 @@ impl TermLike for InMemoryTerm {
     fn move_cursor_up(&self, n: usize) -> std::io::Result<()> {
         match n {
             0 => Ok(()),
-            _ => self.state.lock().unwrap().write_str(&format!("\x1b[{n}A")),
+            _ => {
+                let mut state = self.state.lock().unwrap();
+                state.history.push(Move::Up(n));
+                state.write_str(&format!("\x1b[{n}A"))
+            }
         }
     }
 
     fn move_cursor_down(&self, n: usize) -> std::io::Result<()> {
         match n {
             0 => Ok(()),
-            _ => self.state.lock().unwrap().write_str(&format!("\x1b[{n}B")),
+            _ => {
+                let mut state = self.state.lock().unwrap();
+                state.history.push(Move::Down(n));
+                state.write_str(&format!("\x1b[{n}B"))
+            }
         }
     }
 
     fn move_cursor_right(&self, n: usize) -> std::io::Result<()> {
         match n {
             0 => Ok(()),
-            _ => self.state.lock().unwrap().write_str(&format!("\x1b[{n}C")),
+            _ => {
+                let mut state = self.state.lock().unwrap();
+                state.history.push(Move::Right(n));
+                state.write_str(&format!("\x1b[{n}C"))
+            }
         }
     }
 
     fn move_cursor_left(&self, n: usize) -> std::io::Result<()> {
         match n {
             0 => Ok(()),
-            _ => self.state.lock().unwrap().write_str(&format!("\x1b[{n}D")),
+            _ => {
+                let mut state = self.state.lock().unwrap();
+                state.history.push(Move::Left(n));
+                state.write_str(&format!("\x1b[{n}D"))
+            }
         }
     }
 
     fn write_line(&self, s: &str) -> std::io::Result<()> {
         let mut state = self.state.lock().unwrap();
+        state.history.push(Move::Str(s.into()));
+        state.history.push(Move::NewLine);
 
         // Don't try to handle writing lines with additional newlines embedded in them - it's not
         // worth the extra code for something that indicatif doesn't even do. May revisit in future.
@@ -148,15 +174,21 @@ impl TermLike for InMemoryTerm {
     }
 
     fn write_str(&self, s: &str) -> std::io::Result<()> {
-        self.state.lock().unwrap().write_str(s)
+        let mut state = self.state.lock().unwrap();
+        state.history.push(Move::Str(s.into()));
+        state.write_str(s)
     }
 
     fn clear_line(&self) -> std::io::Result<()> {
-        self.state.lock().unwrap().write_str("\r\x1b[2K")
+        let mut state = self.state.lock().unwrap();
+        state.history.push(Move::Clear);
+        state.write_str("\r\x1b[2K")
     }
 
     fn flush(&self) -> std::io::Result<()> {
-        self.state.lock().unwrap().parser.flush()
+        let mut state = self.state.lock().unwrap();
+        state.history.push(Move::Flush);
+        state.parser.flush()
     }
 }
 
@@ -164,6 +196,7 @@ struct InMemoryTermState {
     width: u16,
     height: u16,
     parser: vt100::Parser,
+    history: Vec<Move>,
 }
 
 impl InMemoryTermState {
@@ -172,6 +205,7 @@ impl InMemoryTermState {
             width: cols,
             height: rows,
             parser: Parser::new(rows, cols, 0),
+            history: vec![],
         }
     }
 
@@ -184,6 +218,18 @@ impl Debug for InMemoryTermState {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InMemoryTermState").finish_non_exhaustive()
     }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+enum Move {
+    Up(usize),
+    Down(usize),
+    Left(usize),
+    Right(usize),
+    Str(String),
+    NewLine,
+    Clear,
+    Flush,
 }
 
 #[cfg(test)]
@@ -208,15 +254,30 @@ mod test {
         in_mem.write_str("ABCDE").unwrap();
         assert_eq!(in_mem.contents(), "ABCDE");
         assert_eq!(cursor_pos(&in_mem), (0, 5));
+        assert_eq!(
+            in_mem.moves_since_last_check(),
+            r#"Str("ABCDE")
+"#
+        );
 
         // Should wrap onto next line
         in_mem.write_str("FG").unwrap();
         assert_eq!(in_mem.contents(), "ABCDE\nFG");
         assert_eq!(cursor_pos(&in_mem), (1, 2));
+        assert_eq!(
+            in_mem.moves_since_last_check(),
+            r#"Str("FG")
+"#
+        );
 
         in_mem.write_str("HIJ").unwrap();
         assert_eq!(in_mem.contents(), "ABCDE\nFGHIJ");
         assert_eq!(cursor_pos(&in_mem), (1, 5));
+        assert_eq!(
+            in_mem.moves_since_last_check(),
+            r#"Str("HIJ")
+"#
+        );
     }
 
     #[test]
@@ -227,14 +288,32 @@ mod test {
         in_mem.write_line("A").unwrap();
         assert_eq!(in_mem.contents(), "A");
         assert_eq!(cursor_pos(&in_mem), (1, 0));
+        assert_eq!(
+            in_mem.moves_since_last_check(),
+            r#"Str("A")
+NewLine
+"#
+        );
 
         in_mem.write_line("B").unwrap();
         assert_eq!(in_mem.contents(), "A\nB");
         assert_eq!(cursor_pos(&in_mem), (2, 0));
+        assert_eq!(
+            in_mem.moves_since_last_check(),
+            r#"Str("B")
+NewLine
+"#
+        );
 
         in_mem.write_line("Longer than cols").unwrap();
         assert_eq!(in_mem.contents(), "A\nB\nLonge\nr tha\nn col\ns");
         assert_eq!(cursor_pos(&in_mem), (6, 0));
+        assert_eq!(
+            in_mem.moves_since_last_check(),
+            r#"Str("Longer than cols")
+NewLine
+"#
+        );
     }
 
     #[test]
@@ -243,14 +322,32 @@ mod test {
 
         in_mem.write_line("This is a test line").unwrap();
         assert_eq!(in_mem.contents(), "This is a test line");
+        assert_eq!(
+            in_mem.moves_since_last_check(),
+            r#"Str("This is a test line")
+NewLine
+"#
+        );
 
         in_mem.write_line("And another line!").unwrap();
         assert_eq!(in_mem.contents(), "This is a test line\nAnd another line!");
+        assert_eq!(
+            in_mem.moves_since_last_check(),
+            r#"Str("And another line!")
+NewLine
+"#
+        );
 
         in_mem.move_cursor_up(1).unwrap();
         in_mem.write_str("TEST").unwrap();
 
         assert_eq!(in_mem.contents(), "This is a test line\nTESTanother line!");
+        assert_eq!(
+            in_mem.moves_since_last_check(),
+            r#"Up(1)
+Str("TEST")
+"#
+        );
     }
 
     #[test]
@@ -262,6 +359,19 @@ mod test {
         in_mem.write_line("LINE FOUR").unwrap();
 
         assert_eq!(in_mem.contents(), "LINE ONE\nLINE TWO\n\nLINE FOUR");
+
+        assert_eq!(
+            in_mem.moves_since_last_check(),
+            r#"Str("LINE ONE")
+NewLine
+Str("LINE TWO")
+NewLine
+Str("")
+NewLine
+Str("LINE FOUR")
+NewLine
+"#
+        );
     }
 
     #[test]
