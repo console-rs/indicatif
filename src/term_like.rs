@@ -11,14 +11,19 @@ use console::Term;
 pub trait TermLike: Debug + Send + Sync {
     /// Return the terminal width
     fn width(&self) -> u16;
+    /// Return the terminal height
+    fn height(&self) -> u16 {
+        // FIXME: remove this default impl in the next major version bump
+        20 // sensible default
+    }
 
     /// Move the cursor up by `n` lines
     fn move_cursor_up(&self, n: usize) -> io::Result<()>;
     /// Move the cursor down by `n` lines
     fn move_cursor_down(&self, n: usize) -> io::Result<()>;
-    /// Move the cursor right by `n` lines
+    /// Move the cursor right by `n` chars
     fn move_cursor_right(&self, n: usize) -> io::Result<()>;
-    /// Move the cursor left by `n` lines
+    /// Move the cursor left by `n` chars
     fn move_cursor_left(&self, n: usize) -> io::Result<()>;
 
     /// Write a string and add a newline.
@@ -34,6 +39,10 @@ pub trait TermLike: Debug + Send + Sync {
 impl TermLike for Term {
     fn width(&self) -> u16 {
         self.size().1
+    }
+
+    fn height(&self) -> u16 {
+        self.size().0
     }
 
     fn move_cursor_up(&self, n: usize) -> io::Result<()> {

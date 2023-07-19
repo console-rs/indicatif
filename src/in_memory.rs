@@ -26,7 +26,7 @@ impl InMemoryTerm {
 
     pub fn reset(&self) {
         let mut state = self.state.lock().unwrap();
-        *state = InMemoryTermState::new(state.parser.screen().size().0, state.width);
+        *state = InMemoryTermState::new(state.height, state.width);
     }
 
     pub fn contents(&self) -> String {
@@ -99,6 +99,10 @@ impl TermLike for InMemoryTerm {
         self.state.lock().unwrap().width
     }
 
+    fn height(&self) -> u16 {
+        self.state.lock().unwrap().height
+    }
+
     fn move_cursor_up(&self, n: usize) -> std::io::Result<()> {
         match n {
             0 => Ok(()),
@@ -158,6 +162,7 @@ impl TermLike for InMemoryTerm {
 
 struct InMemoryTermState {
     width: u16,
+    height: u16,
     parser: vt100::Parser,
 }
 
@@ -165,6 +170,7 @@ impl InMemoryTermState {
     pub(crate) fn new(rows: u16, cols: u16) -> InMemoryTermState {
         InMemoryTermState {
             width: cols,
+            height: rows,
             parser: Parser::new(rows, cols, 0),
         }
     }
