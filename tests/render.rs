@@ -6,6 +6,7 @@ use indicatif::{
     InMemoryTerm, MultiProgress, MultiProgressAlignment, ProgressBar, ProgressDrawTarget,
     ProgressFinish, ProgressStyle, TermLike,
 };
+use pretty_assertions::assert_eq;
 
 #[test]
 fn basic_progress_bar() {
@@ -1124,6 +1125,13 @@ fn multi_progress_many_bars() {
         in_mem.contents(),
         r#"░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10"#
     );
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+Flush
+"#
+    );
 
     for spinner in &spinners {
         spinner.tick()
@@ -1138,6 +1146,148 @@ fn multi_progress_many_bars() {
 ⠁ 6"#
             .trim_start()
     );
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Clear
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+Str("                                                                             ")
+Flush
+Up(1)
+Clear
+Down(1)
+Clear
+Up(1)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+Str("                                                                             ")
+Flush
+Up(2)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(2)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+Str("                                                                             ")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+NewLine
+Str("⠁ 3")
+Str("                                                                             ")
+Flush
+Up(4)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(4)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+NewLine
+Str("⠁ 3")
+NewLine
+Str("⠁ 4")
+Str("                                                                             ")
+Flush
+Up(5)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(5)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+NewLine
+Str("⠁ 3")
+NewLine
+Str("⠁ 4")
+NewLine
+Str("⠁ 5")
+Str("                                                                             ")
+Flush
+Up(6)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(6)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+NewLine
+Str("⠁ 3")
+NewLine
+Str("⠁ 4")
+NewLine
+Str("⠁ 5")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+"#
+    );
 
     drop(pb1);
     assert_eq!(
@@ -1149,10 +1299,162 @@ fn multi_progress_many_bars() {
 ⠁ 6"#
             .trim_start()
     );
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Up(7)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(7)
+Str("██████████████████████████████████████████████████████████████████████████ 10/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+NewLine
+Str("⠁ 3")
+NewLine
+Str("⠁ 4")
+NewLine
+Str("⠁ 5")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+"#
+    );
 
     drop(spinners);
 
     assert_eq!(in_mem.contents(), r#""#);
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Up(6)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(6)
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+NewLine
+Str("⠁ 3")
+NewLine
+Str("⠁ 4")
+NewLine
+Str("⠁ 5")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(5)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(5)
+Str("⠁ 2")
+NewLine
+Str("⠁ 3")
+NewLine
+Str("⠁ 4")
+NewLine
+Str("⠁ 5")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(4)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(4)
+Str("⠁ 3")
+NewLine
+Str("⠁ 4")
+NewLine
+Str("⠁ 5")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("⠁ 4")
+NewLine
+Str("⠁ 5")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(2)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(2)
+Str("⠁ 5")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(1)
+Clear
+Down(1)
+Clear
+Up(1)
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Clear
+Flush
+"#
+    );
 }
 
 #[test]
@@ -1176,6 +1478,13 @@ fn multi_progress_many_spinners() {
         in_mem.contents(),
         r#"░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10"#
     );
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+Flush
+"#
+    );
 
     for spinner in &spinners {
         spinner.tick()
@@ -1191,6 +1500,149 @@ fn multi_progress_many_spinners() {
             .trim_start()
     );
 
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Clear
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+Str("                                                                             ")
+Flush
+Up(1)
+Clear
+Down(1)
+Clear
+Up(1)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+Str("                                                                             ")
+Flush
+Up(2)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(2)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+Str("                                                                             ")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+NewLine
+Str("⠁ 3")
+Str("                                                                             ")
+Flush
+Up(4)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(4)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+NewLine
+Str("⠁ 3")
+NewLine
+Str("⠁ 4")
+Str("                                                                             ")
+Flush
+Up(5)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(5)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+NewLine
+Str("⠁ 3")
+NewLine
+Str("⠁ 4")
+NewLine
+Str("⠁ 5")
+Str("                                                                             ")
+Flush
+Up(6)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(6)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+NewLine
+Str("⠁ 3")
+NewLine
+Str("⠁ 4")
+NewLine
+Str("⠁ 5")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+"#
+    );
+
     spinners.remove(3);
 
     assert_eq!(
@@ -1201,6 +1653,43 @@ fn multi_progress_many_spinners() {
 ⠁ 5
 ⠁ 6"#
             .trim_start()
+    );
+
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Up(7)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(7)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+NewLine
+Str("⠁ 4")
+NewLine
+Str("⠁ 5")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+"#
     );
 
     spinners.remove(4);
@@ -1214,11 +1703,127 @@ fn multi_progress_many_spinners() {
 ⠁ 6"#
             .trim_start()
     );
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Up(6)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(6)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 0")
+NewLine
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+NewLine
+Str("⠁ 4")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+"#
+    );
 
     drop(spinners);
 
     assert_eq!(
         in_mem.contents(),
         r#"░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10"#
+    );
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Up(5)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(5)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 1")
+NewLine
+Str("⠁ 2")
+NewLine
+Str("⠁ 4")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(4)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(4)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 2")
+NewLine
+Str("⠁ 4")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(3)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(3)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 4")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(2)
+Clear
+Down(1)
+Clear
+Down(1)
+Clear
+Up(2)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+NewLine
+Str("⠁ 6")
+Str("                                                                             ")
+Flush
+Up(1)
+Clear
+Down(1)
+Clear
+Up(1)
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+Flush
+"#
     );
 }
