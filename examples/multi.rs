@@ -3,6 +3,8 @@ use std::time::Duration;
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
+use rand::Rng;
+
 fn main() {
     let m = MultiProgress::new();
     let sty = ProgressStyle::with_template(
@@ -11,41 +13,20 @@ fn main() {
     .unwrap()
     .progress_chars("##-");
 
-    let pb = m.add(ProgressBar::new(128));
+    let n = 200;
+    let pb = m.add(ProgressBar::new(n));
     pb.set_style(sty.clone());
-
-    let pb2 = m.insert_after(&pb, ProgressBar::new(128));
+    pb.set_message("todo");
+    let pb2 = m.add(ProgressBar::new(n));
     pb2.set_style(sty.clone());
+    pb2.set_message("finished");
 
     let pb3 = m.insert_after(&pb2, ProgressBar::new(1024));
     pb3.set_style(sty);
 
     m.println("starting!").unwrap();
 
-    let m_clone = m.clone();
-    let h1 = thread::spawn(move || {
-        for i in 0..128 {
-            thread::sleep(Duration::from_millis(15));
-            pb.set_message(format!("item #{}", i + 1));
-            pb.inc(1);
-        }
-        m_clone.println("pb1 is done!").unwrap();
-        pb.finish_with_message("done");
-    });
-
-    let m_clone = m.clone();
-    let h2 = thread::spawn(move || {
-        for _ in 0..3 {
-            pb2.set_position(0);
-            for i in 0..128 {
-                thread::sleep(Duration::from_millis(8));
-                pb2.set_message(format!("item #{}", i + 1));
-                pb2.inc(1);
-            }
-        }
-        m_clone.println("pb2 is done!").unwrap();
-        pb2.finish_with_message("done");
-    });
+    let mut threads = vec![];
 
     let m_clone = m.clone();
     let h3 = thread::spawn(move || {
@@ -58,8 +39,29 @@ fn main() {
         pb3.finish_with_message("done");
     });
 
-    let _ = h1.join();
-    let _ = h2.join();
+    for i in 0..n {
+        thread::sleep(Duration::from_millis(15));
+        if i == n / 3 {
+            thread::sleep(Duration::from_secs(2));
+        }
+        pb.inc(1);
+        let m = m.clone();
+        let pb2 = pb2.clone();
+        threads.push(thread::spawn(move || {
+            let spinner = m.add(ProgressBar::new_spinner().with_message(i.to_string()));
+            spinner.enable_steady_tick(Duration::from_millis(100));
+            thread::sleep(
+                rand::thread_rng().gen_range(Duration::from_secs(1)..Duration::from_secs(5)),
+            );
+            pb2.inc(1);
+        }));
+    }
+    pb.finish_with_message("all jobs started");
+
+    for thread in threads {
+        let _ = thread.join();
+    }
     let _ = h3.join();
+    pb2.finish_with_message("all jobs done");
     m.clear().unwrap();
 }
