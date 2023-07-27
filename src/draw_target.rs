@@ -427,7 +427,7 @@ impl RateLimiter {
         // convert into capacity now, so we're saving it for later.
         let (new, remainder) = (
             elapsed.as_millis() / self.interval as u128,
-            elapsed.as_nanos() % self.interval as u128 * 1_000_000,
+            elapsed.as_nanos() % (self.interval as u128 * 1_000_000),
         );
 
         // We add `new` to `capacity`, subtract one for returning `true` from here,
