@@ -161,13 +161,17 @@ impl BarState {
     }
 
     pub(crate) fn suspend<F: FnOnce() -> R, R>(&mut self, now: Instant, f: F) -> R {
-        if let Some(drawable) = self.draw_target.drawable(true, now) {
-            let _ = drawable.clear();
-        }
+        if let Some((state, _)) = self.draw_target.remote() {
+            state.write().unwrap().suspend(f, now)
+        } else {
+            if let Some(drawable) = self.draw_target.drawable(true, now) {
+                let _ = drawable.clear();
+            }
 
-        let ret = f();
-        let _ = self.draw(true, Instant::now());
-        ret
+            let ret = f();
+            let _ = self.draw(true, Instant::now());
+            ret
+        }
     }
 
     pub(crate) fn draw(&mut self, mut force_draw: bool, now: Instant) -> io::Result<()> {
