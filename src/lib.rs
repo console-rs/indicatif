@@ -222,6 +222,8 @@ mod format;
 #[cfg(feature = "in_memory")]
 mod in_memory;
 mod iter;
+#[cfg(feature = "log")]
+mod log;
 mod multi;
 mod progress_bar;
 #[cfg(feature = "rayon")]
@@ -238,6 +240,8 @@ pub use crate::format::{
 #[cfg(feature = "in_memory")]
 pub use crate::in_memory::InMemoryTerm;
 pub use crate::iter::{ProgressBarIter, ProgressIterator};
+#[cfg(feature = "log")]
+pub use crate::log::LogWrapper;
 pub use crate::multi::{MultiProgress, MultiProgressAlignment};
 pub use crate::progress_bar::{ProgressBar, WeakProgressBar};
 #[cfg(feature = "rayon")]
