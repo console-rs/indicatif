@@ -30,72 +30,45 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/github-script@v6
-        id: rust-target
+      - uses: dtolnay/rust-toolchain@master
         with:
-          script: |
-            const target = '${{ matrix.target }}'
-            if (target) {
-              const rustTarget = target.slice('--target'.length).trim()
-              core.setOutput('rust-target', rustTarget)
-            } else {
-              core.setOutput('rust-target', '')
-            }
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          target: ${{ steps.rust-target.outputs.rust-target }}
-          override: true
-      - uses: actions-rs/cargo@v1
+      - run: cargo test ${{ matrix.features }}
+
+  cross:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        target: [armv5te-unknown-linux-gnueabi]
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          use-cross: ${{ matrix.use-cross }}
-          command: build
-          args: --workspace --all-targets ${{ matrix.target }}
-      - uses: actions-rs/cargo@v1
-        with:
-          use-cross: ${{ matrix.use-cross }}
-          command: test
-          args: --workspace ${{ matrix.target }}
-      - uses: actions-rs/cargo@v1
-        with:
-          use-cross: ${{ matrix.use-cross }}
-          command: test
-          args: --workspace ${{ matrix.features }} ${{ matrix.target }}
+          target: ${{ matrix.target }}
+      - uses: taiki-e/install-action@cross
+      - run: cross build --target ${{ matrix.target }} --all-features
 
   msrv:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: "1.62.1"
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --lib --all-features
+      - run: cargo check --lib --all-features
 
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: stable
-          override: true
           components: rustfmt, clippy
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-      - uses: actions-rs/cargo@v1
-        if: always()
-        with:
-          command: clippy
-          args: --workspace --all-targets --all-features -- -D warnings
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets --all-features -- -D warnings
       - name: doc
         run: cargo doc --no-deps --document-private-items
         env:
