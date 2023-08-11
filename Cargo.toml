@@ -1,16 +1,16 @@
 [package]
 name = "indicatif"
-description = "A progress bar and cli reporting library for Rust"
 version = "0.17.6"
+edition = "2018"
+rust-version = "1.62.1"
+description = "A progress bar and cli reporting library for Rust"
 keywords = ["cli", "progress", "pb", "colors", "progressbar"]
 categories = ["command-line-interface"]
 license = "MIT"
 repository = "https://github.com/console-rs/indicatif"
 documentation = "https://docs.rs/indicatif"
 readme = "README.md"
-edition = "2018"
 exclude = ["screenshots/*"]
-rust-version = "1.62.1"
 
 [dependencies]
 console = { version = "0.15", default-features = false, features = ["ansi-parsing"] }
