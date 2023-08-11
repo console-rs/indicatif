@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::convert::TryFrom;
 use std::io::{self, IoSliceMut};
 use std::iter::FusedIterator;
 #[cfg(feature = "tokio")]
