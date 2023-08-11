@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-
 use rayon::iter::plumbing::{Consumer, Folder, Producer, ProducerCallback, UnindexedConsumer};
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 
