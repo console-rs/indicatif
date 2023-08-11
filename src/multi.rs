@@ -241,7 +241,7 @@ impl MultiState {
             .unwrap_or_default();
 
         // Track the total number of zombie lines on the screen
-        self.zombie_lines_count += line_count;
+        self.zombie_lines_count = self.zombie_lines_count.saturating_add(line_count);
 
         // Make `DrawTarget` forget about the zombie lines so that they aren't cleared on next draw.
         self.draw_target
