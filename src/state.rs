@@ -128,11 +128,12 @@ impl BarState {
     pub(crate) fn update_estimate_and_draw(&mut self, now: Instant) {
         let pos = self.state.pos.pos.load(Ordering::Relaxed);
         self.state.est.record(pos, now);
-        let _ = self.draw(false, now);
 
         for tracker in self.style.format_map.values_mut() {
             tracker.tick(&self.state, now);
         }
+
+        let _ = self.draw(false, now);
     }
 
     pub(crate) fn println(&mut self, now: Instant, msg: &str) {
