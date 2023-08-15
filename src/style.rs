@@ -150,6 +150,12 @@ impl ProgressStyle {
     }
 
     /// Adds a custom key that owns a [`ProgressTracker`] to the template
+    ///
+    /// The `ProgressTracker::write` method is called each time the key is referenced in the
+    /// template, in order with other formatting and computation in the template. The caller can
+    /// rely on this ordering.
+    ///
+    /// It's safe to call back into the `ProgressBar` from within this callback.
     pub fn with_key<S: ProgressTracker + 'static>(mut self, key: &'static str, f: S) -> Self {
         self.format_map.insert(key, Box::new(f));
         self
