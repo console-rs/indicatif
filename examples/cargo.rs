@@ -90,7 +90,7 @@ fn main() {
     let green_bold = Style::new().green().bold();
 
     // do progress drawing in main thread
-    let mut processing = vec![None; NUM_CPUS];
+    let mut processing = [None; NUM_CPUS];
     while let Ok((n, krate)) = rx.recv() {
         processing[n] = krate;
         let crates: Vec<&str> = processing
