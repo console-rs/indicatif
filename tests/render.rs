@@ -1780,8 +1780,7 @@ fn orphan_lines() {
 
         let n = 5 + i;
 
-        let msg = std::iter::repeat('\n').take(n).collect::<String>();
-        pb.println(msg);
+        pb.println("\n".repeat(n));
     }
 
     pb.finish();
@@ -1807,16 +1806,12 @@ fn orphan_lines_message_above_progress_bar() {
         // Test with messages of differing numbers of lines. The messages have the form:
         // n - 1 newlines followed by the number `n`. The value of n ranges from 5 (less
         // than the terminal height) to 15 (greater than the terminal height).
-        let msg = std::iter::repeat(String::from("\n"))
-            .take(n - 1)
-            .chain(std::iter::once(format!("{n}")))
-            .collect::<String>();
-        pb.println(msg);
+        pb.println(format!("{}{n}", "\n".repeat(n - 1)));
 
         // Check that the line above the progress bar is the number `n`.
         assert_eq!(
             format!("{n}"),
-            in_mem.contents().lines().rev().skip(1).next().unwrap(),
+            in_mem.contents().lines().rev().nth(1).unwrap(),
         );
     }
 
