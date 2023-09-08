@@ -1762,3 +1762,63 @@ Flush
 "#
     );
 }
+
+#[test]
+fn orphan_lines() {
+    let in_mem = InMemoryTerm::new(10, 80);
+
+    let pb = ProgressBar::with_draw_target(
+        Some(10),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    );
+    assert_eq!(in_mem.contents(), String::new());
+
+    for i in 0..=10 {
+        if i != 0 {
+            pb.inc(1);
+        }
+
+        let n = 5 + i;
+
+        let msg = std::iter::repeat('\n').take(n).collect::<String>();
+        pb.println(msg);
+    }
+
+    pb.finish();
+}
+
+#[test]
+fn orphan_lines_message_above_progress_bar() {
+    let in_mem = InMemoryTerm::new(10, 80);
+
+    let pb = ProgressBar::with_draw_target(
+        Some(10),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    );
+    assert_eq!(in_mem.contents(), String::new());
+
+    for i in 0..=10 {
+        if i != 0 {
+            pb.inc(1);
+        }
+
+        let n = 5 + i;
+
+        // Test with messages of differing numbers of lines. The messages have the form:
+        // n - 1 newlines followed by the number `n`. The value of n ranges from 5 (less
+        // than the terminal height) to 15 (greater than the terminal height).
+        let msg = std::iter::repeat(String::from("\n"))
+            .take(n - 1)
+            .chain(std::iter::once(format!("{n}")))
+            .collect::<String>();
+        pb.println(msg);
+
+        // Check that the line above the progress bar is the number `n`.
+        assert_eq!(
+            format!("{n}"),
+            in_mem.contents().lines().rev().skip(1).next().unwrap(),
+        );
+    }
+
+    pb.finish();
+}
