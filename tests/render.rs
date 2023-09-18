@@ -1807,10 +1807,11 @@ fn orphan_lines_message_above_progress_bar() {
         // n - 1 newlines followed by n * 11 dashes (`-`). The value of n ranges from 5
         // (less than the terminal height) to 15 (greater than the terminal height). The
         // number 11 is intentionally not a factor of the terminal width (80), but large
-        // enough that the strings of dashes should eventually wrap.
+        // enough that the strings of dashes eventually wrap.
         pb.println(format!("{}{}", "\n".repeat(n - 1), "-".repeat(n * 11)));
 
-        // Check that the line above the progress bar is the number `n`.
+        // Check that the line above the progress bar is a string of dashes of length
+        // n * 11 mod the terminal width.
         assert_eq!(
             format!("{}", "-".repeat(n * 11 % 80)),
             in_mem.contents().lines().rev().nth(1).unwrap(),
