@@ -1762,3 +1762,61 @@ Flush
 "#
     );
 }
+
+#[test]
+fn orphan_lines() {
+    let in_mem = InMemoryTerm::new(10, 80);
+
+    let pb = ProgressBar::with_draw_target(
+        Some(10),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    );
+    assert_eq!(in_mem.contents(), String::new());
+
+    for i in 0..=10 {
+        if i != 0 {
+            pb.inc(1);
+        }
+
+        let n = 5 + i;
+
+        pb.println("\n".repeat(n));
+    }
+
+    pb.finish();
+}
+
+#[test]
+fn orphan_lines_message_above_progress_bar() {
+    let in_mem = InMemoryTerm::new(10, 80);
+
+    let pb = ProgressBar::with_draw_target(
+        Some(10),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    );
+    assert_eq!(in_mem.contents(), String::new());
+
+    for i in 0..=10 {
+        if i != 0 {
+            pb.inc(1);
+        }
+
+        let n = 5 + i;
+
+        // Test with messages of differing numbers of lines. The messages have the form:
+        // n - 1 newlines followed by n * 11 dashes (`-`). The value of n ranges from 5
+        // (less than the terminal height) to 15 (greater than the terminal height). The
+        // number 11 is intentionally not a factor of the terminal width (80), but large
+        // enough that the strings of dashes eventually wrap.
+        pb.println(format!("{}{}", "\n".repeat(n - 1), "-".repeat(n * 11)));
+
+        // Check that the line above the progress bar is a string of dashes of length
+        // n * 11 mod the terminal width.
+        assert_eq!(
+            format!("{}", "-".repeat(n * 11 % 80)),
+            in_mem.contents().lines().rev().nth(1).unwrap(),
+        );
+    }
+
+    pb.finish();
+}
