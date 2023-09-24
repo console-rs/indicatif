@@ -65,6 +65,9 @@ impl MultiProgress {
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom `ProgressDrawTarget` settings.
     ///
+    /// The progress bar will be positioned below all other bars currently
+    /// in the `MultiProgress`.
+    ///
     /// Adding a progress bar that is already a member of the `MultiProgress`
     /// will have no effect.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
