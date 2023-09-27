@@ -56,6 +56,19 @@
 //! bar.finish();
 //! ```
 //!
+//! Spinners can be manually advanced with `tick`, or you can set them up to spin automatically with
+//! `enable_steady_tick`:
+//!
+//! ```rust
+//! use std::time::Duration;
+//! use indicatif::ProgressBar;
+//!
+//! let bar = ProgressBar::new_spinner();
+//! bar.enable_steady_tick(Duration::from_millis(100));
+//! // ... do some work
+//! bar.finish();
+//! ```
+//!
 //! General progress bar behaviors:
 //!
 //! * if a non terminal is detected the progress bar will be completely
@@ -164,7 +177,8 @@
 //!   style is used for the bar that is yet to render.
 //! * `wide_bar`: like `bar` but always fills the remaining space. It should not be used with
 //! `wide_msg`.
-//! * `spinner`: renders the spinner (current tick string).
+//! * `spinner`: renders the spinner (current tick string). Note that spinners do not automatically tick by default. You either
+//! need to call `enable_steady_tick` or manually call `tick`.
 //! * `prefix`: renders the prefix set on the progress bar.
 //! * `msg`: renders the currently set message on the progress bar.
 //! * `wide_msg`: like `msg` but always fills the remaining space and truncates. It should not be used
