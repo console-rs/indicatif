@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use number_prefix::NumberPrefix;
 
+const MILLISECOND: Duration = Duration::from_millis(1);
 const SECOND: Duration = Duration::from_secs(1);
 const MINUTE: Duration = Duration::from_secs(60);
 const HOUR: Duration = Duration::from_secs(60 * 60);
@@ -104,6 +105,7 @@ const UNITS: &[(Duration, &str, &str)] = &[
     (HOUR, "hour", "h"),
     (MINUTE, "minute", "m"),
     (SECOND, "second", "s"),
+    (MILLISECOND, "millisecond", "ms"),
 ];
 
 impl fmt::Display for HumanBytes {
