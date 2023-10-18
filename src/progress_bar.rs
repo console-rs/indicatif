@@ -38,8 +38,11 @@ impl ProgressBar {
     /// Creates a new progress bar with a given length
     ///
     /// This progress bar by default draws directly to stderr, and refreshes a maximum of 15 times
-    /// a second. To change the refresh rate, set the draw target to one with a different refresh
+    /// a second. To change the refresh rate, [set] the [draw target] to one with a different refresh
     /// rate.
+    ///
+    /// [set]: ProgressBar::set_draw_target
+    /// [draw target]: ProgressDrawTarget
     pub fn new(len: u64) -> Self {
         Self::with_draw_target(Some(len), ProgressDrawTarget::stderr())
     }
@@ -378,6 +381,8 @@ impl ProgressBar {
     /// running [`MultiProgress::add`]) will unlink this progress bar. If you don't want this
     /// behavior, call [`MultiProgress::set_draw_target`] instead.
     ///
+    /// Use [`ProgressBar::with_draw_target`] to set the draw target during creation.
+    ///
     /// [`MultiProgress`]: crate::MultiProgress
     /// [`MultiProgress::add`]: crate::MultiProgress::add
     /// [`MultiProgress::set_draw_target`]: crate::MultiProgress::set_draw_target
@@ -391,7 +396,7 @@ impl ProgressBar {
     ///
     /// Useful for external code that writes to the standard output.
     ///
-    /// If the progress bar was added to a MultiProgress, it will suspend the entire MultiProgress
+    /// If the progress bar was added to a [`MultiProgress`], it will suspend the entire `MultiProgress`].
     ///
     /// **Note:** The internal lock is held while `f` is executed. Other threads trying to print
     /// anything on the progress bar will be blocked until `f` finishes.
@@ -404,6 +409,8 @@ impl ProgressBar {
     ///     println!("Log message");
     /// })
     /// ```
+    ///
+    /// [`MultiProgress`]: crate::MultiProgress
     pub fn suspend<F: FnOnce() -> R, R>(&self, f: F) -> R {
         self.state().suspend(Instant::now(), f)
     }
