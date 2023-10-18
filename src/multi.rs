@@ -26,8 +26,11 @@ impl MultiProgress {
     /// Creates a new multi progress object.
     ///
     /// Progress bars added to this object by default draw directly to stderr, and refresh
-    /// a maximum of 15 times a second. To change the refresh rate set the draw target to
+    /// a maximum of 15 times a second. To change the refresh rate [set] the [draw target] to
     /// one with a different refresh rate.
+    ///
+    /// [set]: MultiProgress::set_draw_target
+    /// [draw target]: ProgressDrawTarget
     pub fn new() -> Self {
         Self::default()
     }
@@ -40,6 +43,8 @@ impl MultiProgress {
     }
 
     /// Sets a different draw target for the multiprogress bar.
+    ///
+    /// Use [`MultiProgress::with_draw_target`] to set the draw target during creation.
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
         let mut state = self.state.write().unwrap();
         state.draw_target.disconnect(Instant::now());

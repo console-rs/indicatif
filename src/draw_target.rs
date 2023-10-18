@@ -66,7 +66,7 @@ impl ProgressDrawTarget {
     /// hidden.  This is done so that piping to a file will not produce
     /// useless escape codes in that file.
     ///
-    /// Will panic if refresh_rate is `0`.
+    /// Will panic if `refresh_rate` is `0`.
     pub fn term(term: Term, refresh_rate: u8) -> Self {
         Self {
             kind: TargetKind::Term {

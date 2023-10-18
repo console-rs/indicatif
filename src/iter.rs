@@ -66,7 +66,7 @@ pub struct ProgressBarIter<T> {
 impl<T> ProgressBarIter<T> {
     /// Builder-like function for setting underlying progress bar's style.
     ///
-    /// See [ProgressBar::with_style].
+    /// See [`ProgressBar::with_style`].
     pub fn with_style(mut self, style: ProgressStyle) -> Self {
         self.progress = self.progress.with_style(style);
         self
@@ -74,7 +74,7 @@ impl<T> ProgressBarIter<T> {
 
     /// Builder-like function for setting underlying progress bar's prefix.
     ///
-    /// See [ProgressBar::with_prefix].
+    /// See [`ProgressBar::with_prefix`].
     pub fn with_prefix(mut self, prefix: impl Into<Cow<'static, str>>) -> Self {
         self.progress = self.progress.with_prefix(prefix);
         self
@@ -82,7 +82,7 @@ impl<T> ProgressBarIter<T> {
 
     /// Builder-like function for setting underlying progress bar's message.
     ///
-    /// See [ProgressBar::with_message].
+    /// See [`ProgressBar::with_message`].
     pub fn with_message(mut self, message: impl Into<Cow<'static, str>>) -> Self {
         self.progress = self.progress.with_message(message);
         self
@@ -90,7 +90,7 @@ impl<T> ProgressBarIter<T> {
 
     /// Builder-like function for setting underlying progress bar's position.
     ///
-    /// See [ProgressBar::with_position].
+    /// See [`ProgressBar::with_position`].
     pub fn with_position(mut self, position: u64) -> Self {
         self.progress = self.progress.with_position(position);
         self
@@ -98,7 +98,7 @@ impl<T> ProgressBarIter<T> {
 
     /// Builder-like function for setting underlying progress bar's elapsed time.
     ///
-    /// See [ProgressBar::with_elapsed].
+    /// See [`ProgressBar::with_elapsed`].
     pub fn with_elapsed(mut self, elapsed: Duration) -> Self {
         self.progress = self.progress.with_elapsed(elapsed);
         self
@@ -106,7 +106,7 @@ impl<T> ProgressBarIter<T> {
 
     /// Builder-like function for setting underlying progress bar's finish behavior.
     ///
-    /// See [ProgressBar::with_finish].
+    /// See [`ProgressBar::with_finish`].
     pub fn with_finish(mut self, finish: ProgressFinish) -> Self {
         self.progress = self.progress.with_finish(finish);
         self
