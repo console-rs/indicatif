@@ -19,14 +19,47 @@ pub struct FormattedDuration(pub Duration);
 pub struct HumanDuration(pub Duration);
 
 /// Formats bytes for human readability
+///
+/// # Examples
+/// ```rust
+/// # use indicatif::HumanBytes;
+/// assert_eq!("15 B",     format!("{}", HumanBytes(15)));
+/// assert_eq!("1.46 KiB", format!("{}", HumanBytes(1_500)));
+/// assert_eq!("1.43 MiB", format!("{}", HumanBytes(1_500_000)));
+/// assert_eq!("1.40 GiB", format!("{}", HumanBytes(1_500_000_000)));
+/// assert_eq!("1.36 TiB", format!("{}", HumanBytes(1_500_000_000_000)));
+/// assert_eq!("1.33 PiB", format!("{}", HumanBytes(1_500_000_000_000_000)));
+/// ```
 #[derive(Debug)]
 pub struct HumanBytes(pub u64);
 
 /// Formats bytes for human readability using SI prefixes
+///
+/// # Examples
+/// ```rust
+/// # use indicatif::DecimalBytes;
+/// assert_eq!("15 B",    format!("{}", DecimalBytes(15)));
+/// assert_eq!("1.50 kB", format!("{}", DecimalBytes(1_500)));
+/// assert_eq!("1.50 MB", format!("{}", DecimalBytes(1_500_000)));
+/// assert_eq!("1.50 GB", format!("{}", DecimalBytes(1_500_000_000)));
+/// assert_eq!("1.50 TB", format!("{}", DecimalBytes(1_500_000_000_000)));
+/// assert_eq!("1.50 PB", format!("{}", DecimalBytes(1_500_000_000_000_000)));
+/// ```
 #[derive(Debug)]
 pub struct DecimalBytes(pub u64);
 
 /// Formats bytes for human readability using ISO/IEC prefixes
+///
+/// # Examples
+/// ```rust
+/// # use indicatif::BinaryBytes;
+/// assert_eq!("15 B",     format!("{}", BinaryBytes(15)));
+/// assert_eq!("1.46 KiB", format!("{}", BinaryBytes(1_500)));
+/// assert_eq!("1.43 MiB", format!("{}", BinaryBytes(1_500_000)));
+/// assert_eq!("1.40 GiB", format!("{}", BinaryBytes(1_500_000_000)));
+/// assert_eq!("1.36 TiB", format!("{}", BinaryBytes(1_500_000_000_000)));
+/// assert_eq!("1.33 PiB", format!("{}", BinaryBytes(1_500_000_000_000_000)));
+/// ```
 #[derive(Debug)]
 pub struct BinaryBytes(pub u64);
 
