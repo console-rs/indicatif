@@ -126,12 +126,12 @@ impl ProgressDrawTarget {
     }
 
     /// Returns the current width of the draw target.
-    pub(crate) fn width(&self) -> u16 {
+    pub(crate) fn width(&self) -> Option<u16> {
         match self.kind {
-            TargetKind::Term { ref term, .. } => term.size().1,
+            TargetKind::Term { ref term, .. } => Some(term.size().1),
             TargetKind::Multi { ref state, .. } => state.read().unwrap().width(),
-            TargetKind::Hidden => 0,
-            TargetKind::TermLike { ref inner, .. } => inner.width(),
+            TargetKind::TermLike { ref inner, .. } => Some(inner.width()),
+            TargetKind::Hidden => None,
         }
     }
 
