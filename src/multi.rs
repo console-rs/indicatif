@@ -267,7 +267,12 @@ impl MultiState {
         if panicking() {
             return Ok(());
         }
-        let width = self.width() as f64;
+
+        let width = match self.width() {
+            Some(width) => width as f64,
+            None => return Ok(()),
+        };
+
         // Calculate real length based on terminal width
         // This take in account linewrap from terminal
         fn real_len(lines: &[String], width: f64) -> usize {
@@ -393,7 +398,7 @@ impl MultiState {
         ret
     }
 
-    pub(crate) fn width(&self) -> u16 {
+    pub(crate) fn width(&self) -> Option<u16> {
         self.draw_target.width()
     }
 

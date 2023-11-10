@@ -151,10 +151,13 @@ impl BarState {
         } else {
             draw_state.lines.extend(lines);
         }
+
         draw_state.orphan_lines_count = draw_state.lines.len();
-        if !matches!(self.state.status, Status::DoneHidden) {
-            self.style
-                .format_state(&self.state, &mut draw_state.lines, width);
+        if let Some(width) = width {
+            if !matches!(self.state.status, Status::DoneHidden) {
+                self.style
+                    .format_state(&self.state, &mut draw_state.lines, width);
+            }
         }
 
         drop(draw_state);
@@ -188,9 +191,11 @@ impl BarState {
 
         let mut draw_state = drawable.state();
 
-        if !matches!(self.state.status, Status::DoneHidden) {
-            self.style
-                .format_state(&self.state, &mut draw_state.lines, width);
+        if let Some(width) = width {
+            if !matches!(self.state.status, Status::DoneHidden) {
+                self.style
+                    .format_state(&self.state, &mut draw_state.lines, width);
+            }
         }
 
         drop(draw_state);
