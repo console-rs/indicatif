@@ -311,8 +311,7 @@ impl ProgressState {
         if let Status::InProgress = self.status {
             self.est.steps_per_second(Instant::now())
         } else {
-            let len = self.len.unwrap_or_else(|| self.pos());
-            len as f64 / self.started.elapsed().as_secs_f64()
+            self.pos() as f64 / self.started.elapsed().as_secs_f64()
         }
     }
 
