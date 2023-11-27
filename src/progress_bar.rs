@@ -593,7 +593,7 @@ impl ProgressBar {
     }
 }
 
-/// A weak reference to a `ProgressBar`.
+/// A weak reference to a [`ProgressBar`].
 ///
 /// Useful for creating custom steady tick implementations
 #[derive(Clone, Default)]
