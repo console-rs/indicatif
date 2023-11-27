@@ -14,7 +14,8 @@ use crate::TermLike;
 
 /// Target for draw operations
 ///
-/// This tells a progress bar or a multi progress object where to paint to.
+/// This tells a [`ProgressBar`](crate::ProgressBar) or a
+/// [`MultiProgress`](crate::MultiProgress) object where to paint to.
 /// The draw target is a stateful wrapper over a drawing destination and
 /// internally optimizes how often the state is painted to the output
 /// device.
