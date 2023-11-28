@@ -122,7 +122,7 @@ impl ProgressBar {
     /// [`ProgressBarIter`] completes and
     /// [`ProgressBar::is_finished()`] is false.
     /// If you don't want the progress bar to be automatically finished then
-    /// call `on_finish(None)`. TODO: Is this method even public?
+    /// call `with_finish(Abandon)`.
     ///
     /// [`ProgressBar`]: crate::ProgressBar
     /// [`ProgressBarIter`]: crate::ProgressBarIter
