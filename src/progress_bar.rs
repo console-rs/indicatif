@@ -122,7 +122,7 @@ impl ProgressBar {
     /// [`ProgressBarIter`] completes and
     /// [`ProgressBar::is_finished()`] is false.
     /// If you don't want the progress bar to be automatically finished then
-    /// call `on_finish(None)`.
+    /// call `with_finish(Abandon)`.
     ///
     /// [`ProgressBar`]: crate::ProgressBar
     /// [`ProgressBarIter`]: crate::ProgressBarIter
@@ -237,12 +237,12 @@ impl ProgressBar {
     ///
     /// If the progress bar is hidden (e.g. when standard output is not a terminal), `println()`
     /// will not do anything. If you want to write to the standard output in such cases as well, use
-    /// [`suspend`] instead.
+    /// [`ProgressBar::suspend()`] instead.
     ///
     /// If the progress bar was added to a [`MultiProgress`], the log line will be
     /// printed above all other progress bars.
     ///
-    /// [`suspend`]: ProgressBar::suspend
+    /// [`ProgressBar::suspend()`]: ProgressBar::suspend
     /// [`MultiProgress`]: crate::MultiProgress
     pub fn println<I: AsRef<str>>(&self, msg: I) {
         self.state().println(Instant::now(), msg.as_ref());
@@ -293,7 +293,7 @@ impl ProgressBar {
         state.update_estimate_and_draw(Instant::now());
     }
 
-    /// Creates a new weak reference to this `ProgressBar`
+    /// Creates a new weak reference to this [`ProgressBar`]
     pub fn downgrade(&self) -> WeakProgressBar {
         WeakProgressBar {
             state: Arc::downgrade(&self.state),
@@ -378,14 +378,14 @@ impl ProgressBar {
     /// ```
     ///
     /// **Note:** Calling this method on a [`ProgressBar`] linked with a [`MultiProgress`] (after
-    /// running [`MultiProgress::add`]) will unlink this progress bar. If you don't want this
-    /// behavior, call [`MultiProgress::set_draw_target`] instead.
+    /// running [`MultiProgress::add()`]) will unlink this progress bar. If you don't want this
+    /// behavior, call [`MultiProgress::set_draw_target()`] instead.
     ///
-    /// Use [`ProgressBar::with_draw_target`] to set the draw target during creation.
+    /// Use [`ProgressBar::with_draw_target()`] to set the draw target during creation.
     ///
     /// [`MultiProgress`]: crate::MultiProgress
-    /// [`MultiProgress::add`]: crate::MultiProgress::add
-    /// [`MultiProgress::set_draw_target`]: crate::MultiProgress::set_draw_target
+    /// [`MultiProgress::add()`]: crate::MultiProgress::add
+    /// [`MultiProgress::set_draw_target()`]: crate::MultiProgress::set_draw_target
     pub fn set_draw_target(&self, target: ProgressDrawTarget) {
         let mut state = self.state();
         state.draw_target.disconnect(Instant::now());
@@ -396,7 +396,7 @@ impl ProgressBar {
     ///
     /// Useful for external code that writes to the standard output.
     ///
-    /// If the progress bar was added to a [`MultiProgress`], it will suspend the entire `MultiProgress`].
+    /// If the progress bar was added to a [`MultiProgress`], it will suspend the entire [`MultiProgress`].
     ///
     /// **Note:** The internal lock is held while `f` is executed. Other threads trying to print
     /// anything on the progress bar will be blocked until `f` finishes.
@@ -593,7 +593,7 @@ impl ProgressBar {
     }
 }
 
-/// A weak reference to a `ProgressBar`.
+/// A weak reference to a [`ProgressBar`].
 ///
 /// Useful for creating custom steady tick implementations
 #[derive(Clone, Default)]
@@ -604,15 +604,15 @@ pub struct WeakProgressBar {
 }
 
 impl WeakProgressBar {
-    /// Create a new `WeakProgressBar` that returns `None` when [`upgrade`] is called.
+    /// Create a new [`WeakProgressBar`] that returns `None` when [`upgrade()`] is called.
     ///
-    /// [`upgrade`]: WeakProgressBar::upgrade
+    /// [`upgrade()`]: WeakProgressBar::upgrade
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Attempts to upgrade the Weak pointer to a [`ProgressBar`], delaying dropping of the inner
-    /// value if successful. Returns `None` if the inner value has since been dropped.
+    /// value if successful. Returns [`None`] if the inner value has since been dropped.
     ///
     /// [`ProgressBar`]: struct.ProgressBar.html
     pub fn upgrade(&self) -> Option<ProgressBar> {

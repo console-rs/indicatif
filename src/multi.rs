@@ -68,12 +68,12 @@ impl MultiProgress {
     ///
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
-    /// object overriding custom `ProgressDrawTarget` settings.
+    /// object overriding custom [`ProgressDrawTarget`] settings.
     ///
     /// The progress bar will be positioned below all other bars currently
-    /// in the `MultiProgress`.
+    /// in the [`MultiProgress`].
     ///
-    /// Adding a progress bar that is already a member of the `MultiProgress`
+    /// Adding a progress bar that is already a member of the [`MultiProgress`]
     /// will have no effect.
     pub fn add(&self, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::End, pb)
@@ -83,12 +83,12 @@ impl MultiProgress {
     ///
     /// The progress bar inserted at position `index` will have the draw
     /// target changed to a remote draw target that is intercepted by the
-    /// multi progress object overriding custom `ProgressDrawTarget` settings.
+    /// multi progress object overriding custom [`ProgressDrawTarget`] settings.
     ///
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the end of the list.
     ///
-    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// Inserting a progress bar that is already a member of the [`MultiProgress`]
     /// will have no effect.
     pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::Index(index), pb)
@@ -99,12 +99,12 @@ impl MultiProgress {
     /// The progress bar inserted at position `MultiProgressState::objects.len() - index`
     /// will have the draw target changed to a remote draw target that is
     /// intercepted by the multi progress object overriding custom
-    /// `ProgressDrawTarget` settings.
+    /// [`ProgressDrawTarget`] settings.
     ///
     /// If `index >= MultiProgressState::objects.len()`, the progress bar
     /// is added to the start of the list.
     ///
-    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// Inserting a progress bar that is already a member of the [`MultiProgress`]
     /// will have no effect.
     pub fn insert_from_back(&self, index: usize, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::IndexFromBack(index), pb)
@@ -114,9 +114,9 @@ impl MultiProgress {
     ///
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
-    /// object overriding custom `ProgressDrawTarget` settings.
+    /// object overriding custom [`ProgressDrawTarget`] settings.
     ///
-    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// Inserting a progress bar that is already a member of the [`MultiProgress`]
     /// will have no effect.
     pub fn insert_before(&self, before: &ProgressBar, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::Before(before.index().unwrap()), pb)
@@ -126,9 +126,9 @@ impl MultiProgress {
     ///
     /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
-    /// object overriding custom `ProgressDrawTarget` settings.
+    /// object overriding custom [`ProgressDrawTarget`] settings.
     ///
-    /// Inserting a progress bar that is already a member of the `MultiProgress`
+    /// Inserting a progress bar that is already a member of the [`MultiProgress`]
     /// will have no effect.
     pub fn insert_after(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
         self.internalize(InsertLocation::After(after.index().unwrap()), pb)
@@ -137,7 +137,7 @@ impl MultiProgress {
     /// Removes a progress bar.
     ///
     /// The progress bar is removed only if it was previously inserted or added
-    /// by the methods `MultiProgress::insert` or `MultiProgress::add`.
+    /// by the methods [`MultiProgress::insert`] or [`MultiProgress::add`].
     /// If the passed progress bar does not satisfy the condition above,
     /// the `remove` method does nothing.
     pub fn remove(&self, pb: &ProgressBar) {
@@ -494,14 +494,14 @@ impl Debug for MultiStateMember {
 /// Vertical alignment of a multi progress.
 ///
 /// The alignment controls how the multi progress is aligned if some of its progress bars get removed.
-/// E.g. `Top` alignment (default), when _progress bar 2_ is removed:
+/// E.g. [`Top`](MultiProgressAlignment::Top) alignment (default), when _progress bar 2_ is removed:
 /// ```ignore
 /// [0/100] progress bar 1        [0/100] progress bar 1
 /// [0/100] progress bar 2   =>   [0/100] progress bar 3
 /// [0/100] progress bar 3
 /// ```
 ///
-/// `Bottom` alignment
+/// [`Bottom`](MultiProgressAlignment::Bottom) alignment
 /// ```ignore
 /// [0/100] progress bar 1
 /// [0/100] progress bar 2   =>   [0/100] progress bar 1

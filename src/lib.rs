@@ -28,12 +28,12 @@
 //!
 //! # Progress Bars and Spinners
 //!
-//! indicatif comes with a `ProgressBar` type that supports both bounded
+//! indicatif comes with a [`ProgressBar`] type that supports both bounded
 //! progress bar uses as well as unbounded "spinner" type progress reports.
-//! Progress bars are `Sync` and `Send` objects which means that they are
+//! Progress bars are [`Sync`] and [`Send`] objects which means that they are
 //! internally locked and can be passed from thread to thread.
 //!
-//! Additionally a `MultiProgress` utility is provided that can manage
+//! Additionally a [`MultiProgress`] utility is provided that can manage
 //! rendering multiple progress bars at once (eg: from multiple threads).
 //!
 //! To whet your appetite, this is what this can look like:
@@ -56,8 +56,8 @@
 //! bar.finish();
 //! ```
 //!
-//! Spinners can be manually advanced with `tick`, or you can set them up to spin automatically with
-//! `enable_steady_tick`:
+//! Spinners can be manually advanced with [`tick`](ProgressBar::tick), or you can set them up
+//! to spin automatically with [`enable_steady_tick`](ProgressBar::enable_steady_tick):
 //!
 //! ```rust
 //! use std::time::Duration;
@@ -74,9 +74,10 @@
 //! * if a non terminal is detected the progress bar will be completely
 //!   hidden.  This makes piping programs to logfiles make sense out of
 //!   the box.
-//! * a progress bar only starts drawing when `set_message`, `inc`, `set_position`
-//!   or `tick` are called.  In some situations you might have to call `tick`
-//!   once to draw it.
+//! * a progress bar only starts drawing when [`set_message`](ProgressBar::set_message),
+//!   [`inc`](ProgressBar::inc), [`set_position`](ProgressBar::set_position)
+//!   or [`tick`](ProgressBar::tick) are called. In some situations you
+//!   might have to call [`tick`](ProgressBar::tick) once to draw it.
 //! * progress bars should be explicitly finished to reset the rendering
 //!   for others.  Either by also clearing them or by replacing them with
 //!   a new message / retaining the current message.
@@ -147,7 +148,7 @@
 //! ```
 //!
 //! For the style component see [`Style::from_dotted_str`](https://docs.rs/console/0.7.5/console/struct.Style.html#method.from_dotted_str)
-//! for more information.  Indicatif uses the `console` base crate for all
+//! for more information. Indicatif uses the `console` base crate for all
 //! colorization and formatting options.
 //!
 //! Some examples for templates:
@@ -206,7 +207,7 @@
 //!
 //! The design of the progress bar can be altered with the integrated
 //! template functionality.  The template can be set by changing a
-//! `ProgressStyle` and attaching it to the progress bar.
+//! [`ProgressStyle`] and attaching it to the progress bar.
 //!
 //! # Human Readable Formatting
 //!
