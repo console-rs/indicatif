@@ -273,14 +273,6 @@ impl MultiState {
             None => return Ok(()),
         };
 
-        // Calculate real length based on terminal width
-        // This take in account linewrap from terminal
-        fn real_len(lines: &[String], width: f64) -> usize {
-            lines.iter().fold(0, |sum, val| {
-                sum + (console::measure_text_width(val) as f64 / width).ceil() as usize
-            })
-        }
-
         // Assumption: if extra_lines is not None, then it has at least one line
         debug_assert_eq!(
             extra_lines.is_some(),
@@ -300,7 +292,7 @@ impl MultiState {
             let line_count = member
                 .draw_state
                 .as_ref()
-                .map(|d| real_len(&d.lines, width))
+                .map(|d| visual_line_count(&d.lines, width))
                 .unwrap_or_default();
             // Track the total number of zombie lines on the screen.
             self.zombie_lines_count += line_count;
@@ -320,7 +312,7 @@ impl MultiState {
             self.zombie_lines_count = 0;
         }
 
-        let orphan_lines_count = real_len(&self.orphan_lines, width);
+        let orphan_lines_count = visual_line_count(&self.orphan_lines, width);
         force_draw |= orphan_lines_count > 0;
         let mut drawable = match self.draw_target.drawable(force_draw, now) {
             Some(drawable) => drawable,
@@ -333,7 +325,7 @@ impl MultiState {
 
         if let Some(extra_lines) = &extra_lines {
             draw_state.lines.extend_from_slice(extra_lines.as_slice());
-            draw_state.orphan_lines_count += real_len(extra_lines, width);
+            draw_state.orphan_lines_count += visual_line_count(extra_lines, width);
         }
 
         // Add lines from `ProgressBar::println` call.
@@ -527,6 +519,14 @@ enum InsertLocation {
     Before(usize),
 }
 
+// Calculate real length based on terminal width
+// This take in account linewrap from terminal
+fn visual_line_count<StrRef: AsRef<str>>(lines: &[StrRef], width: f64) -> usize {
+    lines.iter().fold(0, |sum, val| {
+        sum + (console::measure_text_width(val.as_ref()) as f64 / width).ceil() as usize
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{MultiProgress, ProgressBar, ProgressDrawTarget};
@@ -697,5 +697,61 @@ mod tests {
         let mp = MultiProgress::new();
         let pb = mp.add(ProgressBar::new(10));
         mp.add(pb);
+    }
+
+    #[test]
+    fn real_line_count_test() {
+        #[derive(Debug)]
+        struct Case {
+            lines: &'static [&'static str],
+            expectation: usize,
+            width: f64,
+        }
+
+        let lines_and_expectations = [
+            Case {
+                lines: &["1234567890"],
+                expectation: 1,
+                width: 10.0,
+            },
+            Case {
+                lines: &["1234567890"],
+                expectation: 2,
+                width: 5.0,
+            },
+            Case {
+                lines: &["1234567890"],
+                expectation: 3,
+                width: 4.0,
+            },
+            Case {
+                lines: &["1234567890"],
+                expectation: 4,
+                width: 3.0,
+            },
+            Case {
+                // These lines contain  ANSI escape sequences and two effective chars, so they should only count as 1 line still
+                lines: &[
+                    "a\u{1b}[1m\u{1b}[1m\u{1b}[1ma",
+                    "a\u{1b}[1m\u{1b}[1m\u{1b}[1ma",
+                ],
+                expectation: 2,
+                width: 5.0,
+            },
+            Case {
+                // These lines contain ANSI escape sequences and six effective chars, so they should count as 2 lines each
+                lines: &[
+                    "aa\u{1b}[1m\u{1b}[1m\u{1b}[1mabcd",
+                    "aa\u{1b}[1m\u{1b}[1m\u{1b}[1mabcd",
+                ],
+                expectation: 4,
+                width: 5.0,
+            },
+        ];
+
+        for case in lines_and_expectations.iter() {
+            let result = super::visual_line_count(case.lines, case.width);
+            assert_eq!(result, case.expectation, "case: {:?}", case);
+        }
     }
 }
