@@ -523,7 +523,12 @@ enum InsertLocation {
 // This take in account linewrap from terminal
 fn visual_line_count<StrRef: AsRef<str>>(lines: &[StrRef], width: f64) -> usize {
     lines.iter().fold(0, |sum, val| {
-        sum + (console::measure_text_width(val.as_ref()) as f64 / width).ceil() as usize
+        sum + if val.as_ref().is_empty() {
+            1
+        } else {
+            let effective_line_length = console::measure_text_width(val.as_ref()) as f64;
+            usize::max((effective_line_length / width).ceil() as usize, 1)
+        }
     })
 }
 
@@ -728,6 +733,37 @@ mod tests {
                 lines: &["1234567890"],
                 expectation: 4,
                 width: 3.0,
+            },
+            Case {
+                lines: &["1234567890", "", "1234567890"],
+                expectation: 3,
+                width: 10.0,
+            },
+            Case {
+                lines: &["1234567890", "", "1234567890"],
+                expectation: 5,
+                width: 5.0,
+            },
+            Case {
+                lines: &["1234567890", "", "1234567890"],
+                expectation: 7,
+                width: 4.0,
+            },
+            Case {
+                lines: &["aaaaaaaaaaaaa", "", "bbbbbbbbbbbbbbbbb", "", "ccccccc"],
+                expectation: 8,
+                width: 7.0,
+            },
+            Case {
+                lines: &["", "", "", "", ""],
+                expectation: 5,
+                width: 6.0,
+            },
+            Case {
+                // These lines contain only ANSI escape sequences, so they should only count as 1 line
+                lines: &["\u{1b}[1m\u{1b}[1m\u{1b}[1m", "\u{1b}[1m\u{1b}[1m\u{1b}[1m"],
+                expectation: 2,
+                width: 5.0,
             },
             Case {
                 // These lines contain  ANSI escape sequences and two effective chars, so they should only count as 1 line still
