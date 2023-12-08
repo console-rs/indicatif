@@ -519,17 +519,16 @@ enum InsertLocation {
     Before(usize),
 }
 
-// Calculate real length based on terminal width
-// This take in account linewrap from terminal
-fn visual_line_count<StrRef: AsRef<str>>(lines: &[StrRef], width: f64) -> usize {
-    lines.iter().fold(0, |sum, val| {
-        sum + if val.as_ref().is_empty() {
-            1
-        } else {
-            let effective_line_length = console::measure_text_width(val.as_ref()) as f64;
-            usize::max((effective_line_length / width).ceil() as usize, 1)
-        }
-    })
+/// Calculate the number of visual lines in the given lines, after
+/// accounting for line wrapping and non-printable characters.
+fn visual_line_count(lines: &[impl AsRef<str>], width: f64) -> usize {
+    let mut real_lines = 0;
+    for line in lines {
+        let effective_line_length = console::measure_text_width(line.as_ref()) as f64;
+        real_lines += usize::max((effective_line_length / width).ceil() as usize, 1);
+    }
+
+    real_lines
 }
 
 #[cfg(test)]
