@@ -450,7 +450,9 @@ const MAX_BURST: u8 = 20;
 pub(crate) struct DrawState {
     /// The lines to print (can contain ANSI codes)
     pub(crate) lines: Vec<String>,
-    /// The number of lines that shouldn't be reaped by the next tick.
+    /// The number [`Self::lines`] entries that shouldn't be reaped by the next tick.
+    ///
+    /// Note that this number may be different than the number of visual lines required to draw [`Self::lines`].
     pub(crate) orphan_lines_count: usize,
     /// True if we should move the cursor up when possible instead of clearing lines.
     pub(crate) move_cursor: bool,

@@ -314,20 +314,20 @@ impl MultiState {
             self.zombie_lines_count = 0;
         }
 
-        let orphan_lines_count = visual_line_count(&self.orphan_lines, width);
-        force_draw |= orphan_lines_count > 0;
+        let orphan_visual_line_count = visual_line_count(&self.orphan_lines, width);
+        force_draw |= orphan_visual_line_count > 0;
         let mut drawable = match self.draw_target.drawable(force_draw, now) {
             Some(drawable) => drawable,
             None => return Ok(()),
         };
 
         let mut draw_state = drawable.state();
-        draw_state.orphan_lines_count = orphan_lines_count;
+        draw_state.orphan_lines_count = self.orphan_lines.len();
         draw_state.alignment = self.alignment;
 
         if let Some(extra_lines) = &extra_lines {
             draw_state.lines.extend_from_slice(extra_lines.as_slice());
-            draw_state.orphan_lines_count += visual_line_count(extra_lines, width);
+            draw_state.orphan_lines_count += extra_lines.len();
         }
 
         // Add lines from `ProgressBar::println` call.
