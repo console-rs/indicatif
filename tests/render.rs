@@ -1794,6 +1794,23 @@ fn orphan_lines_message_above_progress_bar() {
         Some(10),
         ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
     );
+
+    orphan_lines_message_above_progress_bar_test(&pb, &in_mem);
+}
+
+#[test]
+fn orphan_lines_message_above_multi_progress_bar() {
+    let in_mem = InMemoryTerm::new(10, 80);
+
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+    let pb = mp.add(ProgressBar::new(10));
+
+    orphan_lines_message_above_progress_bar_test(&pb, &in_mem);
+}
+
+fn orphan_lines_message_above_progress_bar_test(pb: &ProgressBar, in_mem: &InMemoryTerm) {
     assert_eq!(in_mem.contents(), String::new());
 
     for i in 0..=10 {
