@@ -271,7 +271,7 @@ impl MultiState {
         }
 
         let width = match self.width() {
-            Some(width) => width as f64,
+            Some(width) => width as usize,
             None => return Ok(()),
         };
 
