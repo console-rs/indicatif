@@ -549,11 +549,14 @@ impl DrawState {
 
 /// Calculate the number of visual lines in the given lines, after
 /// accounting for line wrapping and non-printable characters.
-pub(crate) fn visual_line_count(lines: &[impl AsRef<str>], width: f64) -> usize {
+pub(crate) fn visual_line_count(lines: &[impl AsRef<str>], width: usize) -> usize {
     let mut real_lines = 0;
     for line in lines {
-        let effective_line_length = console::measure_text_width(line.as_ref()) as f64;
-        real_lines += usize::max((effective_line_length / width).ceil() as usize, 1);
+        let effective_line_length = console::measure_text_width(line.as_ref());
+        real_lines += usize::max(
+            (effective_line_length as f64 / width as f64).ceil() as usize,
+            1,
+        );
     }
 
     real_lines
@@ -578,60 +581,60 @@ mod tests {
         struct Case {
             lines: &'static [&'static str],
             expectation: usize,
-            width: f64,
+            width: usize,
         }
 
         let lines_and_expectations = [
             Case {
                 lines: &["1234567890"],
                 expectation: 1,
-                width: 10.0,
+                width: 10,
             },
             Case {
                 lines: &["1234567890"],
                 expectation: 2,
-                width: 5.0,
+                width: 5,
             },
             Case {
                 lines: &["1234567890"],
                 expectation: 3,
-                width: 4.0,
+                width: 4,
             },
             Case {
                 lines: &["1234567890"],
                 expectation: 4,
-                width: 3.0,
+                width: 3,
             },
             Case {
                 lines: &["1234567890", "", "1234567890"],
                 expectation: 3,
-                width: 10.0,
+                width: 10,
             },
             Case {
                 lines: &["1234567890", "", "1234567890"],
                 expectation: 5,
-                width: 5.0,
+                width: 5,
             },
             Case {
                 lines: &["1234567890", "", "1234567890"],
                 expectation: 7,
-                width: 4.0,
+                width: 4,
             },
             Case {
                 lines: &["aaaaaaaaaaaaa", "", "bbbbbbbbbbbbbbbbb", "", "ccccccc"],
                 expectation: 8,
-                width: 7.0,
+                width: 7,
             },
             Case {
                 lines: &["", "", "", "", ""],
                 expectation: 5,
-                width: 6.0,
+                width: 6,
             },
             Case {
                 // These lines contain only ANSI escape sequences, so they should only count as 1 line
                 lines: &["\u{1b}[1m\u{1b}[1m\u{1b}[1m", "\u{1b}[1m\u{1b}[1m\u{1b}[1m"],
                 expectation: 2,
-                width: 5.0,
+                width: 5,
             },
             Case {
                 // These lines contain  ANSI escape sequences and two effective chars, so they should only count as 1 line still
@@ -640,7 +643,7 @@ mod tests {
                     "a\u{1b}[1m\u{1b}[1m\u{1b}[1ma",
                 ],
                 expectation: 2,
-                width: 5.0,
+                width: 5,
             },
             Case {
                 // These lines contain ANSI escape sequences and six effective chars, so they should count as 2 lines each
@@ -649,7 +652,7 @@ mod tests {
                     "aa\u{1b}[1m\u{1b}[1m\u{1b}[1mabcd",
                 ],
                 expectation: 4,
-                width: 5.0,
+                width: 5,
             },
         ];
 
