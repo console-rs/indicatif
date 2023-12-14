@@ -547,6 +547,18 @@ impl DrawState {
     }
 }
 
+/// Calculate the number of visual lines in the given lines, after
+/// accounting for line wrapping and non-printable characters.
+pub(crate) fn visual_line_count(lines: &[impl AsRef<str>], width: f64) -> usize {
+    let mut real_lines = 0;
+    for line in lines {
+        let effective_line_length = console::measure_text_width(line.as_ref()) as f64;
+        real_lines += usize::max((effective_line_length / width).ceil() as usize, 1);
+    }
+
+    real_lines
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{MultiProgress, ProgressBar, ProgressDrawTarget};
@@ -558,5 +570,92 @@ mod tests {
         let pb = mp.add(ProgressBar::new(100));
         assert!(mp.is_hidden());
         assert!(pb.is_hidden());
+    }
+
+    #[test]
+    fn real_line_count_test() {
+        #[derive(Debug)]
+        struct Case {
+            lines: &'static [&'static str],
+            expectation: usize,
+            width: f64,
+        }
+
+        let lines_and_expectations = [
+            Case {
+                lines: &["1234567890"],
+                expectation: 1,
+                width: 10.0,
+            },
+            Case {
+                lines: &["1234567890"],
+                expectation: 2,
+                width: 5.0,
+            },
+            Case {
+                lines: &["1234567890"],
+                expectation: 3,
+                width: 4.0,
+            },
+            Case {
+                lines: &["1234567890"],
+                expectation: 4,
+                width: 3.0,
+            },
+            Case {
+                lines: &["1234567890", "", "1234567890"],
+                expectation: 3,
+                width: 10.0,
+            },
+            Case {
+                lines: &["1234567890", "", "1234567890"],
+                expectation: 5,
+                width: 5.0,
+            },
+            Case {
+                lines: &["1234567890", "", "1234567890"],
+                expectation: 7,
+                width: 4.0,
+            },
+            Case {
+                lines: &["aaaaaaaaaaaaa", "", "bbbbbbbbbbbbbbbbb", "", "ccccccc"],
+                expectation: 8,
+                width: 7.0,
+            },
+            Case {
+                lines: &["", "", "", "", ""],
+                expectation: 5,
+                width: 6.0,
+            },
+            Case {
+                // These lines contain only ANSI escape sequences, so they should only count as 1 line
+                lines: &["\u{1b}[1m\u{1b}[1m\u{1b}[1m", "\u{1b}[1m\u{1b}[1m\u{1b}[1m"],
+                expectation: 2,
+                width: 5.0,
+            },
+            Case {
+                // These lines contain  ANSI escape sequences and two effective chars, so they should only count as 1 line still
+                lines: &[
+                    "a\u{1b}[1m\u{1b}[1m\u{1b}[1ma",
+                    "a\u{1b}[1m\u{1b}[1m\u{1b}[1ma",
+                ],
+                expectation: 2,
+                width: 5.0,
+            },
+            Case {
+                // These lines contain ANSI escape sequences and six effective chars, so they should count as 2 lines each
+                lines: &[
+                    "aa\u{1b}[1m\u{1b}[1m\u{1b}[1mabcd",
+                    "aa\u{1b}[1m\u{1b}[1m\u{1b}[1mabcd",
+                ],
+                expectation: 4,
+                width: 5.0,
+            },
+        ];
+
+        for case in lines_and_expectations.iter() {
+            let result = super::visual_line_count(case.lines, case.width);
+            assert_eq!(result, case.expectation, "case: {:?}", case);
+        }
     }
 }
