@@ -499,9 +499,11 @@ impl DrawState {
         let term_height = term.height() as usize;
         let term_width = term.width() as usize;
         let len = self.lines.len();
+        debug_assert!(self.orphan_lines_count <= self.lines.len());
+        let orphan_visual_line_count =
+            visual_line_count(&self.lines[..self.orphan_lines_count], term_width);
         let mut real_len = 0;
         let mut last_line_filler = 0;
-        debug_assert!(self.orphan_lines_count <= self.lines.len());
         for (idx, line) in self.lines.iter().enumerate() {
             let line_width = console::measure_text_width(line);
             let diff = if line.is_empty() {
@@ -518,12 +520,14 @@ impl DrawState {
                 // subtract with overflow later.
                 usize::max(terminal_len, 1)
             };
-            // Don't consider orphan lines when comparing to terminal height.
-            debug_assert!(idx <= real_len);
-            if self.orphan_lines_count <= idx
-                && real_len - self.orphan_lines_count + diff > term_height
-            {
-                break;
+            // Have all orphan lines been drawn?
+            if self.orphan_lines_count <= idx {
+                // If so, then `real_len` should be at least `orphan_visual_line_count`.
+                debug_assert!(orphan_visual_line_count <= real_len);
+                // Don't consider orphan lines when comparing to terminal height.
+                if real_len - orphan_visual_line_count + diff > term_height {
+                    break;
+                }
             }
             real_len += diff;
             if idx != 0 {
@@ -539,7 +543,7 @@ impl DrawState {
         term.write_str(&" ".repeat(last_line_filler))?;
 
         term.flush()?;
-        *last_line_count = real_len - self.orphan_lines_count + shift;
+        *last_line_count = real_len - orphan_visual_line_count + shift;
         Ok(())
     }
 
