@@ -14,6 +14,7 @@ exclude = ["screenshots/*"]
 
 [dependencies]
 console = { version = "0.15", default-features = false, features = ["ansi-parsing"] }
+derive_more = "0.99"
 futures-core = { version = "0.3", default-features = false, optional = true }
 number_prefix = "0.4"
 portable-atomic = "1.0.0"
