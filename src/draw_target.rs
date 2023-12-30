@@ -570,14 +570,16 @@ impl DrawState {
 pub(crate) struct VisualLines(usize);
 
 impl VisualLines {
-    pub(crate) fn as_usize(&self) -> usize {
-        self.0
-    }
     pub(crate) fn saturating_add(&self, other: Self) -> Self {
         Self(self.0.saturating_add(other.0))
     }
+
     pub(crate) fn saturating_sub(&self, other: Self) -> Self {
         Self(self.0.saturating_sub(other.0))
+    }
+
+    pub(crate) fn as_usize(&self) -> usize {
+        self.0
     }
 }
 
