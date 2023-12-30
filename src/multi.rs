@@ -230,7 +230,7 @@ impl MultiState {
             move_cursor: false,
             alignment: MultiProgressAlignment::default(),
             orphan_lines: Vec::new(),
-            zombie_lines_count: VisualLines::zero(),
+            zombie_lines_count: VisualLines::default(),
         }
     }
 
@@ -287,7 +287,7 @@ impl MultiState {
         let mut reap_indices = vec![];
 
         // Reap all consecutive 'zombie' progress bars from head of the list.
-        let mut adjust = VisualLines::zero();
+        let mut adjust = VisualLines::default();
         for &index in &self.ordering {
             let member = &self.members[index];
             if !member.is_zombie {
@@ -314,11 +314,11 @@ impl MultiState {
         if extra_lines.is_some() {
             self.draw_target
                 .adjust_last_line_count(LineAdjust::Clear(self.zombie_lines_count));
-            self.zombie_lines_count = VisualLines::zero();
+            self.zombie_lines_count = VisualLines::default();
         }
 
         let orphan_visual_line_count = visual_line_count(&self.orphan_lines, width);
-        force_draw |= orphan_visual_line_count > VisualLines::zero();
+        force_draw |= orphan_visual_line_count > VisualLines::default();
         let mut drawable = match self.draw_target.drawable(force_draw, now) {
             Some(drawable) => drawable,
             None => return Ok(()),
@@ -442,7 +442,7 @@ impl MultiState {
             Some(mut drawable) => {
                 // Make the clear operation also wipe out zombie lines
                 drawable.adjust_last_line_count(LineAdjust::Clear(self.zombie_lines_count));
-                self.zombie_lines_count = VisualLines::zero();
+                self.zombie_lines_count = VisualLines::default();
                 drawable.clear()
             }
             None => Ok(()),

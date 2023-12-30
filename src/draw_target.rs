@@ -1,4 +1,5 @@
 use std::io;
+use std::ops::{Add, AddAssign, Sub};
 use std::slice::SliceIndex;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::thread::panicking;
@@ -7,7 +8,6 @@ use std::time::Duration;
 use std::time::Instant;
 
 use console::Term;
-use derive_more::{Add, AddAssign, Sub};
 #[cfg(target_arch = "wasm32")]
 use instant::Instant;
 
@@ -74,7 +74,7 @@ impl ProgressDrawTarget {
         Self {
             kind: TargetKind::Term {
                 term,
-                last_line_count: VisualLines::zero(),
+                last_line_count: VisualLines::default(),
                 rate_limiter: RateLimiter::new(refresh_rate),
                 draw_state: DrawState::default(),
             },
@@ -86,7 +86,7 @@ impl ProgressDrawTarget {
         Self {
             kind: TargetKind::TermLike {
                 inner: term_like,
-                last_line_count: VisualLines::zero(),
+                last_line_count: VisualLines::default(),
                 rate_limiter: None,
                 draw_state: DrawState::default(),
             },
@@ -99,7 +99,7 @@ impl ProgressDrawTarget {
         Self {
             kind: TargetKind::TermLike {
                 inner: term_like,
-                last_line_count: VisualLines::zero(),
+                last_line_count: VisualLines::default(),
                 rate_limiter: Option::from(RateLimiter::new(refresh_rate)),
                 draw_state: DrawState::default(),
             },
@@ -250,7 +250,7 @@ enum TargetKind {
 impl TargetKind {
     /// Adjust `last_line_count` such that the next draw operation keeps/clears additional lines
     fn adjust_last_line_count(&mut self, adjust: LineAdjust) {
-        let last_line_count: &mut VisualLines = match self {
+        let last_line_count = match self {
             Self::Term {
                 last_line_count, ..
             } => last_line_count,
@@ -497,7 +497,7 @@ impl DrawState {
                 }
                 shift
             }
-            _ => VisualLines::zero(),
+            _ => VisualLines::default(),
         };
 
         let term_height = term.height() as usize;
@@ -506,7 +506,7 @@ impl DrawState {
         debug_assert!(self.orphan_lines_count <= self.lines.len());
         let orphan_visual_line_count =
             self.visual_line_count(..self.orphan_lines_count, term_width);
-        let mut real_len = VisualLines::zero();
+        let mut real_len = VisualLines::default();
         let mut last_line_filler = 0;
         for (idx, line) in self.lines.iter().enumerate() {
             let line_width = console::measure_text_width(line);
@@ -557,23 +557,17 @@ impl DrawState {
         self.orphan_lines_count = 0;
     }
 
-    pub(crate) fn visual_line_count<I: SliceIndex<[String], Output = [String]>>(
+    pub(crate) fn visual_line_count(
         &self,
-        range: I,
+        range: impl SliceIndex<[String], Output = [String]>,
         width: usize,
     ) -> VisualLines {
         visual_line_count(&self.lines[range], width)
     }
 }
 
-#[derive(Add, AddAssign, Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Sub)]
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub(crate) struct VisualLines(usize);
-
-impl<T: Into<usize>> From<T> for VisualLines {
-    fn from(value: T) -> Self {
-        Self(value.into())
-    }
-}
 
 impl VisualLines {
     pub(crate) fn as_usize(&self) -> usize {
@@ -585,14 +579,34 @@ impl VisualLines {
     pub(crate) fn saturating_sub(&self, other: Self) -> Self {
         Self(self.0.saturating_sub(other.0))
     }
-    pub(crate) fn zero() -> Self {
-        Self(0)
+}
+
+impl Add for VisualLines {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
     }
 }
 
-#[test]
-fn visual_lines_default_is_zero() {
-    assert_eq!(VisualLines::default(), VisualLines::zero());
+impl AddAssign for VisualLines {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
+impl<T: Into<usize>> From<T> for VisualLines {
+    fn from(value: T) -> Self {
+        Self(value.into())
+    }
+}
+
+impl Sub for VisualLines {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
 }
 
 /// Calculate the number of visual lines in the given lines, after
