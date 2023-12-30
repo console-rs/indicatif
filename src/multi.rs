@@ -6,7 +6,7 @@ use std::thread::panicking;
 use std::time::Instant;
 
 use crate::draw_target::{
-    visual_line_count, DrawState, DrawStateWrapper, LineAdjust, ProgressDrawTarget,
+    visual_line_count, DrawState, DrawStateWrapper, LineAdjust, ProgressDrawTarget, VisualLines,
 };
 use crate::progress_bar::ProgressBar;
 #[cfg(target_arch = "wasm32")]
@@ -217,7 +217,7 @@ pub(crate) struct MultiState {
     /// calling `ProgressBar::println` on a pb that is connected to a `MultiProgress`.
     orphan_lines: Vec<String>,
     /// The count of currently visible zombie lines.
-    zombie_lines_count: usize,
+    zombie_lines_count: VisualLines,
 }
 
 impl MultiState {
@@ -230,11 +230,13 @@ impl MultiState {
             move_cursor: false,
             alignment: MultiProgressAlignment::default(),
             orphan_lines: Vec::new(),
-            zombie_lines_count: 0,
+            zombie_lines_count: VisualLines::default(),
         }
     }
 
     pub(crate) fn mark_zombie(&mut self, index: usize) {
+        let width = self.width().map(usize::from);
+
         let member = &mut self.members[index];
 
         // If the zombie is the first visual bar then we can reap it right now instead of
@@ -247,7 +249,8 @@ impl MultiState {
         let line_count = member
             .draw_state
             .as_ref()
-            .map(|d| d.lines.len())
+            .zip(width)
+            .map(|(d, width)| d.visual_line_count(.., width))
             .unwrap_or_default();
 
         // Track the total number of zombie lines on the screen
@@ -284,7 +287,7 @@ impl MultiState {
         let mut reap_indices = vec![];
 
         // Reap all consecutive 'zombie' progress bars from head of the list.
-        let mut adjust = 0;
+        let mut adjust = VisualLines::default();
         for &index in &self.ordering {
             let member = &self.members[index];
             if !member.is_zombie {
@@ -294,7 +297,7 @@ impl MultiState {
             let line_count = member
                 .draw_state
                 .as_ref()
-                .map(|d| visual_line_count(&d.lines, width))
+                .map(|d| d.visual_line_count(.., width))
                 .unwrap_or_default();
             // Track the total number of zombie lines on the screen.
             self.zombie_lines_count += line_count;
@@ -311,11 +314,11 @@ impl MultiState {
         if extra_lines.is_some() {
             self.draw_target
                 .adjust_last_line_count(LineAdjust::Clear(self.zombie_lines_count));
-            self.zombie_lines_count = 0;
+            self.zombie_lines_count = VisualLines::default();
         }
 
         let orphan_visual_line_count = visual_line_count(&self.orphan_lines, width);
-        force_draw |= orphan_visual_line_count > 0;
+        force_draw |= orphan_visual_line_count > VisualLines::default();
         let mut drawable = match self.draw_target.drawable(force_draw, now) {
             Some(drawable) => drawable,
             None => return Ok(()),
@@ -439,7 +442,7 @@ impl MultiState {
             Some(mut drawable) => {
                 // Make the clear operation also wipe out zombie lines
                 drawable.adjust_last_line_count(LineAdjust::Clear(self.zombie_lines_count));
-                self.zombie_lines_count = 0;
+                self.zombie_lines_count = VisualLines::default();
                 drawable.clear()
             }
             None => Ok(()),
