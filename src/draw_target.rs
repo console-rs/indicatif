@@ -12,7 +12,7 @@ use console::Term;
 use instant::Instant;
 
 use crate::multi::{MultiProgressAlignment, MultiState};
-use crate::TermLike;
+use crate::{term_like, TermLike};
 
 /// Target for draw operations
 ///
@@ -71,9 +71,12 @@ impl ProgressDrawTarget {
     ///
     /// Will panic if `refresh_rate` is `0`.
     pub fn term(term: Term, refresh_rate: u8) -> Self {
+        let supports_ansi_codes = term.supports_ansi_codes();
+
         Self {
             kind: TargetKind::Term {
                 term,
+                supports_ansi_codes,
                 last_line_count: VisualLines::default(),
                 rate_limiter: RateLimiter::new(refresh_rate),
                 draw_state: DrawState::default(),
@@ -83,9 +86,12 @@ impl ProgressDrawTarget {
 
     /// Draw to a boxed object that implements the [`TermLike`] trait.
     pub fn term_like(term_like: Box<dyn TermLike>) -> Self {
+        let supports_ansi_codes = term_like.supports_ansi_codes();
+
         Self {
             kind: TargetKind::TermLike {
                 inner: term_like,
+                supports_ansi_codes,
                 last_line_count: VisualLines::default(),
                 rate_limiter: None,
                 draw_state: DrawState::default(),
@@ -96,9 +102,12 @@ impl ProgressDrawTarget {
     /// Draw to a boxed object that implements the [`TermLike`] trait,
     /// with a specific refresh rate.
     pub fn term_like_with_hz(term_like: Box<dyn TermLike>, refresh_rate: u8) -> Self {
+        let supports_ansi_codes = term_like.supports_ansi_codes();
+
         Self {
             kind: TargetKind::TermLike {
                 inner: term_like,
+                supports_ansi_codes,
                 last_line_count: VisualLines::default(),
                 rate_limiter: Option::from(RateLimiter::new(refresh_rate)),
                 draw_state: DrawState::default(),
@@ -151,6 +160,7 @@ impl ProgressDrawTarget {
         match &mut self.kind {
             TargetKind::Term {
                 term,
+                supports_ansi_codes,
                 last_line_count,
                 rate_limiter,
                 draw_state,
@@ -162,6 +172,7 @@ impl ProgressDrawTarget {
                 match force_draw || rate_limiter.allow(now) {
                     true => Some(Drawable::Term {
                         term,
+                        supports_ansi_codes: *supports_ansi_codes,
                         last_line_count,
                         draw_state,
                     }),
@@ -179,12 +190,14 @@ impl ProgressDrawTarget {
             }
             TargetKind::TermLike {
                 inner,
+                supports_ansi_codes,
                 last_line_count,
                 rate_limiter,
                 draw_state,
             } => match force_draw || rate_limiter.as_mut().map_or(true, |r| r.allow(now)) {
                 true => Some(Drawable::TermLike {
                     term_like: &**inner,
+                    supports_ansi_codes: *supports_ansi_codes,
                     last_line_count,
                     draw_state,
                 }),
@@ -230,6 +243,7 @@ impl ProgressDrawTarget {
 enum TargetKind {
     Term {
         term: Term,
+        supports_ansi_codes: bool,
         last_line_count: VisualLines,
         rate_limiter: RateLimiter,
         draw_state: DrawState,
@@ -241,6 +255,7 @@ enum TargetKind {
     Hidden,
     TermLike {
         inner: Box<dyn TermLike>,
+        supports_ansi_codes: bool,
         last_line_count: VisualLines,
         rate_limiter: Option<RateLimiter>,
         draw_state: DrawState,
@@ -270,6 +285,7 @@ impl TargetKind {
 pub(crate) enum Drawable<'a> {
     Term {
         term: &'a Term,
+        supports_ansi_codes: bool,
         last_line_count: &'a mut VisualLines,
         draw_state: &'a mut DrawState,
     },
@@ -281,6 +297,7 @@ pub(crate) enum Drawable<'a> {
     },
     TermLike {
         term_like: &'a dyn TermLike,
+        supports_ansi_codes: bool,
         last_line_count: &'a mut VisualLines,
         draw_state: &'a mut DrawState,
     },
@@ -326,9 +343,10 @@ impl<'a> Drawable<'a> {
         match self {
             Drawable::Term {
                 term,
+                supports_ansi_codes,
                 last_line_count,
                 draw_state,
-            } => draw_state.draw_to_term(term, last_line_count),
+            } => draw_state.draw_to_term(term, supports_ansi_codes, last_line_count),
             Drawable::Multi {
                 mut state,
                 force_draw,
@@ -337,9 +355,10 @@ impl<'a> Drawable<'a> {
             } => state.draw(force_draw, None, now),
             Drawable::TermLike {
                 term_like,
+                supports_ansi_codes,
                 last_line_count,
                 draw_state,
-            } => draw_state.draw_to_term(term_like, last_line_count),
+            } => draw_state.draw_to_term(term_like, supports_ansi_codes, last_line_count),
         }
     }
 }
@@ -466,11 +485,19 @@ impl DrawState {
     fn draw_to_term(
         &mut self,
         term: &(impl TermLike + ?Sized),
+        supports_ansi_codes: bool,
         last_line_count: &mut VisualLines,
     ) -> io::Result<()> {
         if panicking() {
             return Ok(());
         }
+
+        // Begin synchronized update
+        let sync_guard = if supports_ansi_codes {
+            Some(term_like::SyncGuard::begin_sync(term)?)
+        } else {
+            None
+        };
 
         if !self.lines.is_empty() && self.move_cursor {
             term.move_cursor_up(last_line_count.as_usize())?;
@@ -546,6 +573,11 @@ impl DrawState {
             }
         }
         term.write_str(&" ".repeat(last_line_filler))?;
+
+        // End synchronized update
+        if let Some(sync_guard) = sync_guard {
+            sync_guard.finish_sync()?;
+        }
 
         term.flush()?;
         *last_line_count = real_len - orphan_visual_line_count + shift;

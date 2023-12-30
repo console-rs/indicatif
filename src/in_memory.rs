@@ -13,14 +13,16 @@ use crate::TermLike;
 #[derive(Debug, Clone)]
 pub struct InMemoryTerm {
     state: Arc<Mutex<InMemoryTermState>>,
+    supports_ansi_codes: bool,
 }
 
 impl InMemoryTerm {
-    pub fn new(rows: u16, cols: u16) -> InMemoryTerm {
+    pub fn new(rows: u16, cols: u16, supports_ansi_codes: bool) -> InMemoryTerm {
         assert!(rows > 0, "rows must be > 0");
         assert!(cols > 0, "cols must be > 0");
         InMemoryTerm {
             state: Arc::new(Mutex::new(InMemoryTermState::new(rows, cols))),
+            supports_ansi_codes,
         }
     }
 
@@ -190,6 +192,10 @@ impl TermLike for InMemoryTerm {
         state.history.push(Move::Flush);
         state.parser.flush()
     }
+
+    fn supports_ansi_codes(&self) -> bool {
+        self.supports_ansi_codes
+    }
 }
 
 struct InMemoryTermState {
@@ -234,6 +240,8 @@ enum Move {
 
 #[cfg(test)]
 mod test {
+    use crate::term_like;
+
     use super::*;
 
     fn cursor_pos(in_mem: &InMemoryTerm) -> (u16, u16) {
@@ -248,7 +256,7 @@ mod test {
 
     #[test]
     fn line_wrapping() {
-        let in_mem = InMemoryTerm::new(10, 5);
+        let in_mem = InMemoryTerm::new(10, 5, false);
         assert_eq!(cursor_pos(&in_mem), (0, 0));
 
         in_mem.write_str("ABCDE").unwrap();
@@ -282,7 +290,7 @@ mod test {
 
     #[test]
     fn write_line() {
-        let in_mem = InMemoryTerm::new(10, 5);
+        let in_mem = InMemoryTerm::new(10, 5, false);
         assert_eq!(cursor_pos(&in_mem), (0, 0));
 
         in_mem.write_line("A").unwrap();
@@ -318,7 +326,7 @@ NewLine
 
     #[test]
     fn basic_functionality() {
-        let in_mem = InMemoryTerm::new(10, 80);
+        let in_mem = InMemoryTerm::new(10, 80, false);
 
         in_mem.write_line("This is a test line").unwrap();
         assert_eq!(in_mem.contents(), "This is a test line");
@@ -352,7 +360,7 @@ Str("TEST")
 
     #[test]
     fn newlines() {
-        let in_mem = InMemoryTerm::new(10, 10);
+        let in_mem = InMemoryTerm::new(10, 10, false);
         in_mem.write_line("LINE ONE").unwrap();
         in_mem.write_line("LINE TWO").unwrap();
         in_mem.write_line("").unwrap();
@@ -376,7 +384,7 @@ NewLine
 
     #[test]
     fn cursor_zero_movement() {
-        let in_mem = InMemoryTerm::new(10, 80);
+        let in_mem = InMemoryTerm::new(10, 80, false);
         in_mem.write_line("LINE ONE").unwrap();
         assert_eq!(cursor_pos(&in_mem), (1, 0));
 
@@ -395,5 +403,30 @@ NewLine
 
         in_mem.move_cursor_right(0).unwrap();
         assert_eq!(cursor_pos(&in_mem), (1, 1));
+    }
+
+    #[test]
+    fn sync_update() {
+        let in_mem = InMemoryTerm::new(10, 80, true);
+        assert_eq!(cursor_pos(&in_mem), (0, 0));
+
+        let sync_guard = term_like::SyncGuard::begin_sync(&in_mem).unwrap();
+        in_mem.write_line("LINE ONE").unwrap();
+        assert_eq!(cursor_pos(&in_mem), (1, 0));
+        assert_eq!(
+            in_mem.moves_since_last_check(),
+            r#"Str("\u{1b}[?2026h")
+Str("LINE ONE")
+NewLine
+"#
+        );
+
+        sync_guard.finish_sync().unwrap();
+        assert_eq!(cursor_pos(&in_mem), (1, 0));
+        assert_eq!(
+            in_mem.moves_since_last_check(),
+            r#"Str("\u{1b}[?2026l")
+"#
+        );
     }
 }

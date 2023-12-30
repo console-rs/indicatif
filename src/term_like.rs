@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::fmt::Debug;
 use std::io;
 
@@ -34,6 +35,9 @@ pub trait TermLike: Debug + Send + Sync {
     fn clear_line(&self) -> io::Result<()>;
 
     fn flush(&self) -> io::Result<()>;
+
+    // Whether ANSI escape sequences are supported
+    fn supports_ansi_codes(&self) -> bool;
 }
 
 impl TermLike for Term {
@@ -75,5 +79,39 @@ impl TermLike for Term {
 
     fn flush(&self) -> io::Result<()> {
         self.flush()
+    }
+
+    fn supports_ansi_codes(&self) -> bool {
+        self.features().colors_supported()
+    }
+}
+
+pub(crate) struct SyncGuard<'a, T: TermLike + ?Sized> {
+    term_like: Cell<Option<&'a T>>,
+}
+
+impl<'a, T: TermLike + ?Sized> SyncGuard<'a, T> {
+    pub(crate) fn begin_sync(term_like: &'a T) -> io::Result<Self> {
+        term_like.write_str("\x1b[?2026h")?;
+        Ok(Self {
+            term_like: Cell::new(Some(term_like)),
+        })
+    }
+
+    pub(crate) fn finish_sync(self) -> io::Result<()> {
+        self.finish_sync_inner()
+    }
+
+    fn finish_sync_inner(&self) -> io::Result<()> {
+        if let Some(term_like) = self.term_like.take() {
+            term_like.write_str("\x1b[?2026l")?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: TermLike + ?Sized> Drop for SyncGuard<'_, T> {
+    fn drop(&mut self) {
+        let _ = self.finish_sync_inner();
     }
 }
