@@ -3,6 +3,24 @@ use std::io;
 
 use console::Term;
 
+pub trait SyncGuardLike<'a> {
+    fn finish_sync(self) -> io::Result<()>;
+}
+
+impl<'a> SyncGuardLike<'a> for console::SyncGuard<'a> {
+    fn finish_sync(self) -> io::Result<()> {
+        self.finish_sync()
+    }
+}
+
+pub struct NoOpSyncGuard;
+
+impl<'a> SyncGuardLike<'a> for NoOpSyncGuard {
+    fn finish_sync(self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
 /// A trait for minimal terminal-like behavior.
 ///
 /// Anything that implements this trait can be used a draw target via [`ProgressDrawTarget::term_like`].
@@ -34,6 +52,10 @@ pub trait TermLike: Debug + Send + Sync {
     fn clear_line(&self) -> io::Result<()>;
 
     fn flush(&self) -> io::Result<()>;
+
+    fn begin_sync<'a>(&'a self) -> io::Result<Box<dyn SyncGuardLike<'a> + 'a>> {
+        Ok(Box::new(NoOpSyncGuard))
+    }
 }
 
 impl TermLike for Term {
@@ -75,5 +97,10 @@ impl TermLike for Term {
 
     fn flush(&self) -> io::Result<()> {
         self.flush()
+    }
+
+    fn begin_sync<'a>(&'a self) -> io::Result<Box<dyn SyncGuardLike<'a> + 'a>> {
+        console::SyncGuard::begin_sync(self)
+            .map(|guard| Box::new(guard) as Box<dyn SyncGuardLike<'a>>)
     }
 }

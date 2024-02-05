@@ -13,7 +13,7 @@ readme = "README.md"
 exclude = ["screenshots/*"]
 
 [dependencies]
-console = { version = "0.15", default-features = false, features = ["ansi-parsing"] }
+console = { git = "https://github.com/chris-laplante/console.git", branch = "cpl/sync-output-drop-guard", default-features = false, features = ["ansi-parsing"] }
 futures-core = { version = "0.3", default-features = false, optional = true }
 number_prefix = "0.4"
 portable-atomic = "1.0.0"

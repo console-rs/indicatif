@@ -472,6 +472,8 @@ impl DrawState {
             return Ok(());
         }
 
+        let sync_guard = term.begin_sync();
+
         if !self.lines.is_empty() && self.move_cursor {
             term.move_cursor_up(last_line_count.as_usize())?;
         } else {
@@ -546,6 +548,9 @@ impl DrawState {
             }
         }
         term.write_str(&" ".repeat(last_line_filler))?;
+
+        // End synchronized update
+        drop(sync_guard);
 
         term.flush()?;
         *last_line_count = real_len - orphan_visual_line_count + shift;
