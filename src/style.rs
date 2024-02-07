@@ -4,7 +4,7 @@ use std::mem;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
-use console::{measure_text_width, Style};
+use console::{measure_text_width, slice_str, Style};
 #[cfg(target_arch = "wasm32")]
 use instant::Instant;
 #[cfg(feature = "unicode-segmentation")]
@@ -684,27 +684,6 @@ impl<'a> fmt::Display for RepeatedStringDisplay<'a> {
     }
 }
 
-fn truncate_to_fit(text: &str, align: Alignment, target_width: usize) -> Option<&str> {
-    let mut start = 0;
-    let mut end = text.len();
-    let mut left_priority = true;
-
-    // Iter next truncation positions from left or right
-    let mut char_pos_from_left = text.char_indices().map(|(idx, _)| idx).skip(1);
-    let mut char_pos_from_right = text.char_indices().map(|(idx, _)| idx).rev();
-
-    while measure_text_width(text.get(start..end).unwrap_or("")) > target_width {
-        match (align, left_priority) {
-            (Alignment::Left, _) | (Alignment::Center, true) => end = char_pos_from_right.next()?,
-            _ => start = char_pos_from_left.next()?,
-        }
-
-        left_priority = !left_priority;
-    }
-
-    text.get(start..end)
-}
-
 struct PaddedStringDisplay<'a> {
     str: &'a str,
     width: usize,
@@ -715,11 +694,26 @@ struct PaddedStringDisplay<'a> {
 impl<'a> fmt::Display for PaddedStringDisplay<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let cols = measure_text_width(self.str);
+        let text_width = measure_text_width(self.str);
+        let excess = text_width.saturating_sub(self.width);
 
-        if cols > self.width && self.truncate {
-            return f
-                .write_str(truncate_to_fit(self.str, self.align, self.width).unwrap_or(self.str));
-        }
+        if excess > 0 {
+            let truncated = {
+                if self.truncate {
+                    match self.align {
+                        Alignment::Left => slice_str(self.str, "", 0..self.width, ""),
+                        Alignment::Right => slice_str(self.str, "", excess..text_width, ""),
+                        Alignment::Center => {
+                            slice_str(self.str, "", excess / 2..text_width - (excess + 1) / 2, "")
+                        }
+                    }
+                } else {
+                    self.str.into()
+                }
+            };
+
+            return f.write_str(&truncated);
+        };
 
         let diff = self.width.saturating_sub(cols);
         let (left_pad, right_pad) = match self.align {
@@ -934,7 +928,7 @@ mod tests {
         let style = ProgressStyle::with_template("{wide_msg}").unwrap();
         state.message = TabExpandedString::NoTabs("\x1b[31mabcdefghijklmnopqrst\x1b[0m".into());
         style.format_state(&state, &mut buf, WIDTH);
-        assert_eq!(&buf[0], "\x1b[31mabcdefghij");
+        assert_eq!(&buf[0], "\x1b[31mabcdefghij\u{1b}[0m");
     }
 
     #[test]
