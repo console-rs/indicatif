@@ -684,6 +684,27 @@ impl<'a> fmt::Display for RepeatedStringDisplay<'a> {
     }
 }
 
+fn truncate_to_fit(text: &str, align: Alignment, target_width: usize) -> Option<&str> {
+    let mut start = 0;
+    let mut end = text.len();
+    let mut left_priority = true;
+
+    // Iter next truncation positions from left or right
+    let mut char_pos_from_left = text.char_indices().map(|(idx, _)| idx).skip(1);
+    let mut char_pos_from_right = text.char_indices().map(|(idx, _)| idx).rev();
+
+    while measure_text_width(text.get(start..end).unwrap_or("")) > target_width {
+        match (align, left_priority) {
+            (Alignment::Left, _) | (Alignment::Center, true) => end = char_pos_from_right.next()?,
+            _ => start = char_pos_from_left.next()?,
+        }
+
+        left_priority = !left_priority;
+    }
+
+    text.get(start..end)
+}
+
 struct PaddedStringDisplay<'a> {
     str: &'a str,
     width: usize,
@@ -694,20 +715,10 @@ struct PaddedStringDisplay<'a> {
 impl<'a> fmt::Display for PaddedStringDisplay<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let cols = measure_text_width(self.str);
-        let excess = cols.saturating_sub(self.width);
-        if excess > 0 && !self.truncate {
-            return f.write_str(self.str);
-        } else if excess > 0 {
-            let (start, end) = match self.align {
-                Alignment::Left => (0, self.str.len() - excess),
-                Alignment::Right => (excess, self.str.len()),
-                Alignment::Center => (
-                    excess / 2,
-                    self.str.len() - excess.saturating_sub(excess / 2),
-                ),
-            };
 
-            return f.write_str(self.str.get(start..end).unwrap_or(self.str));
+        if cols > self.width && self.truncate {
+            return f
+                .write_str(truncate_to_fit(self.str, self.align, self.width).unwrap_or(self.str));
         }
 
         let diff = self.width.saturating_sub(cols);
@@ -918,6 +929,12 @@ mod tests {
         state.message = TabExpandedString::NoTabs("abcdefghijklmnopqrst".into());
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "fghijklmno");
+
+        buf.clear();
+        let style = ProgressStyle::with_template("{wide_msg}").unwrap();
+        state.message = TabExpandedString::NoTabs("\x1b[31mabcdefghijklmnopqrst\x1b[0m".into());
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "\x1b[31mabcdefghij");
     }
 
     #[test]
