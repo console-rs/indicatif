@@ -282,6 +282,9 @@ impl ProgressStyle {
                             "percent" => buf
                                 .write_fmt(format_args!("{:.*}", 0, state.fraction() * 100f32))
                                 .unwrap(),
+                            "percent_precise" => buf
+                                .write_fmt(format_args!("{:.*}", 3, state.fraction() * 100f32))
+                                .unwrap(),
                             "bytes" => buf.write_fmt(format_args!("{}", HumanBytes(pos))).unwrap(),
                             "total_bytes" => {
                                 buf.write_fmt(format_args!("{}", HumanBytes(len))).unwrap();
