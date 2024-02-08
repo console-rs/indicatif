@@ -190,7 +190,8 @@
 //! * `len`: renders the amount of work to be done as an integer
 //! * `human_len`: renders the total length of the bar as an integer, with commas as the thousands
 //! separator.
-//! * `percent`: renders the current position of the bar as a percentage of the total length.
+//! * `percent`: renders the current position of the bar as a percentage of the total length (as an integer).
+//! * `percent_precise`: renders the current position of the bar as a percentage of the total length (with 3 fraction digits).
 //! * `bytes`: renders the current position of the bar as bytes (alias of `binary_bytes`).
 //! * `total_bytes`: renders the total length of the bar as bytes (alias of `binary_total_bytes`).
 //! * `decimal_bytes`: renders the current position of the bar as bytes using
