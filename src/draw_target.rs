@@ -146,6 +146,18 @@ impl ProgressDrawTarget {
         }
     }
 
+    /// Check if a call to `drawable` would actually give back a `Drawable`.
+    pub(crate) fn will_allow_draw(&self, now: Instant) -> bool {
+        match &self.kind {
+            TargetKind::Term { rate_limiter, .. } => rate_limiter.will_allow(now),
+            TargetKind::Multi { state, .. } => state.read().unwrap().will_allow_draw(now),
+            TargetKind::Hidden => false,
+            TargetKind::TermLike { rate_limiter, .. } => {
+                rate_limiter.as_ref().map_or(true, |r| r.will_allow(now))
+            }
+        }
+    }
+
     /// Apply the given draw state (draws it).
     pub(crate) fn drawable(&mut self, force_draw: bool, now: Instant) -> Option<Drawable<'_>> {
         match &mut self.kind {
@@ -169,13 +181,32 @@ impl ProgressDrawTarget {
                 }
             }
             TargetKind::Multi { idx, state, .. } => {
-                let state = state.write().unwrap();
-                Some(Drawable::Multi {
-                    idx: *idx,
-                    state,
-                    force_draw,
-                    now,
-                })
+                let mut state_guard = state.write().unwrap();
+
+                // Check if this multibar's inner draw target will rate limit
+                // the draw call. If so no rendering needs to be done as long
+                // as we mark the member for redraw. Either case no actual
+                // request needs to be performed on inner rate limiter otherwise
+                // the actual draw call won't be able to perform.
+                if force_draw || state_guard.will_allow_draw(now) {
+                    // Ensures no deadlock appears by trying to redraw current bar
+                    state_guard.unmark_delayed(*idx);
+
+                    let state = MultiState::force_redraw_delayed(state_guard, now)
+                        .ok()
+                        .flatten()
+                        .unwrap_or_else(|| state.write().unwrap());
+
+                    Some(Drawable::Multi {
+                        idx: *idx,
+                        state,
+                        force_draw,
+                        now,
+                    })
+                } else {
+                    state_guard.mark_delayed(*idx); // needs to be drawn later
+                    None
+                }
             }
             TargetKind::TermLike {
                 inner,
@@ -410,6 +441,20 @@ impl RateLimiter {
             capacity: MAX_BURST,
             prev: Instant::now(),
         }
+    }
+
+    /// Check ahead if a call to `allow` will return `true`.
+    fn will_allow(&self, now: Instant) -> bool {
+        if now < self.prev {
+            return false;
+        }
+
+        let elapsed = now - self.prev;
+
+        // If `capacity` is 0 and not enough time (`self.interval` ms) has passed since
+        // `self.prev` to add new capacity, return `false`. The goal of this method is to
+        // make this decision as efficient as possible.
+        self.capacity != 0 || elapsed >= Duration::from_millis(self.interval as u64)
     }
 
     fn allow(&mut self, now: Instant) -> bool {

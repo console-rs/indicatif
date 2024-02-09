@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
 use std::io;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::thread::panicking;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
@@ -9,6 +9,7 @@ use crate::draw_target::{
     visual_line_count, DrawState, DrawStateWrapper, LineAdjust, ProgressDrawTarget, VisualLines,
 };
 use crate::progress_bar::ProgressBar;
+use crate::WeakProgressBar;
 #[cfg(target_arch = "wasm32")]
 use instant::Instant;
 
@@ -159,7 +160,7 @@ impl MultiProgress {
 
     fn internalize(&self, location: InsertLocation, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
-        let idx = state.insert(location);
+        let idx = state.insert(location, &pb);
         drop(state);
 
         pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
@@ -261,6 +262,54 @@ impl MultiState {
             .adjust_last_line_count(LineAdjust::Keep(line_count));
 
         self.remove_idx(index);
+    }
+
+    /// Mark that a given member has had its state changed without a redraw
+    pub(crate) fn mark_delayed(&mut self, idx: usize) {
+        self.members[idx].is_delayed = true;
+    }
+
+    /// Mark that a given member does not need to be redrawn
+    pub(crate) fn unmark_delayed(&mut self, idx: usize) {
+        self.members[idx].is_delayed = false;
+    }
+
+    /// Force the redraw of all delayed members.
+    ///
+    /// The input lock guard will be given back if and only if there was no
+    /// member that had to be redrawn.
+    pub(crate) fn force_redraw_delayed(
+        mut this: RwLockWriteGuard<'_, Self>,
+        now: Instant,
+    ) -> io::Result<Option<RwLockWriteGuard<'_, Self>>> {
+        let to_redraw: Vec<_> = this
+            .members
+            .iter_mut()
+            .filter(|mb| mb.is_delayed)
+            .filter_map(|mb| {
+                mb.is_delayed = false;
+                mb.pb_weak.upgrade()
+            })
+            .collect();
+
+        if to_redraw.is_empty() {
+            return Ok(Some(this));
+        }
+
+        // The members will need to borrow this multibar to redraw!
+        drop(this);
+
+        for pb in to_redraw {
+            pb.state().draw(true, now)?;
+        }
+
+        Ok(None)
+    }
+
+    /// Check if the draw target will allow to draw. If not, the member will
+    /// have to be marked as delayed to redraw it later.
+    pub(crate) fn will_allow_draw(&self, now: Instant) -> bool {
+        self.draw_target.will_allow_draw(now)
     }
 
     pub(crate) fn draw(
@@ -399,12 +448,12 @@ impl MultiState {
         self.draw_target.width()
     }
 
-    fn insert(&mut self, location: InsertLocation) -> usize {
+    fn insert(&mut self, location: InsertLocation, pb: &ProgressBar) -> usize {
         let idx = if let Some(idx) = self.free_set.pop() {
-            self.members[idx] = MultiStateMember::default();
+            self.members[idx] = MultiStateMember::new(pb);
             idx
         } else {
-            self.members.push(MultiStateMember::default());
+            self.members.push(MultiStateMember::new(pb));
             self.members.len() - 1
         };
 
@@ -454,7 +503,7 @@ impl MultiState {
             return;
         }
 
-        self.members[idx] = MultiStateMember::default();
+        self.members[idx] = MultiStateMember::inactive();
         self.free_set.push(idx);
         self.ordering.retain(|&x| x != idx);
 
@@ -470,13 +519,36 @@ impl MultiState {
     }
 }
 
-#[derive(Default)]
 struct MultiStateMember {
     /// Draw state will be `None` for members that haven't been drawn before, or for entries that
     /// correspond to something in the free set.
     draw_state: Option<DrawState>,
     /// Whether the corresponding progress bar (more precisely, `BarState`) has been dropped.
     is_zombie: bool,
+    /// Mark the member if he has not been redrawn after its last state change
+    is_delayed: bool,
+    /// Used to trigger a redraw if this member has been delayed
+    pb_weak: WeakProgressBar,
+}
+
+impl MultiStateMember {
+    fn new(pb: &ProgressBar) -> Self {
+        Self {
+            draw_state: None,
+            is_zombie: false,
+            is_delayed: false,
+            pb_weak: pb.downgrade(),
+        }
+    }
+
+    fn inactive() -> Self {
+        Self {
+            draw_state: None,
+            is_zombie: false,
+            is_delayed: false,
+            pb_weak: WeakProgressBar::default(),
+        }
+    }
 }
 
 impl Debug for MultiStateMember {
