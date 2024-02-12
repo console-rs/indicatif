@@ -10,7 +10,7 @@ use pretty_assertions::assert_eq;
 
 #[test]
 fn basic_progress_bar() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let pb = ProgressBar::with_draw_target(
         Some(10),
         ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
@@ -39,7 +39,7 @@ fn basic_progress_bar() {
 
 #[test]
 fn progress_bar_builder_method_order() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     // Test that `with_style` doesn't overwrite the message or prefix
     let pb = ProgressBar::with_draw_target(
         Some(10),
@@ -63,7 +63,7 @@ fn progress_bar_builder_method_order() {
 
 #[test]
 fn progress_bar_percent_with_no_length() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let pb = ProgressBar::with_draw_target(
         None,
         ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
@@ -129,7 +129,7 @@ fn progress_bar_percent_precise_with_no_length() {
 
 #[test]
 fn multi_progress_single_bar_and_leave() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -152,7 +152,7 @@ fn multi_progress_single_bar_and_leave() {
 
 #[test]
 fn multi_progress_single_bar_and_clear() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -171,7 +171,7 @@ fn multi_progress_single_bar_and_clear() {
 }
 #[test]
 fn multi_progress_two_bars() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -215,7 +215,7 @@ fn multi_progress_two_bars() {
 
 #[test]
 fn multi_progress() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -280,7 +280,7 @@ fn multi_progress() {
 
 #[test]
 fn multi_progress_println() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -346,7 +346,7 @@ one last message"#
 
 #[test]
 fn multi_progress_suspend() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -419,7 +419,7 @@ Another line printed"#
 
 #[test]
 fn ticker_drop() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -444,7 +444,7 @@ fn ticker_drop() {
 
 #[test]
 fn manually_inc_ticker() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -466,7 +466,7 @@ fn manually_inc_ticker() {
 
 #[test]
 fn multi_progress_prune_zombies() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -505,7 +505,7 @@ fn multi_progress_prune_zombies() {
 
 #[test]
 fn multi_progress_prune_zombies_2() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -660,7 +660,7 @@ don't erase me either"#
 
 #[test]
 fn basic_tab_expansion() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -676,7 +676,7 @@ fn basic_tab_expansion() {
 
 #[test]
 fn tab_expansion_in_template() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -699,7 +699,7 @@ fn tab_expansion_in_template() {
 
 #[test]
 fn progress_style_tab_width_unification() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -720,7 +720,7 @@ fn progress_style_tab_width_unification() {
 
 #[test]
 fn multi_progress_clear_println() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -748,7 +748,7 @@ fn multi_progress_clear_zombies_two_ticks() {
 // In the old (broken) implementation, zombie handling sometimes worked differently depending on
 // how many draws were between certain operations. Let's make sure that doesn't happen again.
 fn _multi_progress_clear_zombies(ticks: usize) {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
     let style = ProgressStyle::with_template("{msg}").unwrap();
@@ -784,7 +784,7 @@ fn _multi_progress_clear_zombies(ticks: usize) {
 // This test reproduces examples/multi.rs in a simpler form
 #[test]
 fn multi_zombie_handling() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
     let style = ProgressStyle::with_template("{msg}").unwrap();
@@ -844,7 +844,7 @@ fn multi_zombie_handling() {
 
 #[test]
 fn multi_progress_multiline_msg() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -930,7 +930,7 @@ fn multi_progress_multiline_msg() {
 
 #[test]
 fn multi_progress_bottom_alignment() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
     mp.set_alignment(MultiProgressAlignment::Bottom);
@@ -954,7 +954,7 @@ fn multi_progress_bottom_alignment() {
 #[test]
 fn progress_bar_terminal_wrap() {
     use std::cmp::min;
-    let in_mem = InMemoryTerm::new(10, 20);
+    let in_mem = InMemoryTerm::new(10, 20, false);
 
     let mut downloaded = 0;
     let total_size = 231231231;
@@ -1017,7 +1017,7 @@ s"#
 
 #[test]
 fn spinner_terminal_cleared_log_line_with_ansi_codes() {
-    let in_mem = InMemoryTerm::new(10, 100);
+    let in_mem = InMemoryTerm::new(10, 100, false);
 
     let pb = ProgressBar::with_draw_target(
         Some(10),
@@ -1036,7 +1036,7 @@ fn spinner_terminal_cleared_log_line_with_ansi_codes() {
 
 #[test]
 fn multi_progress_println_terminal_wrap() {
-    let in_mem = InMemoryTerm::new(10, 48);
+    let in_mem = InMemoryTerm::new(10, 48, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -1100,7 +1100,7 @@ n terminal width"#
 
 #[test]
 fn basic_progress_bar_newline() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
     let pb = ProgressBar::with_draw_target(
         Some(10),
         ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
@@ -1139,7 +1139,7 @@ hello
 
 #[test]
 fn multi_progress_many_bars() {
-    let in_mem = InMemoryTerm::new(4, 80);
+    let in_mem = InMemoryTerm::new(4, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -1458,7 +1458,7 @@ Flush
 
 #[test]
 fn multi_progress_many_spinners() {
-    let in_mem = InMemoryTerm::new(4, 80);
+    let in_mem = InMemoryTerm::new(4, 80, false);
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
@@ -1798,7 +1798,7 @@ Flush
 
 #[test]
 fn orphan_lines() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
 
     let pb = ProgressBar::with_draw_target(
         Some(10),
@@ -1821,7 +1821,7 @@ fn orphan_lines() {
 
 #[test]
 fn orphan_lines_message_above_progress_bar() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
 
     let pb = ProgressBar::with_draw_target(
         Some(10),
@@ -1833,7 +1833,7 @@ fn orphan_lines_message_above_progress_bar() {
 
 #[test]
 fn orphan_lines_message_above_multi_progress_bar() {
-    let in_mem = InMemoryTerm::new(10, 80);
+    let in_mem = InMemoryTerm::new(10, 80, false);
 
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
