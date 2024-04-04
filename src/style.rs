@@ -39,12 +39,12 @@ fn segment(s: &str) -> Vec<Box<str>> {
     s.chars().map(|x| x.to_string().into()).collect()
 }
 
-#[cfg(feature = "unicode-width")]
+#[cfg(feature = "unicode-display-width")]
 fn measure(s: &str) -> usize {
-    unicode_width::UnicodeWidthStr::width(s)
+    unicode_display_width::width(s) as usize
 }
 
-#[cfg(not(feature = "unicode-width"))]
+#[cfg(not(feature = "unicode-display-width"))]
 fn measure(s: &str) -> usize {
     s.chars().count()
 }

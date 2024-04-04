@@ -14,7 +14,7 @@ static CRATES: &[(&str, &str)] = &[
     ("regex-syntax", "v0.6.23"),
     ("terminal_size", "v0.1.16"),
     ("libc", "v0.2.93"),
-    ("unicode-width", "v0.1.8"),
+    ("unicode-display-width", "v0.3.0"),
     ("lazy_static", "v1.4.0"),
     ("number_prefix", "v0.4.0"),
     ("regex", "v1.4.6"),
