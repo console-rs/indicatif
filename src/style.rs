@@ -779,6 +779,7 @@ mod tests {
 
     use super::*;
     use crate::state::{AtomicPosition, ProgressState};
+    use console::colors_enabled;
     use std::sync::Mutex;
 
     #[test]
@@ -925,6 +926,8 @@ mod tests {
 
     #[test]
     fn wide_element_style() {
+        println!("colors_enabled: {}", colors_enabled());
+
         const CHARS: &str = "=>-";
         const WIDTH: u16 = 8;
         let pos = Arc::new(AtomicPosition::new());
