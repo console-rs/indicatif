@@ -493,6 +493,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: read,
+            hold_max: false,
         }
     }
 
@@ -514,6 +515,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: write,
+            hold_max: false,
         }
     }
 
@@ -540,6 +542,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: write,
+            hold_max: false,
         }
     }
 
@@ -563,6 +566,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: read,
+            hold_max: false,
         }
     }
 
@@ -585,6 +589,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: stream,
+            hold_max: false,
         }
     }
 
