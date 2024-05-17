@@ -779,7 +779,8 @@ mod tests {
 
     use super::*;
     use crate::state::{AtomicPosition, ProgressState};
-    use console::colors_enabled;
+
+    use console::set_colors_enabled;
     use std::sync::Mutex;
 
     #[test]
@@ -865,7 +866,6 @@ mod tests {
 
     #[test]
     fn test_expand_template_flags() {
-        use console::set_colors_enabled;
         set_colors_enabled(true);
 
         const WIDTH: u16 = 80;
@@ -926,7 +926,7 @@ mod tests {
 
     #[test]
     fn wide_element_style() {
-        println!("colors_enabled: {}", colors_enabled());
+        set_colors_enabled(true);
 
         const CHARS: &str = "=>-";
         const WIDTH: u16 = 8;
