@@ -738,6 +738,57 @@ enum Alignment {
     Right,
 }
 
+impl Alignment {
+    fn trim(self, s: &str, width: usize) -> &str {
+        dbg!(s);
+        let cur = measure_text_width(s);
+        if dbg!(cur) <= width {
+            return s;
+        }
+
+        let mut iter = s.char_indices();
+        let (mut i, mut start, mut end, mut reduced) = (0, 0, s.len(), 0);
+        let mut buf = [0; 4];
+        while cur - reduced > width {
+            dbg!(i, start, end, reduced);
+            match self {
+                Alignment::Left => {
+                    if let Some((idx, c)) = dbg!(iter.next_back()) {
+                        let encoded = c.encode_utf8(&mut buf);
+                        reduced += measure_text_width(encoded);
+                        end = idx;
+                    }
+                }
+                Alignment::Right => {
+                    if let Some((_, c)) = dbg!(iter.next()) {
+                        let encoded = c.encode_utf8(&mut buf);
+                        reduced += measure_text_width(encoded);
+                        start += c.len_utf8();
+                    }
+                }
+                Alignment::Center => {
+                    if i % 2 == 0 {
+                        if let Some((idx, c)) = dbg!(iter.next_back()) {
+                            let encoded = c.encode_utf8(&mut buf);
+                            reduced += measure_text_width(encoded);
+                            end = idx;
+                        }
+                    } else {
+                        if let Some((_, c)) = dbg!(iter.next()) {
+                            let encoded = c.encode_utf8(&mut buf);
+                            reduced += measure_text_width(encoded);
+                            start += c.len_utf8();
+                        }
+                    }
+                }
+            }
+            i += 1;
+        }
+
+        &s[start..end]
+    }
+}
+
 /// Trait for defining stateful or stateless formatters
 pub trait ProgressTracker: Send + Sync {
     /// Creates a new instance of the progress tracker
@@ -992,5 +1043,13 @@ mod tests {
         assert_eq!(&buf[1], "prefix foo");
         assert_eq!(&buf[2], "bar");
         assert_eq!(&buf[3], "baz");
+    }
+
+    #[test]
+    fn multi_byte_char_width() {
+        dbg!("left");
+        assert_eq!(Alignment::Left.trim("🦀🦀🦀", 3), "🦀");
+        dbg!("right");
+        assert_eq!(Alignment::Right.trim("❤️✅✨", 3), "❤️");
     }
 }
