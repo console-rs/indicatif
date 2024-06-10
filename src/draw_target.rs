@@ -482,7 +482,9 @@ impl DrawState {
         }
 
         if !self.lines.is_empty() && self.move_cursor {
-            term.move_cursor_up(last_line_count.as_usize())?;
+            // Move up to first line (assuming the last line doesn't contain a '\n') and then move to then front of the line
+            term.move_cursor_up(last_line_count.as_usize().saturating_sub(1))?;
+            term.write_str("\r")?;
         } else {
             // Fork of console::clear_last_lines that assumes that the last line doesn't contain a '\n'
             let n = last_line_count.as_usize();

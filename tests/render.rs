@@ -429,7 +429,8 @@ fn multi_progress_move_cursor() {
     pb1.tick();
     assert_eq!(
         in_mem.moves_since_last_check(),
-        r#"Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+        r#"Str("\r")
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
 Str("")
 Flush
 "#
@@ -439,7 +440,7 @@ Flush
     pb2.tick();
     assert_eq!(
         in_mem.moves_since_last_check(),
-        r#"Up(1)
+        r#"Str("\r")
 Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
 Str("")
 NewLine
@@ -452,7 +453,8 @@ Flush
     pb1.inc(1);
     assert_eq!(
         in_mem.moves_since_last_check(),
-        r#"Up(2)
+        r#"Up(1)
+Str("\r")
 Str("███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 1/10")
 Str("")
 NewLine
