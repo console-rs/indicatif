@@ -146,6 +146,15 @@ impl ProgressDrawTarget {
         }
     }
 
+    /// Set whether or not to just move cursor instead of clearing lines
+    pub(crate) fn set_move_cursor(&mut self, move_cursor: bool) {
+        match &mut self.kind {
+            TargetKind::Term { draw_state, .. } => draw_state.move_cursor = move_cursor,
+            TargetKind::TermLike { draw_state, .. } => draw_state.move_cursor = move_cursor,
+            _ => {}
+        }
+    }
+
     /// Apply the given draw state (draws it).
     pub(crate) fn drawable(&mut self, force_draw: bool, now: Instant) -> Option<Drawable<'_>> {
         match &mut self.kind {
