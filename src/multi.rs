@@ -58,7 +58,11 @@ impl MultiProgress {
     /// This can reduce flickering, but do not enable it if you intend to change the number of
     /// progress bars.
     pub fn set_move_cursor(&self, move_cursor: bool) {
-        self.state.write().unwrap().move_cursor = move_cursor;
+        self.state
+            .write()
+            .unwrap()
+            .draw_target
+            .set_move_cursor(move_cursor);
     }
 
     /// Set alignment flag
@@ -209,8 +213,6 @@ pub(crate) struct MultiState {
     ordering: Vec<usize>,
     /// Target for draw operation for MultiProgress
     draw_target: ProgressDrawTarget,
-    /// Whether or not to just move cursor instead of clearing lines
-    move_cursor: bool,
     /// Controls how the multi progress is aligned if some of its progress bars get removed, default is `Top`
     alignment: MultiProgressAlignment,
     /// Lines to be drawn above everything else in the MultiProgress. These specifically come from
@@ -227,7 +229,6 @@ impl MultiState {
             free_set: vec![],
             ordering: vec![],
             draw_target,
-            move_cursor: false,
             alignment: MultiProgressAlignment::default(),
             orphan_lines: Vec::new(),
             zombie_lines_count: VisualLines::default(),
@@ -376,10 +377,7 @@ impl MultiState {
         let member = self.members.get_mut(idx).unwrap();
         // alignment is handled by the `MultiProgress`'s underlying draw target, so there is no
         // point in propagating it here.
-        let state = member.draw_state.get_or_insert(DrawState {
-            move_cursor: self.move_cursor,
-            ..Default::default()
-        });
+        let state = member.draw_state.get_or_insert(DrawState::default());
 
         DrawStateWrapper::for_multi(state, &mut self.orphan_lines)
     }
