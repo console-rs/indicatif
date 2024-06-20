@@ -4,7 +4,7 @@ use std::mem;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
-use console::{measure_text_width, Style};
+use console::{measure_text_width, slice_str, Style};
 #[cfg(target_arch = "wasm32")]
 use instant::Instant;
 #[cfg(feature = "unicode-segmentation")]
@@ -697,21 +697,26 @@ struct PaddedStringDisplay<'a> {
 impl<'a> fmt::Display for PaddedStringDisplay<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let cols = measure_text_width(self.str);
-        let excess = cols.saturating_sub(self.width);
-        if excess > 0 && !self.truncate {
-            return f.write_str(self.str);
-        } else if excess > 0 {
-            let (start, end) = match self.align {
-                Alignment::Left => (0, self.str.len() - excess),
-                Alignment::Right => (excess, self.str.len()),
-                Alignment::Center => (
-                    excess / 2,
-                    self.str.len() - excess.saturating_sub(excess / 2),
-                ),
+        let text_width = measure_text_width(self.str);
+        let excess = text_width.saturating_sub(self.width);
+
+        if excess > 0 {
+            let truncated = {
+                if self.truncate {
+                    match self.align {
+                        Alignment::Left => slice_str(self.str, "", 0..self.width, ""),
+                        Alignment::Right => slice_str(self.str, "", excess..text_width, ""),
+                        Alignment::Center => {
+                            slice_str(self.str, "", excess / 2..text_width - (excess + 1) / 2, "")
+                        }
+                    }
+                } else {
+                    self.str.into()
+                }
             };
 
-            return f.write_str(self.str.get(start..end).unwrap_or(self.str));
-        }
+            return f.write_str(&truncated);
+        };
 
         let diff = self.width.saturating_sub(cols);
         let (left_pad, right_pad) = match self.align {
@@ -922,6 +927,12 @@ mod tests {
         state.message = TabExpandedString::NoTabs("abcdefghijklmnopqrst".into());
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "fghijklmno");
+
+        buf.clear();
+        let style = ProgressStyle::with_template("{wide_msg}").unwrap();
+        state.message = TabExpandedString::NoTabs("\x1b[31mabcdefghijklmnopqrst\x1b[0m".into());
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "\x1b[31mabcdefghij\u{1b}[0m");
     }
 
     #[test]
