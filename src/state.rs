@@ -554,7 +554,7 @@ impl AtomicPosition {
         // We now calculate `new`, the number of ms, in ns, since we last returned `true`,
         // and `remainder`, which represents a number of ns less than 1ms which we cannot
         // convert into capacity now, so we're saving it for later. We do this by
-        // substracting this from `elapsed` before storing it into `self.prev`.
+        // subtracting this from `elapsed` before storing it into `self.prev`.
         let (new, remainder) = ((diff / INTERVAL), (diff % INTERVAL));
         // We add `new` to `capacity`, subtract one for returning `true` from here,
         // then make sure it does not exceed a maximum of `MAX_BURST`.
