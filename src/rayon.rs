@@ -41,7 +41,11 @@ where
 
 impl<S: Send, T: ParallelIterator<Item = S>> ParallelProgressIterator for T {
     fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self> {
-        ProgressBarIter { it: self, progress }
+        ProgressBarIter {
+            it: self,
+            progress,
+            hold_max: false,
+        }
     }
 }
 
@@ -99,6 +103,7 @@ impl<T, P: Producer<Item = T>> Producer for ProgressProducer<P> {
         ProgressBarIter {
             it: self.base.into_iter(),
             progress: self.progress,
+            hold_max: false,
         }
     }
 
