@@ -537,7 +537,7 @@ impl AtomicPosition {
         }
 
         let mut capacity = self.capacity.load(Ordering::Acquire);
-        // `prev` is the number of ms after `self.started` we last returned `true`, in ns
+        // `prev` is the number of ns after `self.started` we last returned `true`
         let prev = self.prev.load(Ordering::Acquire);
         // `elapsed` is the number of ns since `self.started`
         let elapsed = (now - self.start).as_nanos() as u64;
@@ -551,8 +551,8 @@ impl AtomicPosition {
             return false;
         }
 
-        // We now calculate `new`, the number of ms, in ns, since we last returned `true`,
-        // and `remainder`, which represents a number of ns less than 1ms which we cannot
+        // We now calculate `new`, the number of INTERVALs since we last returned `true`,
+        // and `remainder`, which represents a number of ns less than INTERVAL which we cannot
         // convert into capacity now, so we're saving it for later. We do this by
         // subtracting this from `elapsed` before storing it into `self.prev`.
         let (new, remainder) = ((diff / INTERVAL), (diff % INTERVAL));
@@ -568,7 +568,7 @@ impl AtomicPosition {
 
     fn reset(&self, now: Instant) {
         self.set(0);
-        let elapsed = (now.saturating_duration_since(self.start)).as_millis() as u64;
+        let elapsed = (now.saturating_duration_since(self.start)).as_nanos() as u64;
         self.prev.store(elapsed, Ordering::Release);
     }
 
