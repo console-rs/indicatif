@@ -799,4 +799,15 @@ mod tests {
         // Should not panic.
         atomic_position.allow(later);
     }
+
+    #[test]
+    fn test_atomic_position_reset() {
+        const ELAPSE_TIME: Duration = Duration::from_millis(20);
+        let mut pos = AtomicPosition::new();
+        pos.reset(pos.start + ELAPSE_TIME);
+
+        // prev should be exactly ELAPSE_TIME after reset
+        assert_eq!(*pos.pos.get_mut(), 0);
+        assert_eq!(*pos.prev.get_mut(), ELAPSE_TIME.as_nanos() as u64);
+    }
 }
