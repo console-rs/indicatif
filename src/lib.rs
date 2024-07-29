@@ -176,20 +176,19 @@
 //! * `bar`: renders a progress bar. By default 20 characters wide.  The
 //!   style string is used to color the elapsed part, the alternative
 //!   style is used for the bar that is yet to render.
-//! * `wide_bar`: like `bar` but always fills the remaining space. It should not be used with
-//! `wide_msg`.
+//! * `wide_bar`: like `bar` but always fills the remaining space. It should not be used with `wide_msg`.
 //! * `spinner`: renders the spinner (current tick string). Note that spinners do not automatically tick by default. You either
-//! need to call `enable_steady_tick` or manually call `tick`.
+//!   need to call `enable_steady_tick` or manually call `tick`.
 //! * `prefix`: renders the prefix set on the progress bar.
 //! * `msg`: renders the currently set message on the progress bar.
 //! * `wide_msg`: like `msg` but always fills the remaining space and truncates. It should not be used
-//! with `wide_bar`.
+//!   with `wide_bar`.
 //! * `pos`: renders the current position of the bar as integer
 //! * `human_pos`: renders the current position of the bar as an integer, with commas as the
-//! thousands separator.
+//!   thousands separator.
 //! * `len`: renders the amount of work to be done as an integer
 //! * `human_len`: renders the total length of the bar as an integer, with commas as the thousands
-//! separator.
+//!   separator.
 //! * `percent`: renders the current position of the bar as a percentage of the total length (as an integer).
 //! * `percent_precise`: renders the current position of the bar as a percentage of the total length (with 3 fraction digits).
 //! * `bytes`: renders the current position of the bar as bytes (alias of `binary_bytes`).
