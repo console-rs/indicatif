@@ -37,7 +37,7 @@ impl fmt::Debug for ProgressBar {
 impl ProgressBar {
     /// Creates a new progress bar with a given length
     ///
-    /// This progress bar by default draws directly to stderr, and refreshes a maximum of 15 times
+    /// This progress bar by default draws directly to stderr, and refreshes a maximum of 20 times
     /// a second. To change the refresh rate, [set] the [draw target] to one with a different refresh
     /// rate.
     ///

@@ -169,6 +169,7 @@ fn multi_progress_single_bar_and_clear() {
     drop(pb1);
     assert_eq!(in_mem.contents(), "");
 }
+
 #[test]
 fn multi_progress_two_bars() {
     let in_mem = InMemoryTerm::new(10, 80);
@@ -414,6 +415,53 @@ And so is this
 
 Another line printed"#
             .trim()
+    );
+}
+
+#[test]
+fn multi_progress_move_cursor() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+    mp.set_move_cursor(true);
+
+    let pb1 = mp.add(ProgressBar::new(10));
+    pb1.tick();
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Str("\r")
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+Flush
+"#
+    );
+
+    let pb2 = mp.add(ProgressBar::new(10));
+    pb2.tick();
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Str("\r")
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+NewLine
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+Flush
+"#
+    );
+
+    pb1.inc(1);
+    assert_eq!(
+        in_mem.moves_since_last_check(),
+        r#"Up(1)
+Str("\r")
+Str("███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 1/10")
+Str("")
+NewLine
+Str("░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10")
+Str("")
+Flush
+"#
     );
 }
 
