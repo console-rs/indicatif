@@ -1,7 +1,7 @@
 use rayon::iter::plumbing::{Consumer, Folder, Producer, ProducerCallback, UnindexedConsumer};
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 
-use crate::{ProgressBar, ProgressBarIter};
+use crate::{iter, ProgressBar, ProgressBarIter};
 
 /// Wraps a Rayon parallel iterator.
 ///
@@ -44,7 +44,7 @@ impl<S: Send, T: ParallelIterator<Item = S>> ParallelProgressIterator for T {
         ProgressBarIter {
             it: self,
             progress,
-            hold_max: false,
+            hold_max: iter::RingBufWrap::new(),
         }
     }
 }
@@ -103,7 +103,7 @@ impl<T, P: Producer<Item = T>> Producer for ProgressProducer<P> {
         ProgressBarIter {
             it: self.base.into_iter(),
             progress: self.progress,
-            hold_max: false,
+            hold_max: iter::RingBufWrap::new(),
         }
     }
 
