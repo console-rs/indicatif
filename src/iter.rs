@@ -216,12 +216,6 @@ impl<S, T: Iterator<Item = S>> Iterator for ProgressBarIter<T> {
     }
 }
 
-impl<T: ExactSizeIterator> ExactSizeIterator for ProgressBarIter<T> {
-    fn len(&self) -> usize {
-        self.it.len()
-    }
-}
-
 impl<T: DoubleEndedIterator> DoubleEndedIterator for ProgressBarIter<T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         let item = self.it.next_back();
@@ -236,7 +230,43 @@ impl<T: DoubleEndedIterator> DoubleEndedIterator for ProgressBarIter<T> {
     }
 }
 
+impl<T: ExactSizeIterator> ExactSizeIterator for ProgressBarIter<T> {
+    fn len(&self) -> usize {
+        self.it.len()
+    }
+}
+
 impl<T: FusedIterator> FusedIterator for ProgressBarIter<T> {}
+
+impl<S, T: Iterator<Item = S>> ProgressIterator for T {
+    fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self> {
+        ProgressBarIter {
+            it: self,
+            progress,
+            hold_max: RingBufWrap::new(),
+        }
+    }
+}
+
+#[cfg(feature = "futures")]
+#[cfg_attr(docsrs, doc(cfg(feature = "futures")))]
+impl<S: futures_core::Stream + Unpin> futures_core::Stream for ProgressBarIter<S> {
+    type Item = S::Item;
+
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        let item = std::pin::Pin::new(&mut this.it).poll_next(cx);
+        match &item {
+            std::task::Poll::Ready(Some(_)) => this.progress.inc(1),
+            std::task::Poll::Ready(None) => this.progress.finish_using_style(),
+            std::task::Poll::Pending => {}
+        }
+        item
+    }
+}
 
 impl<R: io::Read> io::Read for ProgressBarIter<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -290,6 +320,36 @@ impl<R: io::BufRead> io::BufRead for ProgressBarIter<R> {
     }
 }
 
+impl<W: io::Write> io::Write for ProgressBarIter<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.it.write(buf).map(|inc| {
+            self.progress.set_position(
+                self.hold_max
+                    .update_seq(self.progress.position(), inc as u64),
+            );
+            inc
+        })
+    }
+
+    fn write_vectored(&mut self, bufs: &[io::IoSlice]) -> io::Result<usize> {
+        self.it.write_vectored(bufs).map(|inc| {
+            self.progress.set_position(
+                self.hold_max
+                    .update_seq(self.progress.position(), inc as u64),
+            );
+            inc
+        })
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.it.flush()
+    }
+
+    // write_fmt can not be captured with reasonable effort.
+    // as it uses write_all internally by default that should not be a problem.
+    // fn write_fmt(&mut self, fmt: fmt::Arguments) -> io::Result<()>;
+}
+
 impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
     fn seek(&mut self, f: io::SeekFrom) -> io::Result<u64> {
         self.it.seek(f).map(|pos| {
@@ -301,6 +361,44 @@ impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
     // Also avoid sending a set_position update when the position hasn't changed
     fn stream_position(&mut self) -> io::Result<u64> {
         self.it.stream_position()
+    }
+}
+
+#[cfg(feature = "tokio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
+impl<W: tokio::io::AsyncRead + Unpin> tokio::io::AsyncRead for ProgressBarIter<W> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        let prev_len = buf.filled().len() as u64;
+        let poll = Pin::new(&mut self.it).poll_read(cx, buf);
+        if let Poll::Ready(_e) = &poll {
+            let inc = buf.filled().len() as u64 - prev_len;
+            let oldprog = self.progress.position();
+            let newprog = self.hold_max.update_seq(oldprog, inc);
+            self.progress.set_position(newprog);
+        }
+        poll
+    }
+}
+
+#[cfg(feature = "tokio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
+impl<W: tokio::io::AsyncBufRead + Unpin + tokio::io::AsyncRead> tokio::io::AsyncBufRead
+    for ProgressBarIter<W>
+{
+    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
+        let this = self.get_mut();
+        Pin::new(&mut this.it).poll_fill_buf(cx)
+    }
+
+    fn consume(mut self: Pin<&mut Self>, amt: usize) {
+        Pin::new(&mut self.it).consume(amt);
+        let oldprog = self.progress.position();
+        let newprog = self.hold_max.update_seq(oldprog, amt.try_into().unwrap());
+        self.progress.set_position(newprog);
     }
 }
 
@@ -333,26 +431,6 @@ impl<W: tokio::io::AsyncWrite + Unpin> tokio::io::AsyncWrite for ProgressBarIter
 
 #[cfg(feature = "tokio")]
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
-impl<W: tokio::io::AsyncRead + Unpin> tokio::io::AsyncRead for ProgressBarIter<W> {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
-        let prev_len = buf.filled().len() as u64;
-        let poll = Pin::new(&mut self.it).poll_read(cx, buf);
-        if let Poll::Ready(_e) = &poll {
-            let inc = buf.filled().len() as u64 - prev_len;
-            let oldprog = self.progress.position();
-            let newprog = self.hold_max.update_seq(oldprog, inc);
-            self.progress.set_position(newprog);
-        }
-        poll
-    }
-}
-
-#[cfg(feature = "tokio")]
-#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 impl<W: tokio::io::AsyncSeek + Unpin> tokio::io::AsyncSeek for ProgressBarIter<W> {
     fn start_seek(mut self: Pin<&mut Self>, position: SeekFrom) -> io::Result<()> {
         Pin::new(&mut self.it).start_seek(position)
@@ -366,84 +444,6 @@ impl<W: tokio::io::AsyncSeek + Unpin> tokio::io::AsyncSeek for ProgressBarIter<W
         }
 
         poll
-    }
-}
-
-#[cfg(feature = "tokio")]
-#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
-impl<W: tokio::io::AsyncBufRead + Unpin + tokio::io::AsyncRead> tokio::io::AsyncBufRead
-    for ProgressBarIter<W>
-{
-    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<&[u8]>> {
-        let this = self.get_mut();
-        Pin::new(&mut this.it).poll_fill_buf(cx)
-    }
-
-    fn consume(mut self: Pin<&mut Self>, amt: usize) {
-        Pin::new(&mut self.it).consume(amt);
-        let oldprog = self.progress.position();
-        let newprog = self.hold_max.update_seq(oldprog, amt.try_into().unwrap());
-        self.progress.set_position(newprog);
-    }
-}
-
-#[cfg(feature = "futures")]
-#[cfg_attr(docsrs, doc(cfg(feature = "futures")))]
-impl<S: futures_core::Stream + Unpin> futures_core::Stream for ProgressBarIter<S> {
-    type Item = S::Item;
-
-    fn poll_next(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        let this = self.get_mut();
-        let item = std::pin::Pin::new(&mut this.it).poll_next(cx);
-        match &item {
-            std::task::Poll::Ready(Some(_)) => this.progress.inc(1),
-            std::task::Poll::Ready(None) => this.progress.finish_using_style(),
-            std::task::Poll::Pending => {}
-        }
-        item
-    }
-}
-
-impl<W: io::Write> io::Write for ProgressBarIter<W> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.it.write(buf).map(|inc| {
-            self.progress.set_position(
-                self.hold_max
-                    .update_seq(self.progress.position(), inc as u64),
-            );
-            inc
-        })
-    }
-
-    fn write_vectored(&mut self, bufs: &[io::IoSlice]) -> io::Result<usize> {
-        self.it.write_vectored(bufs).map(|inc| {
-            self.progress.set_position(
-                self.hold_max
-                    .update_seq(self.progress.position(), inc as u64),
-            );
-            inc
-        })
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.it.flush()
-    }
-
-    // write_fmt can not be captured with reasonable effort.
-    // as it uses write_all internally by default that should not be a problem.
-    // fn write_fmt(&mut self, fmt: fmt::Arguments) -> io::Result<()>;
-}
-
-impl<S, T: Iterator<Item = S>> ProgressIterator for T {
-    fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self> {
-        ProgressBarIter {
-            it: self,
-            progress,
-            hold_max: RingBufWrap::new(),
-        }
     }
 }
 
