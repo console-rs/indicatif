@@ -352,10 +352,14 @@ impl<W: io::Write> io::Write for ProgressBarIter<W> {
 
 impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
     fn seek(&mut self, f: io::SeekFrom) -> io::Result<u64> {
-        self.it.seek(f).map(|pos| {
-            self.progress.set_position(self.hold_max.update_seek(pos));
-            pos
-        })
+        if let io::SeekFrom::Current(0) = f {
+            self.it.seek(f)
+        } else {
+            self.it.seek(f).map(|pos| {
+                self.progress.set_position(self.hold_max.update_seek(pos));
+                pos
+            })
+        }
     }
     // Pass this through to preserve optimizations that the inner I/O object may use here
     // Also avoid sending a set_position update when the position hasn't changed
