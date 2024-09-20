@@ -62,6 +62,7 @@ where
 pub struct ProgressBarIter<T> {
     pub(crate) it: T,
     pub progress: ProgressBar,
+    pub(crate) hold_max: bool,
 }
 
 impl<T> ProgressBarIter<T> {
@@ -192,6 +193,11 @@ impl<R: io::BufRead> io::BufRead for ProgressBarIter<R> {
 impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
     fn seek(&mut self, f: io::SeekFrom) -> io::Result<u64> {
         self.it.seek(f).map(|pos| {
+            let pos = if self.hold_max {
+                self.progress.position().max(pos)
+            } else {
+                pos
+            };
             self.progress.set_position(pos);
             pos
         })
@@ -200,6 +206,21 @@ impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
     // Also avoid sending a set_position update when the position hasn't changed
     fn stream_position(&mut self) -> io::Result<u64> {
         self.it.stream_position()
+    }
+}
+
+impl<S: io::Seek> ProgressBarIter<S> {
+    /// When random seeks are executed on the underlying io object the ProgressBar will jump harshly back and forth
+    /// setting hold_max to true keeps the progress to the maximum of the current and seeked-to position.
+    pub fn set_hold_max(&mut self, hold_max: bool) {
+        self.hold_max = hold_max
+    }
+    /// Builder-like function for holding the maximum reached position
+    ///
+    /// See [`ProgressBarIter::set_hold_max()`].
+    pub fn with_hold_max(mut self, hold_max: bool) -> Self {
+        self.hold_max = hold_max;
+        self
     }
 }
 
@@ -323,7 +344,11 @@ impl<W: io::Write> io::Write for ProgressBarIter<W> {
 
 impl<S, T: Iterator<Item = S>> ProgressIterator for T {
     fn progress_with(self, progress: ProgressBar) -> ProgressBarIter<Self> {
-        ProgressBarIter { it: self, progress }
+        ProgressBarIter {
+            it: self,
+            progress,
+            hold_max: false,
+        }
     }
 }
 
