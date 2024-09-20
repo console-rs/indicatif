@@ -15,7 +15,7 @@ use once_cell::sync::Lazy;
 use crate::draw_target::ProgressDrawTarget;
 use crate::state::{AtomicPosition, BarState, ProgressFinish, Reset, TabExpandedString};
 use crate::style::ProgressStyle;
-use crate::{ProgressBarIter, ProgressIterator, ProgressState};
+use crate::{iter, ProgressBarIter, ProgressIterator, ProgressState};
 
 /// A progress bar or spinner
 ///
@@ -447,6 +447,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: read,
+            hold_max: iter::RingBufWrap::new(),
         }
     }
 
@@ -468,6 +469,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: write,
+            hold_max: iter::RingBufWrap::new(),
         }
     }
 
@@ -494,6 +496,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: write,
+            hold_max: iter::RingBufWrap::new(),
         }
     }
 
@@ -517,6 +520,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: read,
+            hold_max: iter::RingBufWrap::new(),
         }
     }
 
@@ -539,6 +543,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: stream,
+            hold_max: iter::RingBufWrap::new(),
         }
     }
 
