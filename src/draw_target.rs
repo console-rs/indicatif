@@ -475,19 +475,37 @@ impl DrawState {
     fn draw_to_term(
         &mut self,
         term: &(impl TermLike + ?Sized),
-        last_line_count: &mut VisualLines,
+        bar_count: &mut VisualLines, // The number of dynamic lines printed at the previous tick
     ) -> io::Result<()> {
         if panicking() {
             return Ok(());
         }
 
+        let term_height = term.height() as usize;
+        let term_width = term.width() as usize;
+
+        // The number of text lines that are contained in this draw state
+        let text_line_count = self.orphan_lines_count;
+        // The number of bar lines that are contained in this draw state
+        // let bar_line_count = self.lines.len() - text_line_count;
+
+        // Here we calculate the terminal vertical height each of those groups require when
+        // printing, taking wrapping into account.
+        let text_height = self.visual_line_count(..text_line_count, term_width);
+        let bar_height = self.visual_line_count(text_line_count.., term_width);
+        let full_height = self.visual_line_count(.., term_width);
+
+        // Sanity checks
+        debug_assert!(full_height == text_height + bar_height);
+        debug_assert!(self.orphan_lines_count <= self.lines.len());
+
         if !self.lines.is_empty() && self.move_cursor {
             // Move up to first line (assuming the last line doesn't contain a '\n') and then move to then front of the line
-            term.move_cursor_up(last_line_count.as_usize().saturating_sub(1))?;
+            term.move_cursor_up(bar_count.as_usize().saturating_sub(1))?;
             term.write_str("\r")?;
         } else {
             // Fork of console::clear_last_lines that assumes that the last line doesn't contain a '\n'
-            let n = last_line_count.as_usize();
+            let n = bar_count.as_usize();
             term.move_cursor_up(n.saturating_sub(1))?;
             for i in 0..n {
                 term.clear_line()?;
@@ -498,11 +516,9 @@ impl DrawState {
             term.move_cursor_up(n.saturating_sub(1))?;
         }
 
-        let width = term.width() as usize;
-        let visual_lines = self.visual_line_count(.., width);
         let shift = match self.alignment {
-            MultiProgressAlignment::Bottom if visual_lines < *last_line_count => {
-                let shift = *last_line_count - visual_lines;
+            MultiProgressAlignment::Bottom if full_height < *bar_count => {
+                let shift = *bar_count - full_height;
                 for _ in 0..shift.as_usize() {
                     term.write_line("")?;
                 }
@@ -511,14 +527,9 @@ impl DrawState {
             _ => VisualLines::default(),
         };
 
-        let term_height = term.height() as usize;
-        let term_width = term.width() as usize;
-        let len = self.lines.len();
-        debug_assert!(self.orphan_lines_count <= self.lines.len());
-        let orphan_visual_line_count =
-            self.visual_line_count(..self.orphan_lines_count, term_width);
-        let mut real_len = VisualLines::default();
-        let mut last_line_filler = 0;
+        // Accumulate the displayed height in here. This differs from `full_height` in that it will
+        // not reflect the displayed content if the terminal height is exceeded.
+        let mut real_height = VisualLines::default();
         for (idx, line) in self.lines.iter().enumerate() {
             let line_width = console::measure_text_width(line);
             let diff = if line.is_empty() {
@@ -536,30 +547,35 @@ impl DrawState {
                 usize::max(terminal_len, 1)
             }
             .into();
+
             // Have all orphan lines been drawn?
             if self.orphan_lines_count <= idx {
-                // If so, then `real_len` should be at least `orphan_visual_line_count`.
-                debug_assert!(orphan_visual_line_count <= real_len);
+                // If so, then `real_height` should be at least `orphan_visual_line_count`.
+                debug_assert!(text_height <= real_height);
                 // Don't consider orphan lines when comparing to terminal height.
-                if real_len - orphan_visual_line_count + diff > term_height.into() {
+                if real_height - text_height + diff > term_height.into() {
                     break;
                 }
             }
-            real_len += diff;
+
+            real_height += diff;
             if idx != 0 {
                 term.write_line("")?;
             }
+
             term.write_str(line)?;
-            if idx + 1 == len {
+
+            if idx + 1 == self.lines.len() {
                 // Keep the cursor on the right terminal side
                 // So that next user writes/prints will happen on the next line
-                last_line_filler = term_width.saturating_sub(line_width);
+                let last_line_filler = term_width.saturating_sub(line_width);
+                term.write_str(&" ".repeat(last_line_filler))?;
             }
         }
-        term.write_str(&" ".repeat(last_line_filler))?;
 
         term.flush()?;
-        *last_line_count = real_len - orphan_visual_line_count + shift;
+        *bar_count = real_height - text_height + shift;
+
         Ok(())
     }
 
