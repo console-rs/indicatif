@@ -505,21 +505,8 @@ impl DrawState {
 
         let term_width = term.width() as usize;
 
-        // The number of text lines that are contained in this draw state
-        let text_line_count = self
-            .lines
-            .iter()
-            .filter(|line| matches!(line, LineType::Text(_) | LineType::Empty))
-            .count();
-
-        // Here we calculate the terminal vertical height each of those groups require when
-        // printing, taking wrapping into account.
-        let text_height = self.visual_line_count(..text_line_count, term_width);
-        let bar_height = self.visual_line_count(text_line_count.., term_width);
+        // Here we calculate the terminal vertical real estate that the state requires
         let full_height = self.visual_line_count(.., term_width);
-
-        // Sanity checks
-        debug_assert!(full_height == text_height + bar_height);
 
         let shift = match self.alignment {
             // If we align to the bottom and the new height is less than before, clear the lines
