@@ -1903,3 +1903,29 @@ fn orphan_lines_message_above_progress_bar_test(pb: &ProgressBar, in_mem: &InMem
 
     pb.finish();
 }
+
+/// Test proper wrapping of the text lines before a bar is added. #447 on github.
+#[test]
+fn barless_text_wrapping() {
+    let lorem: &str= "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec nec viverra massa. Nunc nisl lectus, auctor in lorem eu, maximus elementum est.";
+
+    let in_mem = InMemoryTerm::new(40, 80);
+    let mp = indicatif::MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(
+        in_mem.clone(),
+    )));
+    assert_eq!(in_mem.contents(), String::new());
+
+    for _ in 0..=1 {
+        mp.println(lorem).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(100)); // This is primordial. The bug
+                                                                   // came from writing multiple text lines in a row on different ticks.
+    }
+
+    assert_eq!(
+        in_mem.contents(),
+        r#"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec nec viverra massa
+. Nunc nisl lectus, auctor in lorem eu, maximus elementum est.
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec nec viverra massa
+. Nunc nisl lectus, auctor in lorem eu, maximus elementum est."#
+    );
+}
