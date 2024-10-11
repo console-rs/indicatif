@@ -9,7 +9,7 @@ use portable_atomic::{AtomicU64, AtomicU8, Ordering};
 #[cfg(target_arch = "wasm32")]
 use web_time::Instant;
 
-use crate::draw_target::ProgressDrawTarget;
+use crate::draw_target::{LineType, ProgressDrawTarget};
 use crate::style::ProgressStyle;
 
 pub(crate) struct BarState {
@@ -149,10 +149,10 @@ impl BarState {
         };
 
         let mut draw_state = drawable.state();
-        let lines: Vec<String> = msg.lines().map(Into::into).collect();
+        let lines: Vec<LineType> = msg.lines().map(|l| LineType::Text(Into::into(l))).collect();
         // Empty msg should trigger newline as we are in println
         if lines.is_empty() {
-            draw_state.lines.push(String::new());
+            draw_state.lines.push(LineType::Empty);
         } else {
             draw_state.lines.extend(lines);
         }
