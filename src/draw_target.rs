@@ -543,18 +543,14 @@ impl DrawState {
             let line_height = line.wrapped_height(term_width);
 
             // Check here for bar lines that exceed the terminal height
-            if text_line_count <= idx {
-                // If all the orphan lines have been drawn, then `real_height` should be
-                // at least `orphan_visual_line_count`.
-                debug_assert!(text_height <= real_height);
-
-                // Don't consider orphan lines when comparing to terminal height.
-                if real_height - text_height + line_height > term.height().into() {
+            if matches!(line, LineType::Bar(_)) {
+                // Stop here if printing this bar would exceed the terminal height
+                if real_height + line_height > term.height().into() {
                     break;
                 }
-            }
 
-            real_height += line_height;
+                real_height += line_height;
+            }
 
             // Print a new line if this is not the first line printed this tick
             // the first line will automatically wrap due to the filler below
@@ -573,7 +569,7 @@ impl DrawState {
         }
 
         term.flush()?;
-        *bar_count = real_height - text_height + shift;
+        *bar_count = real_height + shift;
 
         Ok(())
     }
