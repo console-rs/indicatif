@@ -1288,7 +1288,6 @@ Str("⠁ 1")
 Str("")
 NewLine
 Str("⠁ 2")
-Str("")
 Flush
 Up(3)
 Clear
@@ -1309,7 +1308,6 @@ Str("⠁ 1")
 Str("")
 NewLine
 Str("⠁ 2")
-Str("")
 Flush
 Up(3)
 Clear
@@ -1330,7 +1328,6 @@ Str("⠁ 1")
 Str("")
 NewLine
 Str("⠁ 2")
-Str("")
 Flush
 Up(3)
 Clear
@@ -1351,7 +1348,6 @@ Str("⠁ 1")
 Str("")
 NewLine
 Str("⠁ 2")
-Str("")
 Flush
 "#
     );
@@ -1387,7 +1383,6 @@ Str("⠁ 1")
 Str("")
 NewLine
 Str("⠁ 2")
-Str("")
 Flush
 "#
     );
@@ -1414,7 +1409,6 @@ Str("⠁ 3")
 Str("")
 NewLine
 Str("⠁ 4")
-Str("")
 Flush
 Up(3)
 Clear
@@ -1435,7 +1429,6 @@ Str("⠁ 4")
 Str("")
 NewLine
 Str("⠁ 5")
-Str("")
 Flush
 Up(3)
 Clear
@@ -1498,7 +1491,6 @@ Str("⠁ 6")
 Str("                                                                             ")
 Flush
 Clear
-Str("")
 Flush
 "#
     );
@@ -1608,7 +1600,6 @@ Str("⠁ 1")
 Str("")
 NewLine
 Str("⠁ 2")
-Str("")
 Flush
 Up(3)
 Clear
@@ -1629,7 +1620,6 @@ Str("⠁ 1")
 Str("")
 NewLine
 Str("⠁ 2")
-Str("")
 Flush
 Up(3)
 Clear
@@ -1650,7 +1640,6 @@ Str("⠁ 1")
 Str("")
 NewLine
 Str("⠁ 2")
-Str("")
 Flush
 Up(3)
 Clear
@@ -1671,7 +1660,6 @@ Str("⠁ 1")
 Str("")
 NewLine
 Str("⠁ 2")
-Str("")
 Flush
 "#
     );
@@ -1709,7 +1697,6 @@ Str("⠁ 1")
 Str("")
 NewLine
 Str("⠁ 2")
-Str("")
 Flush
 "#
     );
@@ -1746,7 +1733,6 @@ Str("⠁ 1")
 Str("")
 NewLine
 Str("⠁ 2")
-Str("")
 Flush
 "#
     );
@@ -1778,7 +1764,6 @@ Str("⠁ 2")
 Str("")
 NewLine
 Str("⠁ 4")
-Str("")
 Flush
 Up(3)
 Clear
