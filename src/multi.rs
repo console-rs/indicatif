@@ -327,12 +327,10 @@ impl MultiState {
         };
 
         let mut draw_state = drawable.state();
-        draw_state.orphan_lines_count = self.orphan_lines.len();
         draw_state.alignment = self.alignment;
 
         if let Some(extra_lines) = &extra_lines {
             draw_state.lines.extend_from_slice(extra_lines.as_slice());
-            draw_state.orphan_lines_count += extra_lines.len();
         }
 
         // Add lines from `ProgressBar::println` call.

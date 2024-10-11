@@ -157,7 +157,6 @@ impl BarState {
             draw_state.lines.extend(lines);
         }
 
-        draw_state.orphan_lines_count = draw_state.lines.len();
         if let Some(width) = width {
             if !matches!(self.state.status, Status::DoneHidden) {
                 self.style
