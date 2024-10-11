@@ -10,6 +10,7 @@ use instant::Instant;
 #[cfg(feature = "unicode-segmentation")]
 use unicode_segmentation::UnicodeSegmentation;
 
+use crate::draw_target::LineType;
 use crate::format::{
     BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,
     HumanFloatCount,
@@ -226,7 +227,7 @@ impl ProgressStyle {
     pub(crate) fn format_state(
         &self,
         state: &ProgressState,
-        lines: &mut Vec<String>,
+        lines: &mut Vec<LineType>,
         target_width: u16,
     ) {
         let mut cur = String::new();
@@ -374,9 +375,10 @@ impl ProgressStyle {
         }
     }
 
+    /// This is used exclusively to add the bars built above to the lines to print
     fn push_line(
         &self,
-        lines: &mut Vec<String>,
+        lines: &mut Vec<LineType>,
         cur: &mut String,
         state: &ProgressState,
         buf: &mut String,
@@ -394,11 +396,11 @@ impl ProgressStyle {
         for (i, line) in expanded.split('\n').enumerate() {
             // No newlines found in this case
             if i == 0 && line.len() == expanded.len() {
-                lines.push(expanded);
+                lines.push(LineType::Bar(expanded));
                 break;
             }
 
-            lines.push(line.to_string());
+            lines.push(LineType::Bar(line.to_string()));
         }
     }
 }
