@@ -47,6 +47,18 @@ impl ProgressBar {
         Self::with_draw_target(Some(len), ProgressDrawTarget::stderr())
     }
 
+    /// Creates a new progress bar without a specified length
+    ///
+    /// This progress bar by default draws directly to stderr, and refreshes a maximum of 20 times
+    /// a second. To change the refresh rate, [set] the [draw target] to one with a different refresh
+    /// rate.
+    ///
+    /// [set]: ProgressBar::set_draw_target
+    /// [draw target]: ProgressDrawTarget
+    pub fn empty() -> Self {
+        Self::with_draw_target(None, ProgressDrawTarget::stderr())
+    }
+
     /// Creates a completely hidden progress bar
     ///
     /// This progress bar still responds to API changes but it does not have a length or render in
@@ -261,6 +273,11 @@ impl ProgressBar {
         if self.pos.allow(now) {
             self.tick_inner(now);
         }
+    }
+
+    /// Sets the length of the progress bar to `None`
+    pub fn unset_length(&self) {
+        self.state().unset_length(Instant::now());
     }
 
     /// Sets the length of the progress bar
