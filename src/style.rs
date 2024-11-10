@@ -5,10 +5,10 @@ use std::mem;
 use std::time::Instant;
 
 use console::{measure_text_width, Style};
-#[cfg(target_arch = "wasm32")]
-use instant::Instant;
 #[cfg(feature = "unicode-segmentation")]
 use unicode_segmentation::UnicodeSegmentation;
+#[cfg(target_arch = "wasm32")]
+use web_time::Instant;
 
 use crate::format::{
     BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,

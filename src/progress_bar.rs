@@ -7,10 +7,10 @@ use std::time::Duration;
 use std::time::Instant;
 use std::{fmt, io, thread};
 
-#[cfg(target_arch = "wasm32")]
-use instant::Instant;
 #[cfg(test)]
 use once_cell::sync::Lazy;
+#[cfg(target_arch = "wasm32")]
+use web_time::Instant;
 
 use crate::draw_target::ProgressDrawTarget;
 use crate::state::{AtomicPosition, BarState, ProgressFinish, Reset, TabExpandedString};
