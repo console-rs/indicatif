@@ -9,7 +9,7 @@ use std::time::Instant;
 
 use console::Term;
 #[cfg(target_arch = "wasm32")]
-use instant::Instant;
+use web_time::Instant;
 
 use crate::multi::{MultiProgressAlignment, MultiState};
 use crate::TermLike;

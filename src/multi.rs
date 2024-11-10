@@ -10,7 +10,7 @@ use crate::draw_target::{
 };
 use crate::progress_bar::ProgressBar;
 #[cfg(target_arch = "wasm32")]
-use instant::Instant;
+use web_time::Instant;
 
 /// Manages multiple progress bars from different threads
 #[derive(Debug, Clone)]
