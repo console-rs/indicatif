@@ -513,7 +513,6 @@ impl DrawState {
 
         let term_height = term.height() as usize;
         let term_width = term.width() as usize;
-        let len = self.lines.len();
         debug_assert!(self.orphan_lines_count <= self.lines.len());
         let orphan_visual_line_count =
             self.visual_line_count(..self.orphan_lines_count, term_width);
@@ -550,7 +549,7 @@ impl DrawState {
                 term.write_line("")?;
             }
             term.write_str(line)?;
-            if idx + 1 == len {
+            if idx + 1 == self.lines.len() {
                 // Keep the cursor on the right terminal side
                 // So that next user writes/prints will happen on the next line
                 last_line_filler = term_width.saturating_sub(line_width);
