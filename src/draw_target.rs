@@ -505,12 +505,12 @@ impl DrawState {
 
         // Here we calculate the terminal vertical height each of those groups require when
         // printing, taking wrapping into account.
-        let orphan_visual_line_count = self.visual_line_count(..text_line_count, term_width);
+        let text_height = self.visual_line_count(..text_line_count, term_width);
         let bar_height = self.visual_line_count(text_line_count.., term_width);
         let full_height = self.visual_line_count(.., term_width);
 
         // Sanity checks
-        debug_assert!(full_height == orphan_visual_line_count + bar_height);
+        debug_assert!(full_height == text_height + bar_height);
         debug_assert!(self.orphan_lines_count <= self.lines.len());
 
         let shift = match self.alignment {
@@ -547,10 +547,10 @@ impl DrawState {
             .into();
             // Have all orphan lines been drawn?
             if self.orphan_lines_count <= idx {
-                // If so, then `real_len` should be at least `orphan_visual_line_count`.
-                debug_assert!(orphan_visual_line_count <= real_len);
+                // If so, then `real_height` should be at least `text_height`.
+                debug_assert!(text_height <= real_height);
                 // Don't consider orphan lines when comparing to terminal height.
-                if real_len - orphan_visual_line_count + diff > term.height().into() {
+                if real_height - text_height + diff > term.height().into() {
                     break;
                 }
             }
