@@ -498,8 +498,21 @@ impl DrawState {
             term.move_cursor_up(n.saturating_sub(1))?;
         }
 
-        let width = term.width() as usize;
-        let visual_lines = self.visual_line_count(.., width);
+        let term_width = term.width() as usize;
+
+        // The number of text lines that are contained in this draw state
+        let text_line_count = self.orphan_lines_count;
+
+        // Here we calculate the terminal vertical height each of those groups require when
+        // printing, taking wrapping into account.
+        let orphan_visual_line_count = self.visual_line_count(..text_line_count, term_width);
+        let bar_height = self.visual_line_count(text_line_count.., term_width);
+        let visual_lines = self.visual_line_count(.., term_width);
+
+        // Sanity checks
+        debug_assert!(visual_lines == orphan_visual_line_count + bar_height);
+        debug_assert!(self.orphan_lines_count <= self.lines.len());
+
         let shift = match self.alignment {
             MultiProgressAlignment::Bottom if visual_lines < *last_line_count => {
                 let shift = *last_line_count - visual_lines;
@@ -511,10 +524,8 @@ impl DrawState {
             _ => VisualLines::default(),
         };
 
-        let term_width = term.width() as usize;
-        debug_assert!(self.orphan_lines_count <= self.lines.len());
-        let orphan_visual_line_count =
-            self.visual_line_count(..self.orphan_lines_count, term_width);
+        // Accumulate the displayed height in here. This differs from `full_height` in that it will
+        // not reflect the displayed content if the terminal height is exceeded.
         let mut real_len = VisualLines::default();
         let mut last_line_filler = 0;
         for (idx, line) in self.lines.iter().enumerate() {
