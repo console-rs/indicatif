@@ -507,15 +507,15 @@ impl DrawState {
         // printing, taking wrapping into account.
         let orphan_visual_line_count = self.visual_line_count(..text_line_count, term_width);
         let bar_height = self.visual_line_count(text_line_count.., term_width);
-        let visual_lines = self.visual_line_count(.., term_width);
+        let full_height = self.visual_line_count(.., term_width);
 
         // Sanity checks
-        debug_assert!(visual_lines == orphan_visual_line_count + bar_height);
+        debug_assert!(full_height == orphan_visual_line_count + bar_height);
         debug_assert!(self.orphan_lines_count <= self.lines.len());
 
         let shift = match self.alignment {
-            MultiProgressAlignment::Bottom if visual_lines < *last_line_count => {
-                let shift = *last_line_count - visual_lines;
+            MultiProgressAlignment::Bottom if full_height < *last_line_count => {
+                let shift = *last_line_count - full_height;
                 for _ in 0..shift.as_usize() {
                     term.write_line("")?;
                 }
