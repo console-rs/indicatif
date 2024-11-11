@@ -475,7 +475,7 @@ impl DrawState {
     fn draw_to_term(
         &mut self,
         term: &(impl TermLike + ?Sized),
-        last_line_count: &mut VisualLines,
+        bar_count: &mut VisualLines, // The number of dynamic lines printed at the previous tick
     ) -> io::Result<()> {
         if panicking() {
             return Ok(());
@@ -483,11 +483,11 @@ impl DrawState {
 
         if !self.lines.is_empty() && self.move_cursor {
             // Move up to first line (assuming the last line doesn't contain a '\n') and then move to then front of the line
-            term.move_cursor_up(last_line_count.as_usize().saturating_sub(1))?;
+            term.move_cursor_up(bar_count.as_usize().saturating_sub(1))?;
             term.write_str("\r")?;
         } else {
             // Fork of console::clear_last_lines that assumes that the last line doesn't contain a '\n'
-            let n = last_line_count.as_usize();
+            let n = bar_count.as_usize();
             term.move_cursor_up(n.saturating_sub(1))?;
             for i in 0..n {
                 term.clear_line()?;
@@ -514,8 +514,8 @@ impl DrawState {
         debug_assert!(self.orphan_lines_count <= self.lines.len());
 
         let shift = match self.alignment {
-            MultiProgressAlignment::Bottom if full_height < *last_line_count => {
-                let shift = *last_line_count - full_height;
+            MultiProgressAlignment::Bottom if full_height < *bar_count => {
+                let shift = *bar_count - full_height;
                 for _ in 0..shift.as_usize() {
                     term.write_line("")?;
                 }
@@ -568,7 +568,8 @@ impl DrawState {
         term.write_str(&" ".repeat(last_line_filler))?;
 
         term.flush()?;
-        *last_line_count = real_len - orphan_visual_line_count + shift;
+        *bar_count = real_height - text_height + shift;
+
         Ok(())
     }
 
