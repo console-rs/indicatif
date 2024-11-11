@@ -527,7 +527,6 @@ impl DrawState {
         // Accumulate the displayed height in here. This differs from `full_height` in that it will
         // not reflect the displayed content if the terminal height is exceeded.
         let mut real_len = VisualLines::default();
-        let mut last_line_filler = 0;
         for (idx, line) in self.lines.iter().enumerate() {
             let line_width = console::measure_text_width(line);
             let diff = if line.is_empty() {
@@ -547,7 +546,7 @@ impl DrawState {
             .into();
             // Have all orphan lines been drawn?
             if self.orphan_lines_count <= idx {
-                // If so, then `real_height` should be at least `text_height`.
+                // If so, then `real_height` should be at least `orphan_visual_line_count`.
                 debug_assert!(text_height <= real_height);
                 // Don't consider orphan lines when comparing to terminal height.
                 if real_height - text_height + diff > term.height().into() {
@@ -562,10 +561,10 @@ impl DrawState {
             if idx + 1 == self.lines.len() {
                 // Keep the cursor on the right terminal side
                 // So that next user writes/prints will happen on the next line
-                last_line_filler = term_width.saturating_sub(line_width);
+                let last_line_filler = term_width.saturating_sub(line_width);
+                term.write_str(&" ".repeat(last_line_filler))?;
             }
         }
-        term.write_str(&" ".repeat(last_line_filler))?;
 
         term.flush()?;
         *bar_count = real_height - text_height + shift;
