@@ -511,7 +511,6 @@ impl DrawState {
             _ => VisualLines::default(),
         };
 
-        let term_height = term.height() as usize;
         let term_width = term.width() as usize;
         debug_assert!(self.orphan_lines_count <= self.lines.len());
         let orphan_visual_line_count =
@@ -540,7 +539,7 @@ impl DrawState {
                 // If so, then `real_len` should be at least `orphan_visual_line_count`.
                 debug_assert!(orphan_visual_line_count <= real_len);
                 // Don't consider orphan lines when comparing to terminal height.
-                if real_len - orphan_visual_line_count + diff > term_height.into() {
+                if real_len - orphan_visual_line_count + diff > term.height().into() {
                     break;
                 }
             }
