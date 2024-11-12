@@ -96,6 +96,11 @@ impl BarState {
         }
     }
 
+    pub(crate) fn unset_length(&mut self, now: Instant) {
+        self.state.len = None;
+        self.update_estimate_and_draw(now);
+    }
+
     pub(crate) fn set_length(&mut self, now: Instant, len: u64) {
         self.state.len = Some(len);
         self.update_estimate_and_draw(now);
