@@ -55,7 +55,7 @@ impl ProgressBar {
     ///
     /// [set]: ProgressBar::set_draw_target
     /// [draw target]: ProgressDrawTarget
-    pub fn empty() -> Self {
+    pub fn no_length() -> Self {
         Self::with_draw_target(None, ProgressDrawTarget::stderr())
     }
 
