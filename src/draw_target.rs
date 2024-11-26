@@ -398,13 +398,13 @@ impl std::ops::DerefMut for DrawStateWrapper<'_> {
 impl Drop for DrawStateWrapper<'_> {
     fn drop(&mut self) {
         if let Some(orphaned) = &mut self.orphan_lines {
-            orphaned.extend(
-                self.state
-                    .lines
-                    .iter()
-                    .filter(|l| matches!(l, LineType::Text(_) | LineType::Empty))
-                    .cloned(),
-            );
+            let (text, bars): (Vec<_>, Vec<_>) = self
+                .state
+                .lines
+                .drain(..)
+                .partition(|l| matches!(l, LineType::Text(_) | LineType::Empty));
+            self.state.lines = bars;
+            orphaned.extend(text);
         }
     }
 }
