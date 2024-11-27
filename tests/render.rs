@@ -466,6 +466,31 @@ Flush
 }
 
 #[test]
+fn multi_progress_println_bar_with_target() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+
+    let pb = mp.add(ProgressBar::with_draw_target(
+        Some(10),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    ));
+
+    assert_eq!(in_mem.contents(), "");
+
+    pb.println("message printed :)");
+    pb.inc(2);
+    assert_eq!(
+        in_mem.contents(),
+        r#"
+message printed :)
+███████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 2/10
+            "#
+        .trim()
+    );
+}
+
+#[test]
 fn ticker_drop() {
     let in_mem = InMemoryTerm::new(10, 80);
     let mp =
