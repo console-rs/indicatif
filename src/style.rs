@@ -418,7 +418,7 @@ enum WideElement<'a> {
     Message { align: &'a Alignment },
 }
 
-impl<'a> WideElement<'a> {
+impl WideElement<'_> {
     fn expand(
         self,
         cur: String,
@@ -661,7 +661,7 @@ struct BarDisplay<'a> {
     rest: console::StyledObject<RepeatedStringDisplay<'a>>,
 }
 
-impl<'a> fmt::Display for BarDisplay<'a> {
+impl fmt::Display for BarDisplay<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for _ in 0..self.filled {
             f.write_str(&self.chars[0])?;
@@ -678,7 +678,7 @@ struct RepeatedStringDisplay<'a> {
     num: usize,
 }
 
-impl<'a> fmt::Display for RepeatedStringDisplay<'a> {
+impl fmt::Display for RepeatedStringDisplay<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for _ in 0..self.num {
             f.write_str(self.str)?;
@@ -694,7 +694,7 @@ struct PaddedStringDisplay<'a> {
     truncate: bool,
 }
 
-impl<'a> fmt::Display for PaddedStringDisplay<'a> {
+impl fmt::Display for PaddedStringDisplay<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let cols = measure_text_width(self.str);
         let excess = cols.saturating_sub(self.width);

@@ -295,7 +295,7 @@ pub(crate) enum Drawable<'a> {
     },
 }
 
-impl<'a> Drawable<'a> {
+impl Drawable<'_> {
     /// Adjust `last_line_count` such that the next draw operation keeps/clears additional lines
     pub(crate) fn adjust_last_line_count(&mut self, adjust: LineAdjust) {
         let last_line_count: &mut VisualLines = match self {
