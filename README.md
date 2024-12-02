@@ -28,3 +28,8 @@ color support, but there are bigger plans for the future of this!
 
 You can use [indicatif-log-bridge](https://crates.io/crates/indicatif-log-bridge) to integrate with the
 [log crate](https://crates.io/crates/log) and avoid having both fight for your terminal.
+
+You can use [tracing-indicatif](https://crates.io/crates/tracing-indicatif) to integrate with the
+[tracing crate](https://crates.io/crates/tracing) with automatic progress bar management
+for active tracing spans, as well as ensure that tracing
+log events do not interfere with active progress bars.
