@@ -1,2 +1,2 @@
 [licenses]
-allow = ["Apache-2.0", "BSD-3-Clause", "MIT", "Unicode-DFS-2016"]
+allow = ["Apache-2.0", "MIT", "Unicode-3.0"]
