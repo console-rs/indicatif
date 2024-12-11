@@ -397,14 +397,19 @@ impl std::ops::DerefMut for DrawStateWrapper<'_> {
 
 impl Drop for DrawStateWrapper<'_> {
     fn drop(&mut self) {
-        if let Some(orphaned) = &mut self.orphan_lines {
-            orphaned.extend(
-                self.state
-                    .lines
-                    .iter()
-                    .filter(|l| matches!(l, LineType::Text(_) | LineType::Empty))
-                    .cloned(),
-            );
+        if let Some(text_lines) = &mut self.orphan_lines {
+            // Filter out the lines that do not contain progress information
+            // Store the filtered out lines in orphaned
+            let mut lines = Vec::new();
+
+            for line in self.state.lines.drain(..) {
+                match &line {
+                    LineType::Text(_) | LineType::Empty => text_lines.push(line),
+                    _ => lines.push(line),
+                }
+            }
+
+            self.state.lines = lines;
         }
     }
 }
