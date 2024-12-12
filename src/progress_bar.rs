@@ -155,6 +155,34 @@ impl ProgressBar {
         state.draw(true, Instant::now()).unwrap();
     }
 
+    /// Spawns a background thread to call the given hook and then tick the progress bar
+    ///
+    /// When this is enabled a background thread will regularly call the hook and tick the progress
+    /// bar in the given interval. This is useful to advance progress bars that are very slow
+    /// by themselves.
+    ///
+    /// When steady ticks are enabled, calling [`ProgressBar::tick()`] on a progress bar does not
+    /// have any effect.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use indicatif::{ProgressBar, ProgressState};
+    /// use std::time::Duration;
+    ///
+    /// let pb = ProgressBar::new(100);
+    ///
+    /// pb.enable_steady_tick_with_hook(
+    ///     Duration::from_millis(25),
+    ///     Box::new(|state: &mut ProgressState| {
+    ///         state.set_pos(state.pos() + 1);
+    ///     }),
+    /// );
+    /// ```
+    pub fn enable_steady_tick_with_hook(&self, interval: Duration, hook: Box<dyn TickHook>) {
+        self.enable_steady_tick_with_hook_inner(interval, Some(hook));
+    }
+
     /// Spawns a background thread to tick the progress bar
     ///
     /// When this is enabled a background thread will regularly tick the progress bar in the given
@@ -163,10 +191,14 @@ impl ProgressBar {
     /// When steady ticks are enabled, calling [`ProgressBar::tick()`] on a progress bar does not
     /// have any effect.
     pub fn enable_steady_tick(&self, interval: Duration) {
-        // The way we test for ticker termination is with a single static `AtomicBool`. Since cargo
-        // runs tests concurrently, we have a `TICKER_TEST` lock to make sure tests using ticker
-        // don't step on each other. This check catches attempts to use tickers in tests without
-        // acquiring the lock.
+        self.enable_steady_tick_with_hook_inner(interval, None);
+    }
+
+    fn enable_steady_tick_with_hook_inner(
+        &self,
+        interval: Duration,
+        hook: Option<Box<dyn TickHook>>,
+    ) {
         #[cfg(test)]
         {
             let guard = TICKER_TEST.try_lock();
@@ -183,21 +215,26 @@ impl ProgressBar {
             return;
         }
 
-        self.stop_and_replace_ticker(Some(interval));
+        self.stop_and_replace_ticker(StopReplaceTicker::StopAndReplace { interval, hook });
     }
 
     /// Undoes [`ProgressBar::enable_steady_tick()`]
     pub fn disable_steady_tick(&self) {
-        self.stop_and_replace_ticker(None);
+        self.stop_and_replace_ticker(StopReplaceTicker::StopOnly);
     }
 
-    fn stop_and_replace_ticker(&self, interval: Option<Duration>) {
+    fn stop_and_replace_ticker(&self, operation: StopReplaceTicker) {
         let mut ticker_state = self.ticker.lock().unwrap();
         if let Some(ticker) = ticker_state.take() {
             ticker.stop();
         }
 
-        *ticker_state = interval.map(|interval| Ticker::new(interval, &self.state));
+        match operation {
+            StopReplaceTicker::StopOnly => {}
+            StopReplaceTicker::StopAndReplace { interval, hook } => {
+                *ticker_state = Some(Ticker::new(interval, hook, &self.state));
+            }
+        }
     }
 
     /// Manually ticks the spinner or progress bar
@@ -593,6 +630,14 @@ impl ProgressBar {
     }
 }
 
+enum StopReplaceTicker {
+    StopOnly,
+    StopAndReplace {
+        interval: Duration,
+        hook: Option<Box<dyn TickHook>>,
+    },
+}
+
 /// A weak reference to a [`ProgressBar`].
 ///
 /// Useful for creating custom steady tick implementations
@@ -639,7 +684,11 @@ impl Drop for Ticker {
 static TICKER_RUNNING: AtomicBool = AtomicBool::new(false);
 
 impl Ticker {
-    pub(crate) fn new(interval: Duration, bar_state: &Arc<Mutex<BarState>>) -> Self {
+    pub(crate) fn new(
+        interval: Duration,
+        hook: Option<Box<dyn TickHook>>,
+        bar_state: &Arc<Mutex<BarState>>,
+    ) -> Self {
         debug_assert!(!interval.is_zero());
 
         // A `Mutex<bool>` is used as a flag to indicate whether the ticker was requested to stop.
@@ -650,6 +699,7 @@ impl Ticker {
         let control = TickerControl {
             stopping: stopping.clone(),
             state: Arc::downgrade(bar_state),
+            hook,
         };
 
         let join_handle = thread::spawn(move || control.run(interval));
@@ -668,6 +718,7 @@ impl Ticker {
 struct TickerControl {
     stopping: Arc<(Mutex<bool>, Condvar)>,
     state: Weak<Mutex<BarState>>,
+    hook: Option<Box<dyn TickHook>>,
 }
 
 impl TickerControl {
@@ -679,6 +730,10 @@ impl TickerControl {
             let mut state = arc.lock().unwrap();
             if state.state.is_finished() {
                 break;
+            }
+
+            if let Some(hook) = &self.hook {
+                hook.tick(&mut state.state);
             }
 
             state.tick(Instant::now());
@@ -709,6 +764,19 @@ impl TickerControl {
 // Tests using the global TICKER_RUNNING flag need to be serialized
 #[cfg(test)]
 pub(crate) static TICKER_TEST: Lazy<Mutex<()>> = Lazy::new(Mutex::default);
+
+pub trait TickHook: Send {
+    fn tick(&self, state: &mut ProgressState);
+}
+
+impl<F> TickHook for F
+where
+    F: Fn(&mut ProgressState) + Send,
+{
+    fn tick(&self, state: &mut ProgressState) {
+        self(state)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -810,6 +878,49 @@ mod tests {
         assert!(TICKER_RUNNING.load(Ordering::SeqCst));
 
         drop(pb2);
+        assert!(!TICKER_RUNNING.load(Ordering::SeqCst));
+    }
+
+    struct Hook {}
+
+    impl TickHook for Hook {
+        fn tick(&self, state: &mut ProgressState) {
+            state.message = TabExpandedString::new("OK".into(), 4);
+        }
+    }
+
+    #[test]
+    fn ticker_custom_hooks() {
+        let _guard = TICKER_TEST.lock().unwrap();
+        assert!(!TICKER_RUNNING.load(Ordering::SeqCst));
+
+        // Try with struct
+        let pb = ProgressBar::new_spinner();
+        pb.enable_steady_tick_with_hook(Duration::from_millis(25), Box::new(Hook {}));
+        thread::sleep(Duration::from_millis(100));
+        assert!(TICKER_RUNNING.load(Ordering::SeqCst));
+
+        // Check that hook got called
+        assert_eq!(pb.message(), "OK");
+
+        drop(pb);
+        assert!(!TICKER_RUNNING.load(Ordering::SeqCst));
+
+        // Try with closure
+        let pb = ProgressBar::new(100);
+        pb.enable_steady_tick_with_hook(
+            Duration::from_millis(25),
+            Box::new(|state: &mut ProgressState| {
+                state.set_pos(state.pos() + 1);
+            }),
+        );
+        thread::sleep(Duration::from_millis(200));
+        assert!(TICKER_RUNNING.load(Ordering::SeqCst));
+
+        // Check that hook got called
+        assert!(pb.position() > 0);
+
+        drop(pb);
         assert!(!TICKER_RUNNING.load(Ordering::SeqCst));
     }
 }

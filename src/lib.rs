@@ -267,7 +267,7 @@ pub use crate::format::{
 pub use crate::in_memory::InMemoryTerm;
 pub use crate::iter::{ProgressBarIter, ProgressIterator};
 pub use crate::multi::{MultiProgress, MultiProgressAlignment};
-pub use crate::progress_bar::{ProgressBar, WeakProgressBar};
+pub use crate::progress_bar::{ProgressBar, TickHook, WeakProgressBar};
 #[cfg(feature = "rayon")]
 pub use crate::rayon::ParallelProgressIterator;
 pub use crate::state::{ProgressFinish, ProgressState};
