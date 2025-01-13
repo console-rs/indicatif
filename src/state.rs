@@ -183,8 +183,6 @@ impl BarState {
     }
 
     pub(crate) fn draw(&mut self, mut force_draw: bool, now: Instant) -> io::Result<()> {
-        let width = self.draw_target.width();
-
         // `|= self.is_finished()` should not be needed here, but we used to always draw for
         // finished progress bars, so it's kept as to not cause compatibility issues in weird cases.
         force_draw |= self.state.is_finished();
@@ -192,6 +190,9 @@ impl BarState {
             Some(drawable) => drawable,
             None => return Ok(()),
         };
+
+        // Getting the width can be expensive; thus this should happen after checking drawable.
+        let width = drawable.width();
 
         let mut draw_state = drawable.state();
 
