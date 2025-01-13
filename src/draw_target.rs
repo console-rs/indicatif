@@ -351,6 +351,14 @@ impl Drawable<'_> {
             } => draw_state.draw_to_term(term_like, last_line_count),
         }
     }
+
+    pub(crate) fn width(&self) -> Option<u16> {
+        match self {
+            Self::Term { term, .. } => Some(term.size().1),
+            Self::Multi { state, .. } => state.width(),
+            Self::TermLike { term_like, .. } => Some(term_like.width()),
+        }
+    }
 }
 
 pub(crate) enum LineAdjust {
