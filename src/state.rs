@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::cell::OnceCell;
 use std::io;
 use std::sync::Arc;
 use std::time::Duration;
@@ -347,21 +348,20 @@ pub(crate) enum TabExpandedString {
     NoTabs(Cow<'static, str>),
     WithTabs {
         original: Cow<'static, str>,
-        expanded: String,
+        expanded: OnceCell<String>,
         tab_width: usize,
     },
 }
 
 impl TabExpandedString {
     pub(crate) fn new(s: Cow<'static, str>, tab_width: usize) -> Self {
-        let expanded = s.replace('\t', &" ".repeat(tab_width));
-        if s == expanded {
+        if !s.contains('\t') {
             Self::NoTabs(s)
         } else {
             Self::WithTabs {
                 original: s,
-                expanded,
                 tab_width,
+                expanded: OnceCell::new(),
             }
         }
     }
@@ -372,20 +372,24 @@ impl TabExpandedString {
                 debug_assert!(!s.contains('\t'));
                 s
             }
-            Self::WithTabs { expanded, .. } => expanded,
+            Self::WithTabs {
+                original,
+                tab_width,
+                expanded,
+            } => expanded.get_or_init(|| original.replace('\t', &" ".repeat(*tab_width))),
         }
     }
 
     pub(crate) fn set_tab_width(&mut self, new_tab_width: usize) {
         if let Self::WithTabs {
-            original,
             expanded,
             tab_width,
+            ..
         } = self
         {
             if *tab_width != new_tab_width {
                 *tab_width = new_tab_width;
-                *expanded = original.replace('\t', &" ".repeat(new_tab_width));
+                expanded.take();
             }
         }
     }
