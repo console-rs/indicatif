@@ -45,7 +45,6 @@ fn main() {
             thread::sleep(Duration::from_secs(2));
         }
         pb.inc(1);
-        let m = m.clone();
         let pb2 = pb2.clone();
         threads.push(thread::spawn(move || {
             thread::sleep(
