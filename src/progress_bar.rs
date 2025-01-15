@@ -161,7 +161,7 @@ impl ProgressBar {
     }
 
     /// Sets the tab width (default: 8). All tabs will be expanded to this many spaces.
-    pub fn set_tab_width(&mut self, tab_width: usize) {
+    pub fn set_tab_width(&self, tab_width: usize) {
         let mut state = self.state();
         state.set_tab_width(tab_width);
         state.draw(true, Instant::now()).unwrap();
