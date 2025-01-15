@@ -737,7 +737,7 @@ fn basic_tab_expansion() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let mut spinner = mp.add(ProgressBar::new_spinner().with_message("Test\t:)"));
+    let spinner = mp.add(ProgressBar::new_spinner().with_message("Test\t:)"));
     spinner.tick();
 
     // 8 is the default number of spaces
@@ -753,7 +753,7 @@ fn tab_expansion_in_template() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let mut spinner = mp.add(
+    let spinner = mp.add(
         ProgressBar::new_spinner()
             .with_message("Test\t:)")
             .with_prefix("Pre\tfix!")
