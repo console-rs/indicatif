@@ -45,11 +45,8 @@ fn main() {
             thread::sleep(Duration::from_secs(2));
         }
         pb.inc(1);
-        let m = m.clone();
         let pb2 = pb2.clone();
         threads.push(thread::spawn(move || {
-            let spinner = m.add(ProgressBar::new_spinner().with_message(i.to_string()));
-            spinner.enable_steady_tick(Duration::from_millis(100));
             thread::sleep(
                 rand::thread_rng().gen_range(Duration::from_secs(1)..Duration::from_secs(5)),
             );
