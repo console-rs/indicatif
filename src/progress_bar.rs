@@ -409,7 +409,7 @@ impl ProgressBar {
         state.draw_target = target;
     }
 
-    /// Force a redraw of the progress bar to be in sync with its state.
+    /// Force a redraw of the progress bar to be in sync with its state
     ///
     /// For performance reasons the progress bar is not redrawn on each state update.
     /// This is normally not an issue, since new updates will eventually trigger rendering.
