@@ -114,6 +114,13 @@ impl BarState {
         self.update_estimate_and_draw(now);
     }
 
+    pub(crate) fn dec_length(&mut self, now: Instant, delta: u64) {
+        if let Some(len) = self.state.len {
+            self.state.len = Some(len.saturating_sub(delta));
+        }
+        self.update_estimate_and_draw(now);
+    }
+
     pub(crate) fn set_tab_width(&mut self, tab_width: usize) {
         self.tab_width = tab_width;
         self.state.message.set_tab_width(tab_width);
@@ -583,6 +590,10 @@ impl AtomicPosition {
 
     pub(crate) fn inc(&self, delta: u64) {
         self.pos.fetch_add(delta, Ordering::SeqCst);
+    }
+
+    pub(crate) fn dec(&self, delta: u64) {
+        self.pos.fetch_sub(delta, Ordering::SeqCst);
     }
 
     pub(crate) fn set(&self, pos: u64) {
