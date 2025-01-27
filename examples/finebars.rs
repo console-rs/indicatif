@@ -2,7 +2,7 @@ use std::thread;
 use std::time::Duration;
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use rand::{thread_rng, Rng};
+use rand::Rng;
 
 fn main() {
     let styles = [
@@ -25,7 +25,7 @@ fn main() {
                     .progress_chars(s.1),
             );
             pb.set_prefix(s.0);
-            let wait = Duration::from_millis(thread_rng().gen_range(10..30));
+            let wait = Duration::from_millis(rand::rng().random_range(10..30));
             thread::spawn(move || {
                 for i in 0..512 {
                     thread::sleep(wait);

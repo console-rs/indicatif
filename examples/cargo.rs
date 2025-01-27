@@ -64,7 +64,7 @@ fn main() {
         let tx = tx.clone();
         let crates = crates.clone();
         thread::spawn(move || {
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             loop {
                 let krate = crates.lock().unwrap().next();
                 // notify main thread if n thread is processing a crate
@@ -73,9 +73,9 @@ fn main() {
                     thread::sleep(Duration::from_millis(
                         // last compile and linking is always slow, let's mimic that
                         if CRATES.last() == Some(krate) {
-                            rng.gen_range(1_000..2_000)
+                            rng.random_range(1_000..2_000)
                         } else {
-                            rng.gen_range(250..1_000)
+                            rng.random_range(250..1_000)
                         },
                     ));
                 } else {

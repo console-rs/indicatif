@@ -173,7 +173,7 @@ fn get_action(rng: &mut dyn RngCore, tree: &Mutex<Vec<&Elem>>) -> Option<Action>
     } else {
         loop {
             let list = tree.lock().unwrap();
-            let k = rng.gen_range(0..17);
+            let k = rng.random_range(0..17);
             if k == 0 && list_len < elem_len {
                 return Some(Action::AddProgressBar(list.len()));
             } else {
