@@ -3,8 +3,8 @@ use std::time::{Duration, Instant};
 
 use console::{style, Emoji};
 use indicatif::{HumanDuration, MultiProgress, ProgressBar, ProgressStyle};
-use rand::Rng;
 use rand::prelude::IndexedRandom;
+use rand::Rng;
 
 static PACKAGES: &[&str] = &[
     "fs-events",
