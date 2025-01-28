@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use console::{style, Emoji};
 use indicatif::{HumanDuration, MultiProgress, ProgressBar, ProgressStyle};
-use rand::seq::SliceRandom;
+use rand::prelude::IndexedRandom;
 use rand::Rng;
 
 static PACKAGES: &[&str] = &[
@@ -33,7 +33,7 @@ static PAPER: Emoji<'_, '_> = Emoji("📃  ", "");
 static SPARKLE: Emoji<'_, '_> = Emoji("✨ ", ":-)");
 
 pub fn main() {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let started = Instant::now();
     let spinner_style = ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {wide_msg}")
         .unwrap()
@@ -71,16 +71,16 @@ pub fn main() {
     let m = MultiProgress::new();
     let handles: Vec<_> = (0..4u32)
         .map(|i| {
-            let count = rng.gen_range(30..80);
+            let count = rng.random_range(30..80);
             let pb = m.add(ProgressBar::new(count));
             pb.set_style(spinner_style.clone());
             pb.set_prefix(format!("[{}/?]", i + 1));
             thread::spawn(move || {
-                let mut rng = rand::thread_rng();
+                let mut rng = rand::rng();
                 let pkg = PACKAGES.choose(&mut rng).unwrap();
                 for _ in 0..count {
                     let cmd = COMMANDS.choose(&mut rng).unwrap();
-                    thread::sleep(Duration::from_millis(rng.gen_range(25..200)));
+                    thread::sleep(Duration::from_millis(rng.random_range(25..200)));
                     pb.set_message(format!("{pkg}: {cmd}"));
                     pb.inc(1);
                 }

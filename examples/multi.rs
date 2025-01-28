@@ -47,9 +47,7 @@ fn main() {
         pb.inc(1);
         let pb2 = pb2.clone();
         threads.push(thread::spawn(move || {
-            thread::sleep(
-                rand::thread_rng().gen_range(Duration::from_secs(1)..Duration::from_secs(5)),
-            );
+            thread::sleep(rand::rng().random_range(Duration::from_secs(1)..Duration::from_secs(5)));
             pb2.inc(1);
         }));
     }

@@ -266,9 +266,9 @@ fn get_action(rng: &mut dyn RngCore, items: &[&Item]) -> Action {
         })
         .map(|(idx, _)| idx)
         .collect::<Vec<usize>>();
-    let k = rng.gen_range(0..16);
+    let k = rng.random_range(0..16);
     if (k > 0 || k == 0 && elem_idx == ELEMENTS.len()) && !uncompleted.is_empty() {
-        let idx = rng.gen_range(0..uncompleted.len() as u64) as usize;
+        let idx = rng.random_range(0..uncompleted.len() as u64) as usize;
         Action::IncProgressBar(uncompleted[idx])
     } else if elem_idx < ELEMENTS.len() {
         ELEM_IDX.fetch_add(1, Ordering::SeqCst);
