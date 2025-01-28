@@ -499,6 +499,8 @@ impl DrawState {
             return Ok(());
         }
 
+        let sync_guard = term.begin_sync();
+
         if !self.lines.is_empty() && self.move_cursor {
             // Move up to first line (assuming the last line doesn't contain a '\n') and then move to then front of the line
             term.move_cursor_up(bar_count.as_usize().saturating_sub(1))?;
@@ -567,6 +569,9 @@ impl DrawState {
                 term.write_str(&" ".repeat(last_line_filler))?;
             }
         }
+
+        // End synchronized update
+        drop(sync_guard);
 
         term.flush()?;
         *bar_count = real_height + shift;
