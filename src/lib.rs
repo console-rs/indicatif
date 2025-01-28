@@ -272,3 +272,21 @@ pub use crate::rayon::ParallelProgressIterator;
 pub use crate::state::{ProgressFinish, ProgressState};
 pub use crate::style::ProgressStyle;
 pub use crate::term_like::TermLike;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[allow(dead_code)]
+    trait MustBeThreadSafe: Send + Sync {}
+
+    // Ensure that the following types are `Send + Sync`
+    impl MustBeThreadSafe for MultiProgress {}
+    impl MustBeThreadSafe for MultiProgressAlignment {}
+    impl MustBeThreadSafe for ProgressBar {}
+    impl MustBeThreadSafe for ProgressBarIter<()> {}
+    impl MustBeThreadSafe for ProgressFinish {}
+    impl MustBeThreadSafe for ProgressState {}
+    impl MustBeThreadSafe for ProgressStyle {}
+    impl MustBeThreadSafe for WeakProgressBar {}
+}

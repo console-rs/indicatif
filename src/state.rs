@@ -1,7 +1,6 @@
 use std::borrow::Cow;
-use std::cell::OnceCell;
 use std::io;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
@@ -355,7 +354,7 @@ pub(crate) enum TabExpandedString {
     NoTabs(Cow<'static, str>),
     WithTabs {
         original: Cow<'static, str>,
-        expanded: OnceCell<String>,
+        expanded: OnceLock<String>,
         tab_width: usize,
     },
 }
@@ -368,7 +367,7 @@ impl TabExpandedString {
             Self::WithTabs {
                 original: s,
                 tab_width,
-                expanded: OnceCell::new(),
+                expanded: OnceLock::new(),
             }
         }
     }
