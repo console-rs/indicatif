@@ -373,6 +373,9 @@ mod tests {
         assert_eq!("1,234.1", format!("{:.1}", HumanFloatCount(1234.1234321)));
         assert_eq!("1,234.12", format!("{:.2}", HumanFloatCount(1234.1234321)));
         assert_eq!("1,234.123", format!("{:.3}", HumanFloatCount(1234.1234321)));
-        assert_eq!("1,234.1234320999999454215867445", format!("{:.25}", HumanFloatCount(1234.1234321)));
+        assert_eq!(
+            "1,234.1234320999999454215867445",
+            format!("{:.25}", HumanFloatCount(1234.1234321))
+        );
     }
 }
