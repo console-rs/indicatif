@@ -170,44 +170,103 @@ impl fmt::Display for HumanCount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use fmt::Write;
 
-        let num = self.0.to_string();
-        let len = num.len();
-        for (idx, c) in num.chars().enumerate() {
-            let pos = len - idx - 1;
-            f.write_char(c)?;
-            if pos > 0 && pos % 3 == 0 {
-                f.write_char(',')?;
+        if f.alternate() {
+            // Find appropriate suffix
+            let (divisor, suffix) = HUMAN_COUNT_THRESHOLDS
+                .iter()
+                .find(|(threshold, _)| self.0 >= *threshold)
+                .unwrap();
+
+            if *divisor == 0 || suffix.is_empty() {
+                // No need for decimal places when no suffix
+                write!(f, "{}", self.0)?;
+            } else {
+                // Scale the number appropriately - convert to f64 for proper division
+                let scaled_value = self.0 as f64 / *divisor as f64;
+
+                // Use formatter's precision if provided, otherwise default to 1 for suffix format
+                let precision = f.precision().unwrap_or(1);
+
+                write!(f, "{:.*}{}", precision, scaled_value, suffix)?;
+            }
+        } else {
+            let num = self.0.to_string();
+            let len = num.len();
+            for (idx, c) in num.chars().enumerate() {
+                let pos = len - idx - 1;
+                f.write_char(c)?;
+                if pos > 0 && pos % 3 == 0 {
+                    f.write_char(',')?;
+                }
             }
         }
         Ok(())
     }
 }
+
+const HUMAN_COUNT_THRESHOLDS: [(u64, &str); 5] = [
+    (1_000_000_000_000, "T"), // trillion
+    (1_000_000_000, "B"),     // billion
+    (1_000_000, "M"),         // million
+    (1_000, "k"),             // thousand
+    (0, ""),                  // no suffix
+];
 
 impl fmt::Display for HumanFloatCount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use fmt::Write;
+        if f.alternate() {
+            // Find appropriate suffix
+            let (divisor, suffix) = HUMAN_FLOAT_COUNT_THRESHOLDS
+                .iter()
+                .find(|(threshold, _)| self.0.abs() >= *threshold)
+                .unwrap();
 
-        let num = format!("{:.4}", self.0);
-        let (int_part, frac_part) = match num.split_once('.') {
-            Some((int_str, fract_str)) => (int_str.to_string(), fract_str),
-            None => (self.0.trunc().to_string(), ""),
-        };
-        let len = int_part.len();
-        for (idx, c) in int_part.chars().enumerate() {
-            let pos = len - idx - 1;
-            f.write_char(c)?;
-            if pos > 0 && pos % 3 == 0 {
-                f.write_char(',')?;
+            // Scale the number appropriately
+            let scaled_value = if *divisor > 0.0 {
+                self.0 / divisor
+            } else {
+                self.0
+            };
+
+            // Use formatter's precision if provided, otherwise default to 1 for suffix format
+            let precision = f.precision().unwrap_or(1);
+
+            write!(f, "{:.*}{}", precision, scaled_value, suffix)?;
+        } else {
+            // Use formatter's precision if provided, otherwise default to 4
+            let precision = f.precision().unwrap_or(4);
+            let num = format!("{:.*}", precision, self.0);
+
+            let (int_part, frac_part) = match num.split_once('.') {
+                Some((int_str, fract_str)) => (int_str.to_string(), fract_str),
+                None => (self.0.trunc().to_string(), ""),
+            };
+            let len = int_part.len();
+            for (idx, c) in int_part.chars().enumerate() {
+                let pos = len - idx - 1;
+                f.write_char(c)?;
+                if pos > 0 && pos % 3 == 0 {
+                    f.write_char(',')?;
+                }
             }
-        }
-        let frac_trimmed = frac_part.trim_end_matches('0');
-        if !frac_trimmed.is_empty() {
-            f.write_char('.')?;
-            f.write_str(frac_trimmed)?;
+            let frac_trimmed = frac_part.trim_end_matches('0');
+            if !frac_trimmed.is_empty() {
+                f.write_char('.')?;
+                f.write_str(frac_trimmed)?;
+            }
         }
         Ok(())
     }
 }
+
+const HUMAN_FLOAT_COUNT_THRESHOLDS: [(f64, &str); 5] = [
+    (1_000_000_000_000., "T"), // trillion
+    (1_000_000_000., "B"),     // billion
+    (1_000_000., "M"),         // million
+    (1_000., "k"),             // thousand
+    (0., ""),                  // no suffix
+];
 
 #[cfg(test)]
 mod tests {
@@ -341,6 +400,19 @@ mod tests {
         assert_eq!("7,654", format!("{}", HumanCount(7654)));
         assert_eq!("12,345", format!("{}", HumanCount(12345)));
         assert_eq!("1,234,567,890", format!("{}", HumanCount(1234567890)));
+
+        assert_eq!("42", format!("{:#}", HumanCount(42)));
+        assert_eq!("7.7k", format!("{:#}", HumanCount(7654)));
+        assert_eq!("12.3k", format!("{:#}", HumanCount(12345)));
+        assert_eq!("1.2M", format!("{:#}", HumanCount(1234567)));
+        assert_eq!("1.2B", format!("{:#}", HumanCount(1234567890)));
+        assert_eq!("1.2T", format!("{:#}", HumanCount(1234567890000)));
+
+        assert_eq!("7.65k", format!("{:#.2}", HumanCount(7654)));
+        assert_eq!("12.35k", format!("{:#.2}", HumanCount(12345)));
+        assert_eq!("1.23M", format!("{:#.2}", HumanCount(1234567)));
+        assert_eq!("1.23B", format!("{:#.2}", HumanCount(1234567890)));
+        assert_eq!("1.23T", format!("{:#.2}", HumanCount(1234567890000)));
     }
 
     #[test]
@@ -365,6 +437,41 @@ mod tests {
         assert_eq!(
             "1,234,567,890.1234",
             format!("{}", HumanFloatCount(1234567890.1234321))
+        );
+        assert_eq!("1,234", format!("{:.0}", HumanFloatCount(1234.1234321)));
+        assert_eq!("1,234.1", format!("{:.1}", HumanFloatCount(1234.1234321)));
+        assert_eq!("1,234.12", format!("{:.2}", HumanFloatCount(1234.1234321)));
+        assert_eq!("1,234.123", format!("{:.3}", HumanFloatCount(1234.1234321)));
+        assert_eq!(
+            "1,234.1234320999999454215867445",
+            format!("{:.25}", HumanFloatCount(1234.1234321))
+        );
+
+        assert_eq!("42.5", format!("{:#}", HumanFloatCount(42.5)));
+        assert_eq!("42.5", format!("{:#}", HumanFloatCount(42.500012345)));
+        assert_eq!("42.5", format!("{:#}", HumanFloatCount(42.502012345)));
+        assert_eq!("7.7k", format!("{:#}", HumanFloatCount(7654.321)));
+        assert_eq!("7.7k", format!("{:#}", HumanFloatCount(7654.3210123456)));
+        assert_eq!("12.3k", format!("{:#}", HumanFloatCount(12345.6789)));
+        assert_eq!("1.2B", format!("{:#}", HumanFloatCount(1234567890.1234567)));
+        assert_eq!("1.2B", format!("{:#}", HumanFloatCount(1234567890.1234321)));
+
+        assert_eq!("42.500", format!("{:#.3}", HumanFloatCount(42.5)));
+        assert_eq!("42.500", format!("{:#.3}", HumanFloatCount(42.500012345)));
+        assert_eq!("42.502", format!("{:#.3}", HumanFloatCount(42.502012345)));
+        assert_eq!("7.654k", format!("{:#.3}", HumanFloatCount(7654.321)));
+        assert_eq!(
+            "7.654k",
+            format!("{:#.3}", HumanFloatCount(7654.3210123456))
+        );
+        assert_eq!("12.346k", format!("{:#.3}", HumanFloatCount(12345.6789)));
+        assert_eq!(
+            "1.235B",
+            format!("{:#.3}", HumanFloatCount(1234567890.1234567))
+        );
+        assert_eq!(
+            "1.235B",
+            format!("{:#.3}", HumanFloatCount(1234567890.1234321))
         );
     }
 }

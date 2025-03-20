@@ -276,9 +276,35 @@ impl ProgressStyle {
                             "human_pos" => {
                                 buf.write_fmt(format_args!("{}", HumanCount(pos))).unwrap();
                             }
+                            "human_pos_short" => {
+                                if let Some(width) = width {
+                                    buf.write_fmt(format_args!(
+                                        "{:#.1$}",
+                                        HumanCount(pos),
+                                        *width as usize
+                                    ))
+                                    .unwrap();
+                                } else {
+                                    buf.write_fmt(format_args!("{:#}", HumanCount(pos)))
+                                        .unwrap();
+                                }
+                            }
                             "len" => buf.write_fmt(format_args!("{len}")).unwrap(),
                             "human_len" => {
                                 buf.write_fmt(format_args!("{}", HumanCount(len))).unwrap();
+                            }
+                            "human_len_short" => {
+                                if let Some(width) = width {
+                                    buf.write_fmt(format_args!(
+                                        "{:#.1$}",
+                                        HumanCount(len),
+                                        *width as usize
+                                    ))
+                                    .unwrap();
+                                } else {
+                                    buf.write_fmt(format_args!("{:#}", HumanCount(len)))
+                                        .unwrap();
+                                }
                             }
                             "percent" => buf
                                 .write_fmt(format_args!("{:.*}", 0, state.fraction() * 100f32))
@@ -308,9 +334,38 @@ impl ProgressStyle {
                             "elapsed" => buf
                                 .write_fmt(format_args!("{:#}", HumanDuration(state.elapsed())))
                                 .unwrap(),
-                            "per_sec" => buf
-                                .write_fmt(format_args!("{}/s", HumanFloatCount(state.per_sec())))
-                                .unwrap(),
+                            "per_sec" => {
+                                if let Some(width) = width {
+                                    buf.write_fmt(format_args!(
+                                        "{:.1$}/s",
+                                        HumanFloatCount(state.per_sec()),
+                                        *width as usize
+                                    ))
+                                    .unwrap();
+                                } else {
+                                    buf.write_fmt(format_args!(
+                                        "{}/s",
+                                        HumanFloatCount(state.per_sec())
+                                    ))
+                                    .unwrap();
+                                }
+                            }
+                            "per_sec_short" => {
+                                if let Some(width) = width {
+                                    buf.write_fmt(format_args!(
+                                        "{:#.1$}/s",
+                                        HumanFloatCount(state.per_sec()),
+                                        *width as usize
+                                    ))
+                                    .unwrap();
+                                } else {
+                                    buf.write_fmt(format_args!(
+                                        "{:#}/s",
+                                        HumanFloatCount(state.per_sec())
+                                    ))
+                                    .unwrap();
+                                }
+                            }
                             "bytes_per_sec" => buf
                                 .write_fmt(format_args!("{}/s", HumanBytes(state.per_sec() as u64)))
                                 .unwrap(),

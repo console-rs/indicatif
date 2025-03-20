@@ -186,9 +186,13 @@
 //! * `pos`: renders the current position of the bar as integer
 //! * `human_pos`: renders the current position of the bar as an integer, with commas as the
 //!   thousands separator.
+//! * `human_pos_short`: renders the current position of the bar as a number with shorthand notation
+//!   for large values (e.g., "1.5k" for 1,500 or "1.2M" for 1,200,000).
 //! * `len`: renders the amount of work to be done as an integer
 //! * `human_len`: renders the total length of the bar as an integer, with commas as the thousands
 //!   separator.
+//! * `human_len_short`: renders the total length of the bar as a number with shorthand notation
+//!   for large values (e.g., "1.5k" for 1,500 or "1.2M" for 1,200,000).
 //! * `percent`: renders the current position of the bar as a percentage of the total length (as an integer).
 //! * `percent_precise`: renders the current position of the bar as a percentage of the total length (with 3 fraction digits).
 //! * `bytes`: renders the current position of the bar as bytes (alias of `binary_bytes`).
@@ -204,6 +208,8 @@
 //! * `elapsed_precise`: renders the elapsed time as `HH:MM:SS`.
 //! * `elapsed`: renders the elapsed time as `42s`, `1m` etc.
 //! * `per_sec`: renders the speed in steps per second.
+//! * `per_sec_short`: renders the speed in steps per second as a number with shorthand notation
+//!   for large values (e.g., "1.5k" for 1,500 or "1.2M" for 1,200,000).
 //! * `bytes_per_sec`: renders the speed in bytes per second (alias of `binary_bytes_per_sec`).
 //! * `decimal_bytes_per_sec`: renders the speed in bytes per second using
 //!   power-of-10 units, i.e. `MB`, `kB`, etc.
