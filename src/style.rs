@@ -308,9 +308,22 @@ impl ProgressStyle {
                             "elapsed" => buf
                                 .write_fmt(format_args!("{:#}", HumanDuration(state.elapsed())))
                                 .unwrap(),
-                            "per_sec" => buf
-                                .write_fmt(format_args!("{}/s", HumanFloatCount(state.per_sec())))
-                                .unwrap(),
+                            "per_sec" => {
+                                if let Some(width) = width {
+                                    buf.write_fmt(format_args!(
+                                        "{:.1$}/s",
+                                        HumanFloatCount(state.per_sec()),
+                                        *width as usize
+                                    ))
+                                    .unwrap();
+                                } else {
+                                    buf.write_fmt(format_args!(
+                                        "{}/s",
+                                        HumanFloatCount(state.per_sec())
+                                    ))
+                                    .unwrap();
+                                }
+                            }
                             "bytes_per_sec" => buf
                                 .write_fmt(format_args!("{}/s", HumanBytes(state.per_sec() as u64)))
                                 .unwrap(),
