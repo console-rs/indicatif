@@ -7,7 +7,7 @@ use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
-use console::Term;
+use console::{Term, TermTarget};
 #[cfg(target_arch = "wasm32")]
 use web_time::Instant;
 
@@ -125,6 +125,16 @@ impl ProgressDrawTarget {
             TargetKind::Term { ref term, .. } => !term.is_term(),
             TargetKind::Multi { ref state, .. } => state.read().unwrap().is_hidden(),
             _ => false,
+        }
+    }
+
+    /// This is used in progress bars to determine whether to use stdout or stderr
+    /// for detecting color support.
+    pub(crate) fn is_stderr(&self) -> bool {
+        if let TargetKind::Term { ref term, .. } = self.kind {
+            matches!(term.target(), TermTarget::Stderr)
+        } else {
+            false
         }
     }
 
