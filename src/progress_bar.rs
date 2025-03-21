@@ -157,6 +157,11 @@ impl ProgressBar {
     ///
     /// This does not redraw the bar. Call [`ProgressBar::tick()`] to force it.
     pub fn set_style(&self, style: ProgressStyle) {
+        let style = if self.state().draw_target.is_stderr() {
+            style.for_stderr()
+        } else {
+            style
+        };
         self.state().set_style(style);
     }
 
