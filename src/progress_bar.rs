@@ -156,8 +156,12 @@ impl ProgressBar {
     /// Overrides the stored style
     ///
     /// This does not redraw the bar. Call [`ProgressBar::tick()`] to force it.
-    pub fn set_style(&self, style: ProgressStyle) {
-        self.state().set_style(style);
+    pub fn set_style(&self, mut style: ProgressStyle) {
+        let mut state = self.state();
+        if state.draw_target.is_stderr() {
+            style.set_for_stderr()
+        };
+        state.set_style(style);
     }
 
     /// Sets the tab width (default: 8). All tabs will be expanded to this many spaces.

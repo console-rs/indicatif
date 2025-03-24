@@ -88,6 +88,27 @@ impl ProgressStyle {
         self.template.set_tab_width(new_tab_width);
     }
 
+    /// Specifies that the progress bar is intended to be printed to stderr
+    ///
+    /// The progress bar will determine whether to enable/disable colors based on stderr
+    /// instead of stdout. Under the hood, this uses [`console::colors_enabled_stderr`].
+    pub(crate) fn set_for_stderr(&mut self) {
+        for part in &mut self.template.parts {
+            let (style, alt_style) = match part {
+                TemplatePart::Placeholder {
+                    style, alt_style, ..
+                } => (style, alt_style),
+                _ => continue,
+            };
+            if let Some(s) = style.take() {
+                *style = Some(s.for_stderr())
+            }
+            if let Some(s) = alt_style.take() {
+                *alt_style = Some(s.for_stderr())
+            }
+        }
+    }
+
     fn new(template: Template) -> Self {
         let progress_chars = segment("█░");
         let char_width = width(&progress_chars);
@@ -795,7 +816,7 @@ mod tests {
     use super::*;
     use crate::state::{AtomicPosition, ProgressState};
 
-    use console::set_colors_enabled;
+    use console::{set_colors_enabled, set_colors_enabled_stderr};
     use std::sync::Mutex;
 
     #[test]
@@ -912,6 +933,29 @@ mod tests {
         style.template = Template::from_str("{foo:^5.red.on_blue/green.on_cyan}").unwrap();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
+    }
+
+    #[test]
+    fn test_stderr_colors() {
+        set_colors_enabled(true);
+        set_colors_enabled_stderr(false);
+
+        const WIDTH: u16 = 80;
+        let pos = Arc::new(AtomicPosition::new());
+        let state = ProgressState::new(Some(10), pos);
+        let mut buf = Vec::new();
+
+        let mut style = ProgressStyle::default_bar();
+        style.format_map.insert(
+            "foo",
+            Box::new(|_: &ProgressState, w: &mut dyn Write| write!(w, "XXX").unwrap()),
+        );
+
+        style.template = Template::from_str("{foo:.red.on_blue}").unwrap();
+        style.set_for_stderr();
+
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "XXX", "colors should be disabled");
     }
 
     #[test]
