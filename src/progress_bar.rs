@@ -156,11 +156,9 @@ impl ProgressBar {
     /// Overrides the stored style
     ///
     /// This does not redraw the bar. Call [`ProgressBar::tick()`] to force it.
-    pub fn set_style(&self, style: ProgressStyle) {
-        let style = if self.state().draw_target.is_stderr() {
-            style.for_stderr()
-        } else {
-            style
+    pub fn set_style(&self, mut style: ProgressStyle) {
+        if self.state().draw_target.is_stderr() {
+            style.set_for_stderr()
         };
         self.state().set_style(style);
     }

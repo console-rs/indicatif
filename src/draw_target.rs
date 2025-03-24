@@ -131,10 +131,9 @@ impl ProgressDrawTarget {
     /// This is used in progress bars to determine whether to use stdout or stderr
     /// for detecting color support.
     pub(crate) fn is_stderr(&self) -> bool {
-        if let TargetKind::Term { ref term, .. } = self.kind {
-            matches!(term.target(), TermTarget::Stderr)
-        } else {
-            false
+        match &self.kind {
+            TargetKind::Term { term, .. } => matches!(term.target(), TermTarget::Stderr),
+            _ => false,
         }
     }
 

@@ -88,6 +88,27 @@ impl ProgressStyle {
         self.template.set_tab_width(new_tab_width);
     }
 
+    /// Specifies that the progress bar is intended to be printed to stderr
+    ///
+    /// The progress bar will determine whether to enable/disable colors based on stderr
+    /// instead of stdout. Under the hood, this uses [`console::colors_enabled_stderr`].
+    pub(crate) fn set_for_stderr(&mut self) {
+        for part in &mut self.template.parts {
+            let (style, alt_style) = match part {
+                TemplatePart::Placeholder {
+                    style, alt_style, ..
+                } => (style, alt_style),
+                _ => continue,
+            };
+            if let Some(s) = style.take() {
+                *style = Some(s.for_stderr())
+            }
+            if let Some(s) = alt_style.take() {
+                *alt_style = Some(s.for_stderr())
+            }
+        }
+    }
+
     fn new(template: Template) -> Self {
         let progress_chars = segment("█░");
         let char_width = width(&progress_chars);
@@ -162,15 +183,6 @@ impl ProgressStyle {
     pub fn template(mut self, s: &str) -> Result<Self, TemplateError> {
         self.template = Template::from_str(s)?;
         Ok(self)
-    }
-
-    /// Specifies that the progress bar is intended to be printed to stderr
-    ///
-    /// The progress bar will determine whether to enable/disable colors based on stderr
-    /// instead of stdout. Under the hood, this uses [`console::colors_enabled_stderr`].
-    pub(crate) fn for_stderr(mut self) -> Self {
-        self.template.set_for_stderr();
-        self
     }
 
     fn current_tick_str(&self, state: &ProgressState) -> &str {
@@ -632,22 +644,6 @@ impl Template {
             }
         }
     }
-
-    fn set_for_stderr(&mut self) {
-        for part in &mut self.parts {
-            if let TemplatePart::Placeholder {
-                style, alt_style, ..
-            } = part
-            {
-                if let Some(s) = style.take() {
-                    *style = Some(s.for_stderr())
-                }
-                if let Some(s) = alt_style.take() {
-                    *alt_style = Some(s.for_stderr())
-                }
-            }
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -956,7 +952,8 @@ mod tests {
         );
 
         style.template = Template::from_str("{foo:.red.on_blue}").unwrap();
-        style.template.set_for_stderr();
+        style.set_for_stderr();
+
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "XXX", "colors should be disabled");
     }
