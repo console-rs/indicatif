@@ -184,8 +184,17 @@ impl fmt::Display for HumanCount {
                 // Scale the number appropriately - convert to f64 for proper division
                 let scaled_value = self.0 as f64 / *divisor as f64;
 
-                // Use formatter's precision if provided, otherwise default to 1 for suffix format
-                let precision = f.precision().unwrap_or(1);
+                // If precision is manually set, use it
+                // Otherwise, calculate precision to show exactly 3 significant digits
+                let precision = f.precision().unwrap_or_else(|| {
+                    if scaled_value.abs() < 10.0 {
+                        2
+                    } else if scaled_value.abs() < 100.0 {
+                        1
+                    } else {
+                        0
+                    }
+                });
 
                 write!(f, "{:.*}{}", precision, scaled_value, suffix)?;
             }
@@ -229,8 +238,17 @@ impl fmt::Display for HumanFloatCount {
                 self.0
             };
 
-            // Use formatter's precision if provided, otherwise default to 1 for suffix format
-            let precision = f.precision().unwrap_or(1);
+            // If precision is manually set, use it
+            // Otherwise, calculate precision to show exactly 3 significant digits
+            let precision = f.precision().unwrap_or_else(|| {
+                if scaled_value.abs() < 10.0 {
+                    2
+                } else if scaled_value.abs() < 100.0 {
+                    1
+                } else {
+                    0
+                }
+            });
 
             write!(f, "{:.*}{}", precision, scaled_value, suffix)?;
         } else {
@@ -402,11 +420,11 @@ mod tests {
         assert_eq!("1,234,567,890", format!("{}", HumanCount(1234567890)));
 
         assert_eq!("42", format!("{:#}", HumanCount(42)));
-        assert_eq!("7.7k", format!("{:#}", HumanCount(7654)));
+        assert_eq!("7.65k", format!("{:#}", HumanCount(7654)));
         assert_eq!("12.3k", format!("{:#}", HumanCount(12345)));
-        assert_eq!("1.2M", format!("{:#}", HumanCount(1234567)));
-        assert_eq!("1.2B", format!("{:#}", HumanCount(1234567890)));
-        assert_eq!("1.2T", format!("{:#}", HumanCount(1234567890000)));
+        assert_eq!("1.23M", format!("{:#}", HumanCount(1234567)));
+        assert_eq!("1.23B", format!("{:#}", HumanCount(1234567890)));
+        assert_eq!("1.23T", format!("{:#}", HumanCount(1234567890000)));
 
         assert_eq!("7.65k", format!("{:#.2}", HumanCount(7654)));
         assert_eq!("12.35k", format!("{:#.2}", HumanCount(12345)));
@@ -450,11 +468,11 @@ mod tests {
         assert_eq!("42.5", format!("{:#}", HumanFloatCount(42.5)));
         assert_eq!("42.5", format!("{:#}", HumanFloatCount(42.500012345)));
         assert_eq!("42.5", format!("{:#}", HumanFloatCount(42.502012345)));
-        assert_eq!("7.7k", format!("{:#}", HumanFloatCount(7654.321)));
-        assert_eq!("7.7k", format!("{:#}", HumanFloatCount(7654.3210123456)));
+        assert_eq!("7.65k", format!("{:#}", HumanFloatCount(7654.321)));
+        assert_eq!("7.65k", format!("{:#}", HumanFloatCount(7654.3210123456)));
         assert_eq!("12.3k", format!("{:#}", HumanFloatCount(12345.6789)));
-        assert_eq!("1.2B", format!("{:#}", HumanFloatCount(1234567890.1234567)));
-        assert_eq!("1.2B", format!("{:#}", HumanFloatCount(1234567890.1234321)));
+        assert_eq!("1.23B", format!("{:#}", HumanFloatCount(1234567890.1234567)));
+        assert_eq!("1.23B", format!("{:#}", HumanFloatCount(1234567890.1234321)));
 
         assert_eq!("42.500", format!("{:#.3}", HumanFloatCount(42.5)));
         assert_eq!("42.500", format!("{:#.3}", HumanFloatCount(42.500012345)));

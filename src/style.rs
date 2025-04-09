@@ -1126,7 +1126,7 @@ mod tests {
         style.format_state(&state, &mut buf, WIDTH);
 
         assert_eq!(buf.len(), 1);
-        assert_eq!(&buf[0], "543.2k / 1.0M");
+        assert_eq!(&buf[0], "543k / 1.00M");
 
         buf.clear();
         style.template = Template::from_str("{human_pos:3} / {human_len:3}").unwrap();
