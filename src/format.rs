@@ -471,8 +471,14 @@ mod tests {
         assert_eq!("7.65k", format!("{:#}", HumanFloatCount(7654.321)));
         assert_eq!("7.65k", format!("{:#}", HumanFloatCount(7654.3210123456)));
         assert_eq!("12.3k", format!("{:#}", HumanFloatCount(12345.6789)));
-        assert_eq!("1.23B", format!("{:#}", HumanFloatCount(1234567890.1234567)));
-        assert_eq!("1.23B", format!("{:#}", HumanFloatCount(1234567890.1234321)));
+        assert_eq!(
+            "1.23B",
+            format!("{:#}", HumanFloatCount(1234567890.1234567))
+        );
+        assert_eq!(
+            "1.23B",
+            format!("{:#}", HumanFloatCount(1234567890.1234321))
+        );
 
         assert_eq!("42.500", format!("{:#.3}", HumanFloatCount(42.5)));
         assert_eq!("42.500", format!("{:#.3}", HumanFloatCount(42.500012345)));
