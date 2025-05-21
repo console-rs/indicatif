@@ -302,7 +302,11 @@ impl ProgressStyle {
                                 buf.write_fmt(format_args!("{}", HumanCount(len))).unwrap();
                             }
                             "percent" => buf
-                                .write_fmt(format_args!("{:.*}", 0, (state.fraction() * 100f32).floor()))
+                                .write_fmt(format_args!(
+                                    "{:.*}",
+                                    0,
+                                    (state.fraction() * 100f32).floor()
+                                ))
                                 .unwrap(),
                             "percent_precise" => buf
                                 .write_fmt(format_args!("{:.*}", 3, state.fraction() * 100f32))
@@ -1065,9 +1069,8 @@ mod tests {
         let state = ProgressState::new(Some(359), pos.clone());
 
         let style = ProgressStyle::default_bar()
-                .template(
-                    &format!("{{pos}}/{{len}} {{percent}}%"),
-                ).unwrap();
+            .template(&format!("{{pos}}/{{len}} {{percent}}%"))
+            .unwrap();
         let mut buf = Vec::new();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "358/359 99%");
