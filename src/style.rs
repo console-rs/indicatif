@@ -1055,4 +1055,21 @@ mod tests {
         assert_eq!(&buf[2], "bar");
         assert_eq!(&buf[3], "baz");
     }
+
+    #[test]
+    fn test_pct_precision() {
+        // seeing something that's not finished as 100% hurts my eyes
+        const WIDTH: u16 = 80;
+        let pos = Arc::new(AtomicPosition::new());
+        pos.set(358);
+        let state = ProgressState::new(Some(359), pos);
+
+        let style = ProgressStyle::default_bar()
+                .template(
+                    &format!("{{pos}}/{{len}} {{percent}}%"),
+                ).unwrap();
+        let mut buf = Vec::new();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "358/359 100%");
+    }
 }
