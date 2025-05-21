@@ -1079,4 +1079,23 @@ mod tests {
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "359/359 100%");
     }
+
+    #[test]
+    fn test_pct_precise_precision() {
+        const WIDTH: u16 = 80;
+        let pos = Arc::new(AtomicPosition::new());
+        pos.set(999999);
+        let state = ProgressState::new(Some(1000000), pos.clone());
+
+        let style = ProgressStyle::default_bar()
+            .template(&format!("{{pos}}/{{len}} {{percent_precise}}%"))
+            .unwrap();
+        let mut buf = Vec::new();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "999999/1000000 100.000%");
+        buf.clear();
+        pos.set(1000000);
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "1000000/1000000 100.000%");
+    }
 }
