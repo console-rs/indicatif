@@ -209,29 +209,29 @@ impl ProgressStyle {
         let fill = fract * width as f32;
         // The number of entirely full clusters (by truncating `fill`).
         let entirely_filled = fill as usize;
-        // 1 if the bar is not entirely empty or full (meaning we need to draw the "current"
-        // character between the filled and "to do" segment), 0 otherwise.
-        let head = usize::from(fill > 0.0 && entirely_filled < width);
 
-        let cur = if head == 1 {
+        // if the bar is not entirely empty or full (meaning we need to draw the "current"
+        // character between the filled and "to do" segment)
+        let cur = if fill > 0.0 && entirely_filled < width {
             // Number of fine-grained progress entries in progress_chars.
             let n = self.progress_chars.len().saturating_sub(2);
-            let cur_char = if n <= 1 {
-                // No fine-grained entries. 1 is the single "current" entry if we have one, the "to
-                // do" entry if not.
-                1
-            } else {
+            match n {
+                // We have no "current" entries, so simply skip drawing it
+                0 => None,
+                // We only have a single "current" entry, so choose this one
+                1 => Some(1),
                 // Pick a fine-grained entry, ranging from the last one (n) if the fractional part
                 // of fill is 0 to the first one (1) if the fractional part of fill is almost 1.
-                n.saturating_sub((fill.fract() * n as f32) as usize)
-            };
-            Some(cur_char)
+                _ => Some(n.saturating_sub((fill.fract() * n as f32) as usize)),
+            }
         } else {
             None
         };
 
         // Number of entirely empty clusters needed to fill the bar up to `width`.
-        let bg = width.saturating_sub(entirely_filled).saturating_sub(head);
+        let bg = width
+            .saturating_sub(entirely_filled)
+            .saturating_sub(cur.is_some() as usize);
         let rest = RepeatedStringDisplay {
             str: &self.progress_chars[self.progress_chars.len() - 1],
             num: bg,
