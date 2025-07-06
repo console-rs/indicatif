@@ -984,6 +984,35 @@ mod tests {
     }
 
     #[test]
+    fn multicolor_without_current_style() {
+        set_colors_enabled(true);
+
+        const CHARS: &str = "=-";
+        const WIDTH: u16 = 8;
+        let pos = Arc::new(AtomicPosition::new());
+        // half finished
+        pos.set(2);
+        let state = ProgressState::new(Some(4), pos);
+        let mut buf = Vec::new();
+
+        let style = ProgressStyle::with_template("{wide_bar}")
+            .unwrap()
+            .progress_chars(CHARS);
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "====----");
+
+        buf.clear();
+        let style = ProgressStyle::with_template("{wide_bar:.red.on_blue/green.on_cyan}")
+            .unwrap()
+            .progress_chars(CHARS);
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(
+            &buf[0],
+            "\u{1b}[31m\u{1b}[44m====\u{1b}[32m\u{1b}[46m----\u{1b}[0m\u{1b}[0m"
+        );
+    }
+
+    #[test]
     fn wide_element_style() {
         set_colors_enabled(true);
 
