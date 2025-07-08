@@ -167,7 +167,7 @@ impl BarState {
         if let Some(width) = width {
             if !matches!(self.state.status, Status::DoneHidden) {
                 self.style
-                    .format_state(&self.state, &mut draw_state.lines, width);
+                    .format_state(&mut self.state, &mut draw_state.lines, width);
             }
         }
 
@@ -206,7 +206,7 @@ impl BarState {
         if let Some(width) = width {
             if !matches!(self.state.status, Status::DoneHidden) {
                 self.style
-                    .format_state(&self.state, &mut draw_state.lines, width);
+                    .format_state(&mut self.state, &mut draw_state.lines, width);
             }
         }
 
@@ -287,31 +287,32 @@ impl ProgressState {
     }
 
     /// The expected ETA
-    pub fn eta(&self) -> Duration {
+    pub fn eta(&mut self) -> Duration {
+        // If done set ETA to 0
         if self.is_finished() {
             return Duration::new(0, 0);
         }
 
+        // If no bar length set then return 0, otherwise get progress bar length
         let len = match self.len {
             Some(len) => len,
             None => return Duration::new(0, 0),
         };
+        self.est.total_steps = len;
 
+        // get current position
         let pos = self.pos.pos.load(Ordering::Relaxed);
-
-        let sps = self.est.steps_per_second(Instant::now());
-
-        // Infinite duration should only ever happen at the beginning, so in this case it's okay to
-        // just show an ETA of 0 until progress starts to occur.
-        if sps == 0.0 {
-            return Duration::new(0, 0);
-        }
-
-        secs_to_duration(len.saturating_sub(pos) as f64 / sps)
+        let steps_remaining = len.saturating_sub(pos) as f64;
+        
+        // estimate seconds remaining
+        let secs_remaining = secs_to_duration(self.est.sec_per_step * steps_remaining as f64).saturating_sub(Instant::now() - self.est.prev_time);
+        // Return estimated time remaining in seconds
+        return secs_remaining;
+        // return Duration::new((self.est.sec_per_step * steps_remaining as f64) as u64,0).saturating_sub(Instant::now() - self.est.prev_time);
     }
 
     /// The expected total duration (that is, elapsed time + expected ETA)
-    pub fn duration(&self) -> Duration {
+    pub fn duration(&mut self) -> Duration {
         if self.len.is_none() || self.is_finished() {
             return Duration::new(0, 0);
         }
@@ -419,46 +420,84 @@ impl TabExpandedString {
 /// slow asymptotic approach to zero (until the next spike).
 #[derive(Debug)]
 pub(crate) struct Estimator {
+    sec_per_step: f64,   // How many seconds each step has taken so far
     smoothed_steps_per_sec: f64,
     double_smoothed_steps_per_sec: f64,
-    prev_steps: u64,
-    prev_time: Instant,
+    steps_done: u64,
+    total_steps: u64, // Total steps to be done, used for length estimation
+    prev_time: Instant, // The last time a step was made
     start_time: Instant,
 }
 
 impl Estimator {
     fn new(now: Instant) -> Self {
         Self {
+            sec_per_step: 0.0,
             smoothed_steps_per_sec: 0.0,
             double_smoothed_steps_per_sec: 0.0,
-            prev_steps: 0,
+            steps_done: 0,  // How many steps have already been accomplished
+            total_steps: 0,
             prev_time: now,
             start_time: now,
         }
     }
 
-    fn record(&mut self, new_steps: u64, now: Instant) {
-        // sanity check: don't record data if time or steps have not advanced
-        if new_steps <= self.prev_steps || now <= self.prev_time {
-            // Reset on backwards seek to prevent breakage from seeking to the end for length determination
-            // See https://github.com/console-rs/indicatif/issues/480
-            if new_steps < self.prev_steps {
-                self.prev_steps = new_steps;
-                self.reset(now);
-            }
+    // Function that updates the estimator parameters based on the number of new steps and the current time
+    fn record(&mut self, new_steps_done: u64, now: Instant) {
+        // Reset on backwards seek to prevent breakage from seeking to the end for length determination
+        // See https://github.com/console-rs/indicatif/issues/480
+        if new_steps_done < self.steps_done {
+            self.steps_done = new_steps_done;
+            self.reset(now);
             return;
         }
 
-        let delta_steps = new_steps - self.prev_steps;
+        // We use avg_sec_per_step as the average secs per step so far only counting the completed steps before this one
+        let avg_sec_per_step = self.prev_time.saturating_duration_since(self.start_time).as_secs_f64() / self.steps_done as f64;
+        // println!("avg_sec_per_step: {}", avg_sec_per_step);
+        // println!("self.sec_per_step: {}", self.sec_per_step);
+
+        // let steps_left = self.total_steps.saturating_sub(new_steps_done);
+        let delta_steps = new_steps_done - self.steps_done;
         let delta_t = duration_to_secs(now - self.prev_time);
 
+        // If no progress has been made, assume the possibility of progress in the next second
+        // Meaning that steps per second is however many seconds have passed since last progress was made
+        // Note: When the first progress happens the ETA will already be set to what the ETA will be after the progress happens
+        if delta_steps == 0 {
+            // If first step in progress, assume progress could happen any second
+            if self.steps_done == 0 {
+                self.sec_per_step = (now - self.start_time).as_secs_f64();
+                // Set log prev time
+                self.prev_time = now;
+                return;
+            }
+            // If the time since last progress is more than the average estimated time per step
+            // Assume the possibility of a full stop having happened and increase the sec_per_step
+            // To show an everincreasing time the estimated time per step increases by 2% (picked because it seemed to work well)
+            // every time the function is run
+            if delta_t > avg_sec_per_step {
+                self.sec_per_step = self.sec_per_step * 1.02;
+                return;
+            }
+            // Otherwise, assume we're still counting down and change nothing
+            return;
+        }
+
+
+        // let time_elapsed_before = self.prev_time - self.start_time;
+        // self.etr = (self.etr * time_elapsed_before.as_secs_f64() + delta_t*delta_t) / (now - self.start_time).as_secs_f64();
+        // self.sec_per_step = (avg_sec_per_step * self.steps_done as f64 + (new_steps_done - self.steps_done) as f64 * delta_t/delta_steps as f64) / new_steps_done as f64;
+        self.sec_per_step = now.saturating_duration_since(self.start_time).as_secs_f64() / new_steps_done as f64;
+
+        // Old code
+        //---------------------------------------------------------------------
         // the rate of steps we saw in this update
         let new_steps_per_second = delta_steps as f64 / delta_t;
 
         // update the estimate: a weighted average of the old estimate and new data
         let weight = estimator_weight(delta_t);
-        self.smoothed_steps_per_sec =
-            self.smoothed_steps_per_sec * weight + new_steps_per_second * (1.0 - weight);
+        self.smoothed_steps_per_sec = self.smoothed_steps_per_sec * weight + new_steps_per_second * (1.0 - weight);
 
         // An iterative estimate like `smoothed_steps_per_sec` is supposed to be an exponentially
         // weighted average from t=0 back to t=-inf; Since we initialize it to 0, we neglect the
@@ -474,17 +513,19 @@ impl Estimator {
         self.double_smoothed_steps_per_sec = self.double_smoothed_steps_per_sec * weight
             + normalized_smoothed_steps_per_sec * (1.0 - weight);
 
-        self.prev_steps = new_steps;
+        // Update how many steps done and set prev_time to the instant the last progress was made
+        self.steps_done = new_steps_done;
         self.prev_time = now;
     }
 
     /// Reset the state of the estimator. Once reset, estimates will not depend on any data prior
+    /// G0ROCKS 2025-07-08 BROKE THIS
     /// to `now`. This does not reset the stored position of the progress bar.
     pub(crate) fn reset(&mut self, now: Instant) {
-        self.smoothed_steps_per_sec = 0.0;
-        self.double_smoothed_steps_per_sec = 0.0;
+        // self.smoothed_steps_per_sec = 0.0;
+        // self.double_smoothed_steps_per_sec = 0.0;
 
-        // only reset prev_time, not prev_steps
+        // only reset prev_time, not steps_done
         self.prev_time = now;
         self.start_time = now;
     }
