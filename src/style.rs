@@ -247,7 +247,7 @@ impl ProgressStyle {
 
     pub(crate) fn format_state(
         &self,
-        state: &mut ProgressState,
+        state: &ProgressState,
         lines: &mut Vec<LineType>,
         target_width: u16,
     ) {
@@ -858,15 +858,15 @@ mod tests {
         let mut buf = Vec::new();
         let style = pb.clone().style();
 
-        style.format_state(&mut pb.state().state, &mut buf, 16);
+        style.format_state(&pb.state().state, &mut buf, 16);
         assert_eq!(&buf[0], "{  }");
         buf.clear();
         pb.inc(1);
-        style.format_state(&mut pb.state().state, &mut buf, 16);
+        style.format_state(&pb.state().state, &mut buf, 16);
         assert_eq!(&buf[0], "{ 1 1 }");
         pb.reset();
         buf.clear();
-        style.format_state(&mut pb.state().state, &mut buf, 16);
+        style.format_state(&pb.state().state, &mut buf, 16);
         assert_eq!(&buf[0], "{  }");
         pb.finish_and_clear();
     }
@@ -877,7 +877,7 @@ mod tests {
     fn test_expand_template() {
         const WIDTH: u16 = 80;
         let pos = Arc::new(AtomicPosition::new());
-        let mut state = ProgressState::new(Some(10), pos);
+        let state = ProgressState::new(Some(10), pos);
         let mut buf = Vec::new();
 
         let mut style = ProgressStyle::default_bar();
@@ -891,12 +891,12 @@ mod tests {
         );
 
         style.template = Template::from_str("{{ {foo} {bar} }}").unwrap();
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "{ FOO BAR }");
 
         buf.clear();
         style.template = Template::from_str(r#"{ "foo": "{foo}", "bar": {bar} }"#).unwrap();
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], r#"{ "foo": "FOO", "bar": BAR }"#);
     }
 
@@ -906,7 +906,7 @@ mod tests {
 
         const WIDTH: u16 = 80;
         let pos = Arc::new(AtomicPosition::new());
-        let mut state = ProgressState::new(Some(10), pos);
+        let state = ProgressState::new(Some(10), pos);
         let mut buf = Vec::new();
 
         let mut style = ProgressStyle::default_bar();
@@ -916,22 +916,22 @@ mod tests {
         );
 
         style.template = Template::from_str("{foo:5}").unwrap();
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "XXX  ");
 
         buf.clear();
         style.template = Template::from_str("{foo:.red.on_blue}").unwrap();
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44mXXX\u{1b}[0m");
 
         buf.clear();
         style.template = Template::from_str("{foo:^5.red.on_blue}").unwrap();
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
 
         buf.clear();
         style.template = Template::from_str("{foo:^5.red.on_blue/green.on_cyan}").unwrap();
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
     }
 
@@ -942,7 +942,7 @@ mod tests {
 
         const WIDTH: u16 = 80;
         let pos = Arc::new(AtomicPosition::new());
-        let mut state = ProgressState::new(Some(10), pos);
+        let state = ProgressState::new(Some(10), pos);
         let mut buf = Vec::new();
 
         let mut style = ProgressStyle::default_bar();
@@ -954,7 +954,7 @@ mod tests {
         style.template = Template::from_str("{foo:.red.on_blue}").unwrap();
         style.set_for_stderr();
 
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "XXX", "colors should be disabled");
     }
 
@@ -967,19 +967,19 @@ mod tests {
 
         let style = ProgressStyle::with_template("{wide_msg}").unwrap();
         state.message = TabExpandedString::NoTabs("abcdefghijklmnopqrst".into());
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "abcdefghij");
 
         buf.clear();
         let style = ProgressStyle::with_template("{wide_msg:>}").unwrap();
         state.message = TabExpandedString::NoTabs("abcdefghijklmnopqrst".into());
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "klmnopqrst");
 
         buf.clear();
         let style = ProgressStyle::with_template("{wide_msg:^}").unwrap();
         state.message = TabExpandedString::NoTabs("abcdefghijklmnopqrst".into());
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "fghijklmno");
     }
 
@@ -998,14 +998,14 @@ mod tests {
         let style = ProgressStyle::with_template("{wide_bar}")
             .unwrap()
             .progress_chars(CHARS);
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "====>---");
 
         buf.clear();
         let style = ProgressStyle::with_template("{wide_bar:.red.on_blue/green.on_cyan}")
             .unwrap()
             .progress_chars(CHARS);
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(
             &buf[0],
             "\u{1b}[31m\u{1b}[44m====>\u{1b}[32m\u{1b}[46m---\u{1b}[0m\u{1b}[0m"
@@ -1014,7 +1014,7 @@ mod tests {
         buf.clear();
         let style = ProgressStyle::with_template("{wide_msg:^.red.on_blue}").unwrap();
         state.message = TabExpandedString::NoTabs("foobar".into());
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m foobar \u{1b}[0m");
     }
 
@@ -1028,7 +1028,7 @@ mod tests {
         let mut style = ProgressStyle::default_bar();
         state.message = TabExpandedString::new("foo\nbar\nbaz".into(), 2);
         style.template = Template::from_str("{msg}").unwrap();
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
 
         assert_eq!(buf.len(), 3);
         assert_eq!(&buf[0], "foo");
@@ -1037,7 +1037,7 @@ mod tests {
 
         buf.clear();
         style.template = Template::from_str("{wide_msg}").unwrap();
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
 
         assert_eq!(buf.len(), 3);
         assert_eq!(&buf[0], "foo");
@@ -1047,7 +1047,7 @@ mod tests {
         buf.clear();
         state.prefix = TabExpandedString::new("prefix\nprefix".into(), 2);
         style.template = Template::from_str("{prefix} {wide_msg}").unwrap();
-        style.format_state(&mut state, &mut buf, WIDTH);
+        style.format_state(&state, &mut buf, WIDTH);
 
         assert_eq!(buf.len(), 4);
         assert_eq!(&buf[0], "prefix");
