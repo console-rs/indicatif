@@ -288,17 +288,20 @@ impl ProgressState {
 
     /// The expected ETA
     pub fn eta(&self) -> Duration {
+        // If done set ETA to 0
         if self.is_finished() {
             return Duration::new(0, 0);
         }
 
+        // If no bar length set then return 0, otherwise get progress bar length
         let len = match self.len {
             Some(len) => len,
             None => return Duration::new(0, 0),
         };
 
+        // get current position
         let pos = self.pos.pos.load(Ordering::Relaxed);
-
+        
         let sps = self.est.steps_per_second(Instant::now());
 
         // Infinite duration should only ever happen at the beginning, so in this case it's okay to
@@ -312,9 +315,6 @@ impl ProgressState {
 
     /// The expected total duration (that is, elapsed time + expected ETA)
     pub fn duration(&self) -> Duration {
-        if self.len.is_none() || self.is_finished() {
-            return Duration::new(0, 0);
-        }
         self.started.elapsed().saturating_add(self.eta())
     }
 
@@ -421,9 +421,9 @@ impl TabExpandedString {
 pub(crate) struct Estimator {
     smoothed_steps_per_sec: f64,
     double_smoothed_steps_per_sec: f64,
-    prev_steps: u64,
-    prev_time: Instant,
-    start_time: Instant,
+    steps_done: u64,        // How many steps have already been accomplished
+    prev_time: Instant,     // The last time a step was made
+    start_time: Instant,    // The instant the process started
 }
 
 impl Estimator {
@@ -431,25 +431,25 @@ impl Estimator {
         Self {
             smoothed_steps_per_sec: 0.0,
             double_smoothed_steps_per_sec: 0.0,
-            prev_steps: 0,
+            steps_done: 0,
             prev_time: now,
             start_time: now,
         }
     }
 
-    fn record(&mut self, new_steps: u64, now: Instant) {
-        // sanity check: don't record data if time or steps have not advanced
-        if new_steps <= self.prev_steps || now <= self.prev_time {
-            // Reset on backwards seek to prevent breakage from seeking to the end for length determination
-            // See https://github.com/console-rs/indicatif/issues/480
-            if new_steps < self.prev_steps {
-                self.prev_steps = new_steps;
-                self.reset(now);
-            }
+    // Function that updates the estimator parameters based on the number of new steps and the current time
+    fn record(&mut self, new_steps_done: u64, now: Instant) {
+                // sanity check: don't record data if time or steps have not advanced
+        if new_steps_done <= self.prev_steps || now <= self.prev_time {
+        // Reset on backwards seek to prevent breakage from seeking to the end for length determination
+        // See https://github.com/console-rs/indicatif/issues/480
+        if new_steps_done < self.steps_done {
+            self.steps_done = new_steps_done;
+            self.reset(now);
             return;
         }
 
-        let delta_steps = new_steps - self.prev_steps;
+        let delta_steps = new_steps_done - self.steps_done;
         let delta_t = duration_to_secs(now - self.prev_time);
 
         // the rate of steps we saw in this update
@@ -474,7 +474,8 @@ impl Estimator {
         self.double_smoothed_steps_per_sec = self.double_smoothed_steps_per_sec * weight
             + normalized_smoothed_steps_per_sec * (1.0 - weight);
 
-        self.prev_steps = new_steps;
+        // Update how many steps done and set prev_time to the instant the last progress was made
+        self.steps_done = new_steps_done;
         self.prev_time = now;
     }
 
@@ -484,7 +485,7 @@ impl Estimator {
         self.smoothed_steps_per_sec = 0.0;
         self.double_smoothed_steps_per_sec = 0.0;
 
-        // only reset prev_time, not prev_steps
+        // only reset prev_time, not steps_done
         self.prev_time = now;
         self.start_time = now;
     }
