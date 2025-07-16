@@ -304,7 +304,8 @@ impl ProgressState {
         let steps_remaining = len.saturating_sub(pos) as f64;
         
         // estimate seconds remaining
-        let secs_remaining = secs_to_duration(self.est.sec_per_step * steps_remaining as f64).saturating_sub(Instant::now() - self.est.prev_time);
+        let secs_remaining = secs_to_duration(self.est.sec_per_step * steps_remaining as f64)
+            .saturating_sub(Instant::now() - self.est.prev_time); 
         // Return estimated time remaining in seconds
         return secs_remaining;
     }
@@ -415,12 +416,12 @@ impl TabExpandedString {
 /// slow asymptotic approach to zero (until the next spike).
 #[derive(Debug)]
 pub(crate) struct Estimator {
-    sec_per_step: f64,      // Estimate for how many seconds each step takes on average
+    sec_per_step: f64, // Estimate for how many seconds each step takes on average
     smoothed_steps_per_sec: f64,
     double_smoothed_steps_per_sec: f64,
-    steps_done: u64,        // How many steps have already been accomplished
-    prev_time: Instant,     // The last time a step was made
-    start_time: Instant,    // The instant the process started
+    steps_done: u64,     // How many steps have already been accomplished
+    prev_time: Instant,  // The last time a step was made
+    start_time: Instant, // The instant the process started
 }
 
 impl Estimator {
@@ -446,7 +447,11 @@ impl Estimator {
         }
 
         // We use avg_sec_per_step as the average secs per step so far only counting the completed steps before this one
-        let avg_sec_per_step = self.prev_time.saturating_duration_since(self.start_time).as_secs_f64() / self.steps_done as f64;
+        let avg_sec_per_step = self
+            .prev_time
+            .saturating_duration_since(self.start_time)
+            .as_secs_f64()
+            / self.steps_done as f64;
 
         let delta_steps = new_steps_done - self.steps_done;
         let delta_t = duration_to_secs(now - self.prev_time);
@@ -474,11 +479,11 @@ impl Estimator {
             return;
         }
 
-
         // let time_elapsed_before = self.prev_time - self.start_time;
         // self.etr = (self.etr * time_elapsed_before.as_secs_f64() + delta_t*delta_t) / (now - self.start_time).as_secs_f64();
         // self.sec_per_step = (avg_sec_per_step * self.steps_done as f64 + (new_steps_done - self.steps_done) as f64 * delta_t/delta_steps as f64) / new_steps_done as f64;
-        self.sec_per_step = now.saturating_duration_since(self.start_time).as_secs_f64() / new_steps_done as f64;
+        self.sec_per_step =
+            now.saturating_duration_since(self.start_time).as_secs_f64() / new_steps_done as f64;
 
         // 2025-07-09 G0rocks: Old code not used for ETA estimation anymore but could be used elsewhere. Would like to remove but won't dare as of now. See https://github.com/console-rs/indicatif/pull/721
         //---------------------------------------------------------------------
