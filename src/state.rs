@@ -304,10 +304,10 @@ impl ProgressState {
         let steps_remaining = len.saturating_sub(pos) as f64;
 
         // estimate seconds remaining
-        let secs_remaining = secs_to_duration(self.est.sec_per_step * steps_remaining as f64)
+        let secs_remaining = secs_to_duration(self.est.sec_per_step * steps_remaining)
             .saturating_sub(Instant::now() - self.est.prev_time);
         // Return estimated time remaining in seconds
-        return secs_remaining;
+        secs_remaining
     }
 
     /// The expected total duration (that is, elapsed time + expected ETA)
@@ -472,7 +472,7 @@ impl Estimator {
             // To show an everincreasing time the estimated time per step increases by 2% (picked because it seemed to work well)
             // every time the function is run
             if delta_t > avg_sec_per_step {
-                self.sec_per_step = self.sec_per_step * 1.02;
+                self.sec_per_step *= 1.02;
                 return;
             }
             // Otherwise, assume we're still counting down and change nothing
