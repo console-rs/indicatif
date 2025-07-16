@@ -302,10 +302,10 @@ impl ProgressState {
         // get current position
         let pos = self.pos.pos.load(Ordering::Relaxed);
         let steps_remaining = len.saturating_sub(pos) as f64;
-        
+
         // estimate seconds remaining
         let secs_remaining = secs_to_duration(self.est.sec_per_step * steps_remaining as f64)
-            .saturating_sub(Instant::now() - self.est.prev_time); 
+            .saturating_sub(Instant::now() - self.est.prev_time);
         // Return estimated time remaining in seconds
         return secs_remaining;
     }
