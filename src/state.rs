@@ -16,6 +16,7 @@ pub(crate) struct BarState {
     pub(crate) draw_target: ProgressDrawTarget,
     pub(crate) on_finish: ProgressFinish,
     pub(crate) style: ProgressStyle,
+    pub(crate) finish_style: Option<ProgressStyle>,
     pub(crate) state: ProgressState,
     pub(crate) tab_width: usize,
 }
@@ -30,6 +31,7 @@ impl BarState {
             draw_target,
             on_finish: ProgressFinish::default(),
             style: ProgressStyle::default_bar(),
+            finish_style: None,
             state: ProgressState::new(len, pos),
             tab_width: DEFAULT_TAB_WIDTH,
         }
@@ -65,7 +67,7 @@ impl BarState {
 
         // There's no need to update the estimate here; once the `status` is no longer
         // `InProgress`, we will use the length and elapsed time to estimate.
-        let _ = self.draw(true, now);
+        let _ = self.draw_internal(true, now, true);
     }
 
     pub(crate) fn reset(&mut self, now: Instant, mode: Reset) {
@@ -132,6 +134,17 @@ impl BarState {
         self.style.set_tab_width(self.tab_width);
     }
 
+    pub(crate) fn set_finish_style(&mut self, finish_style: Option<ProgressStyle>) {
+        self.finish_style = match finish_style {
+            Some(finish_style) => {
+                let mut finish_style = finish_style;
+                finish_style.set_tab_width(self.tab_width);
+                Some(finish_style)
+            }
+            None => None,
+        };
+    }
+
     pub(crate) fn tick(&mut self, now: Instant) {
         self.state.tick = self.state.tick.saturating_add(1);
         self.update_estimate_and_draw(now);
@@ -189,7 +202,16 @@ impl BarState {
         ret
     }
 
-    pub(crate) fn draw(&mut self, mut force_draw: bool, now: Instant) -> io::Result<()> {
+    pub(crate) fn draw(&mut self, force_draw: bool, now: Instant) -> io::Result<()> {
+        self.draw_internal(force_draw, now, false)
+    }
+
+    fn draw_internal(
+        &mut self,
+        mut force_draw: bool,
+        now: Instant,
+        finish: bool,
+    ) -> io::Result<()> {
         // `|= self.is_finished()` should not be needed here, but we used to always draw for
         // finished progress bars, so it's kept as to not cause compatibility issues in weird cases.
         force_draw |= self.state.is_finished();
@@ -205,8 +227,17 @@ impl BarState {
 
         if let Some(width) = width {
             if !matches!(self.state.status, Status::DoneHidden) {
-                self.style
-                    .format_state(&self.state, &mut draw_state.lines, width);
+                if finish {
+                    if let Some(finish_style) = &self.finish_style {
+                        finish_style.format_state(&self.state, &mut draw_state.lines, width);
+                    } else {
+                        self.style
+                            .format_state(&self.state, &mut draw_state.lines, width);
+                    }
+                } else {
+                    self.style
+                        .format_state(&self.state, &mut draw_state.lines, width);
+                }
             }
         }
 
