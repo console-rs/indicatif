@@ -1,7 +1,7 @@
 use std::fmt;
 use std::time::Duration;
 
-use number_prefix::NumberPrefix;
+use unit_prefix::NumberPrefix;
 
 const SECOND: Duration = Duration::from_secs(1);
 const MINUTE: Duration = Duration::from_secs(60);

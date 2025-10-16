@@ -793,7 +793,7 @@ mod tests {
                     .collect::<Vec<_>>(),
                 case.width,
             );
-            assert_eq!(result, case.expectation.into(), "case: {:?}", case);
+            assert_eq!(result, case.expectation.into(), "case: {case:?}");
         }
     }
 }

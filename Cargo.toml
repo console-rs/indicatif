@@ -1,6 +1,6 @@
 [package]
 name = "indicatif"
-version = "0.17.11"
+version = "0.18.0"
 edition = "2021"
 rust-version = "1.70"
 description = "A progress bar and cli reporting library for Rust"
@@ -13,15 +13,15 @@ readme = "README.md"
 exclude = ["screenshots/*"]
 
 [dependencies]
-console = { version = "0.15", default-features = false, features = ["ansi-parsing"] }
+console = { version = "0.16", default-features = false, features = ["ansi-parsing", "std"] }
 futures-core = { version = "0.3", default-features = false, optional = true }
-number_prefix = "0.4"
+unit-prefix = "0.5.1"
 portable-atomic = "1.0.0"
 rayon = { version = "1.1", optional = true }
 tokio = { version = "1", optional = true, features = ["io-util"] }
 unicode-segmentation = { version = "1", optional = true }
 unicode-width = { version = "0.2", optional = true }
-vt100 = { version = "0.15.1", optional = true }
+vt100 = { version = "0.16.1", optional = true }
 
 [dev-dependencies]
 clap = { version = "4", features = ["color", "derive"] }
