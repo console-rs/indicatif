@@ -2,7 +2,7 @@
 name = "indicatif"
 version = "0.18.0"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.71.1"
 description = "A progress bar and cli reporting library for Rust"
 keywords = ["cli", "progress", "pb", "colors", "progressbar"]
 categories = ["command-line-interface"]
