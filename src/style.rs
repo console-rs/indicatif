@@ -463,7 +463,11 @@ impl WideElement<'_> {
         buf: &mut String,
         width: u16,
     ) -> String {
-        let left = (width as usize).saturating_sub(measure_text_width(&cur.replace('\x00', "")));
+        let left =
+            (width as usize).saturating_sub(match cur.lines().find(|line| line.contains('\x00')) {
+                Some(line) => measure_text_width(&line.replace('\x00', "")),
+                None => measure_text_width(&cur),
+            });
         match self {
             Self::Bar { alt_style } => cur.replace(
                 '\x00',
