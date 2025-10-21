@@ -1,6 +1,6 @@
 [package]
 name = "indicatif"
-version = "0.18.0"
+version = "0.18.1"
 edition = "2021"
 rust-version = "1.71"
 description = "A progress bar and cli reporting library for Rust"
