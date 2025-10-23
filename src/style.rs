@@ -1,10 +1,12 @@
 use std::collections::HashMap;
-use std::fmt::{self, Write};
+use std::fmt::{self, Formatter, Write};
 use std::mem;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
+#[cfg(feature = "unicode-width")]
+use unicode_width::UnicodeWidthChar;
 
-use console::{measure_text_width, Style};
+use console::{measure_text_width, AnsiCodeIterator, Style};
 #[cfg(feature = "unicode-segmentation")]
 use unicode_segmentation::UnicodeSegmentation;
 #[cfg(target_arch = "wasm32")]
@@ -742,15 +744,11 @@ impl fmt::Display for PaddedStringDisplay<'_> {
             return f.write_str(self.str);
         } else if excess > 0 {
             let (start, end) = match self.align {
-                Alignment::Left => (0, self.str.len() - excess),
-                Alignment::Right => (excess, self.str.len()),
-                Alignment::Center => (
-                    excess / 2,
-                    self.str.len() - excess.saturating_sub(excess / 2),
-                ),
+                Alignment::Left => (0, cols - excess),
+                Alignment::Right => (excess, cols),
+                Alignment::Center => (excess / 2, cols - excess.saturating_sub(excess / 2)),
             };
-
-            return f.write_str(self.str.get(start..end).unwrap_or(self.str));
+            return write_ansi_range(f, self.str, start, end);
         }
 
         let diff = self.width.saturating_sub(cols);
@@ -769,6 +767,38 @@ impl fmt::Display for PaddedStringDisplay<'_> {
         }
         Ok(())
     }
+}
+
+/// Write the visible text between start and end. The ansi escape
+/// sequences are written unchanged.
+pub fn write_ansi_range(
+    formatter: &mut Formatter,
+    text: &str,
+    start: usize,
+    end: usize,
+) -> fmt::Result {
+    let mut pos = 0;
+    for (s, is_ansi) in AnsiCodeIterator::new(text) {
+        if is_ansi {
+            formatter.write_str(s)?;
+        } else if pos < end {
+            for c in s.chars() {
+                #[cfg(feature = "unicode-width")]
+                let c_width = c.width().unwrap_or(0);
+                #[cfg(not(feature = "unicode-width"))]
+                let c_width = 1;
+                if start <= pos && pos + c_width <= end {
+                    formatter.write_char(c)?;
+                }
+                pos += c_width;
+                if pos > end {
+                    // no need to iterate over the rest of s
+                    break;
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
@@ -985,6 +1015,62 @@ mod tests {
         state.message = TabExpandedString::NoTabs("abcdefghijklmnopqrst".into());
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "fghijklmno");
+    }
+
+    #[test]
+    fn combinining_diacritical_truncation() {
+        const WIDTH: u16 = 10;
+        let pos = Arc::new(AtomicPosition::new());
+        let mut state = ProgressState::new(Some(10), pos);
+        let mut buf = Vec::new();
+
+        let style = ProgressStyle::with_template("{wide_msg}").unwrap();
+        state.message = TabExpandedString::NoTabs("abcdefghij\u{0308}klmnopqrst".into());
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "abcdefghij\u{0308}");
+    }
+
+    #[test]
+    fn color_align_truncation() {
+        let red = "\x1b[31m";
+        let green = "\x1b[32m";
+        let blue = "\x1b[34m";
+        let yellow = "\x1b[33m";
+        let magenta = "\x1b[35m";
+        let cyan = "\x1b[36m";
+        let white = "\x1b[37m";
+
+        let bold = "\x1b[1m";
+        let underline = "\x1b[4m";
+        let reset = "\x1b[0m";
+        let message = format!(
+            "{bold}{red}Hello,{reset} {green}{underline}Rustacean!{reset} {yellow}This {blue}is {magenta}a {cyan}multi-colored {white}string.{reset}"
+        );
+
+        const WIDTH: u16 = 10;
+        let pos = Arc::new(AtomicPosition::new());
+        let mut state = ProgressState::new(Some(10), pos);
+        let mut buf = Vec::new();
+
+        let style = ProgressStyle::with_template("{wide_msg}").unwrap();
+        state.message = TabExpandedString::NoTabs(message.clone().into());
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(
+            &buf[0],
+            format!("{bold}{red}Hello,{reset} {green}{underline}Rus{reset}{yellow}{blue}{magenta}{cyan}{white}{reset}").as_str()
+        );
+
+        buf.clear();
+        let style = ProgressStyle::with_template("{wide_msg:>}").unwrap();
+        state.message = TabExpandedString::NoTabs(message.clone().into());
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], format!("{bold}{red}{reset}{green}{underline}{reset}{yellow}{blue}{magenta}{cyan}ed {white}string.{reset}").as_str());
+
+        buf.clear();
+        let style = ProgressStyle::with_template("{wide_msg:^}").unwrap();
+        state.message = TabExpandedString::NoTabs(message.clone().into());
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], format!("{bold}{red}{reset}{green}{underline}{reset}{yellow}his {blue}is {magenta}a {cyan}m{white}{reset}").as_str());
     }
 
     #[test]
