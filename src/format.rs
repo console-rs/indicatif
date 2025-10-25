@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use unit_prefix::NumberPrefix;
 
+const MILLISECOND: Duration = Duration::from_millis(1);
 const SECOND: Duration = Duration::from_secs(1);
 const MINUTE: Duration = Duration::from_secs(60);
 const HOUR: Duration = Duration::from_secs(60 * 60);
@@ -137,6 +138,7 @@ const UNITS: &[(Duration, &str, &str)] = &[
     (HOUR, "hour", "h"),
     (MINUTE, "minute", "m"),
     (SECOND, "second", "s"),
+    (MILLISECOND, "millisecond", "ms"),
 ];
 
 impl fmt::Display for HumanBytes {
@@ -228,25 +230,39 @@ mod tests {
     #[test]
     fn human_duration_less_than_one_second() {
         assert_eq!(
-            "0 seconds",
+            "0 milliseconds",
             format!("{}", HumanDuration(Duration::from_secs(0)))
         );
-        assert_eq!("0 seconds", format!("{}", HumanDuration(MILLI)));
-        assert_eq!("0 seconds", format!("{}", HumanDuration(499 * MILLI)));
-        assert_eq!("1 second", format!("{}", HumanDuration(500 * MILLI)));
-        assert_eq!("1 second", format!("{}", HumanDuration(999 * MILLI)));
+        assert_eq!("1 millisecond", format!("{}", HumanDuration(MILLI)));
+        assert_eq!("2 milliseconds", format!("{}", HumanDuration(2 * MILLI)));
+        assert_eq!(
+            "499 milliseconds",
+            format!("{}", HumanDuration(499 * MILLI))
+        );
+        assert_eq!(
+            "500 milliseconds",
+            format!("{}", HumanDuration(500 * MILLI))
+        );
+        assert_eq!(
+            "999 milliseconds",
+            format!("{}", HumanDuration(999 * MILLI))
+        );
     }
 
     #[test]
     fn human_duration_less_than_two_seconds() {
-        assert_eq!("1 second", format!("{}", HumanDuration(1499 * MILLI)));
+        assert_eq!(
+            "1499 milliseconds",
+            format!("{}", HumanDuration(1499 * MILLI))
+        );
         assert_eq!("2 seconds", format!("{}", HumanDuration(1500 * MILLI)));
         assert_eq!("2 seconds", format!("{}", HumanDuration(1999 * MILLI)));
     }
 
     #[test]
     fn human_duration_one_unit() {
-        assert_eq!("1 second", format!("{}", HumanDuration(SECOND)));
+        assert_eq!("1 millisecond", format!("{}", HumanDuration(MILLI)));
+        assert_eq!("1000 milliseconds", format!("{}", HumanDuration(SECOND)));
         assert_eq!("60 seconds", format!("{}", HumanDuration(MINUTE)));
         assert_eq!("60 minutes", format!("{}", HumanDuration(HOUR)));
         assert_eq!("24 hours", format!("{}", HumanDuration(DAY)));
