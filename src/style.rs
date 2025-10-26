@@ -781,20 +781,23 @@ pub fn write_ansi_range(
     for (s, is_ansi) in AnsiCodeIterator::new(text) {
         if is_ansi {
             formatter.write_str(s)?;
-        } else if pos < end {
-            for c in s.chars() {
-                #[cfg(feature = "unicode-width")]
-                let c_width = c.width().unwrap_or(0);
-                #[cfg(not(feature = "unicode-width"))]
-                let c_width = 1;
-                if start <= pos && pos + c_width <= end {
-                    formatter.write_char(c)?;
-                }
-                pos += c_width;
-                if pos > end {
-                    // no need to iterate over the rest of s
-                    break;
-                }
+            continue;
+        } else if pos >= end {
+            continue;
+        }
+
+        for c in s.chars() {
+            #[cfg(feature = "unicode-width")]
+            let c_width = c.width().unwrap_or(0);
+            #[cfg(not(feature = "unicode-width"))]
+            let c_width = 1;
+            if start <= pos && pos + c_width <= end {
+                formatter.write_char(c)?;
+            }
+            pos += c_width;
+            if pos > end {
+                // no need to iterate over the rest of s
+                break;
             }
         }
     }
