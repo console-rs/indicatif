@@ -328,6 +328,11 @@ impl ProgressBar {
         state.update_estimate_and_draw(Instant::now());
     }
 
+    /// Sets the elapsed time for the progress bar
+    pub fn set_elapsed(&self, elapsed: Duration) {
+        self.state().state.started = Instant::now().checked_sub(elapsed).unwrap();
+    }
+
     /// Creates a new weak reference to this [`ProgressBar`]
     pub fn downgrade(&self) -> WeakProgressBar {
         WeakProgressBar {
