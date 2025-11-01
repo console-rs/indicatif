@@ -501,16 +501,11 @@ impl Debug for MultiStateMember {
 /// [0/100] progress bar 2   =>   [0/100] progress bar 1
 /// [0/100] progress bar 3        [0/100] progress bar 3
 /// ```
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub enum MultiProgressAlignment {
+    #[default]
     Top,
     Bottom,
-}
-
-impl Default for MultiProgressAlignment {
-    fn default() -> Self {
-        Self::Top
-    }
 }
 
 enum InsertLocation {

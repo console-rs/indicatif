@@ -611,7 +611,7 @@ const MAX_BURST: u8 = 10;
 /// [`ProgressBar`]: crate::ProgressBar
 /// [`ProgressBarIter`]: crate::ProgressBarIter
 /// [`ProgressBar::is_finished`]: crate::ProgressBar::is_finished
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub enum ProgressFinish {
     /// Finishes the progress bar and leaves the current message
     ///
@@ -624,6 +624,7 @@ pub enum ProgressFinish {
     /// Finishes the progress bar and completely clears it (this is the default)
     ///
     /// Same behavior as calling [`ProgressBar::finish_and_clear()`](crate::ProgressBar::finish_and_clear).
+    #[default]
     AndClear,
     /// Finishes the progress bar and leaves the current message and progress
     ///
@@ -633,12 +634,6 @@ pub enum ProgressFinish {
     ///
     /// Same behavior as calling [`ProgressBar::abandon_with_message()`](crate::ProgressBar::abandon_with_message).
     AbandonWithMessage(Cow<'static, str>),
-}
-
-impl Default for ProgressFinish {
-    fn default() -> Self {
-        Self::AndClear
-    }
 }
 
 /// Get the appropriate dilution weight for Estimator data given the data's age (in seconds)
