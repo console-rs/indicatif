@@ -23,6 +23,9 @@ jobs:
             rust: stable
             features: ""
           - os: ubuntu-latest
+            rust: stable
+            features: --no-default-features
+          - os: ubuntu-latest
             rust: beta
             features: --all-features
           - os: ubuntu-latest
