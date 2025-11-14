@@ -15,7 +15,7 @@ use web_time::Instant;
 use crate::draw_target::ProgressDrawTarget;
 use crate::state::{AtomicPosition, BarState, ProgressFinish, Reset, TabExpandedString};
 use crate::style::ProgressStyle;
-use crate::{ProgressBarIter, ProgressIterator, ProgressState};
+use crate::{iter, ProgressBarIter, ProgressIterator, ProgressState};
 
 /// A progress bar or spinner
 ///
@@ -498,6 +498,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: read,
+            dejitter: iter::MaxSeekHeuristic::default(),
         }
     }
 
@@ -519,6 +520,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: write,
+            dejitter: iter::MaxSeekHeuristic::default(),
         }
     }
 
@@ -545,6 +547,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: write,
+            dejitter: iter::MaxSeekHeuristic::default(),
         }
     }
 
@@ -568,6 +571,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: read,
+            dejitter: iter::MaxSeekHeuristic::default(),
         }
     }
 
@@ -590,6 +594,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: stream,
+            dejitter: iter::MaxSeekHeuristic::default(),
         }
     }
 
