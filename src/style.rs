@@ -1022,7 +1022,7 @@ mod tests {
 
     #[cfg(feature = "unicode-width")]
     #[test]
-    fn combinining_diacritical_truncation() {
+    fn combining_diacritical_truncation() {
         const WIDTH: u16 = 10;
         let pos = Arc::new(AtomicPosition::new());
         let mut state = ProgressState::new(Some(10), pos);
