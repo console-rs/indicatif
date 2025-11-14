@@ -1020,6 +1020,7 @@ mod tests {
         assert_eq!(&buf[0], "fghijklmno");
     }
 
+    #[cfg(feature = "unicode-width")]
     #[test]
     fn combinining_diacritical_truncation() {
         const WIDTH: u16 = 10;
