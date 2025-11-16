@@ -88,6 +88,16 @@ impl ProgressBar {
         self
     }
 
+    /// Get a clone of the current finish progress bar style.
+    pub fn finish_style(&self) -> Option<ProgressStyle> {
+        self.state().finish_style.clone()
+    }
+
+    /// A convenience builder-like function for a progress bar with a given style
+    pub fn with_finish_style(self, style: Option<ProgressStyle>) -> Self {
+        self.set_finish_style(style);
+        self
+    }
     /// A convenience builder-like function for a progress bar with a given tab width
     pub fn with_tab_width(self, tab_width: usize) -> Self {
         self.state().set_tab_width(tab_width);
@@ -162,6 +172,14 @@ impl ProgressBar {
             style.set_for_stderr()
         };
         state.set_style(style);
+    }
+
+    /// Overrides the stored finish style.
+    ///
+    /// Similar to style, but used only on finish
+    pub fn set_finish_style(&self, finish_style: Option<ProgressStyle>) {
+        let mut state = self.state();
+        state.set_finish_style(finish_style);
     }
 
     /// Sets the tab width (default: 8). All tabs will be expanded to this many spaces.
