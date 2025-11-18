@@ -62,7 +62,7 @@ where
 pub struct ProgressBarIter<T> {
     pub(crate) it: T,
     pub progress: ProgressBar,
-    pub(crate) dejitter: MaxSeekHeuristic,
+    pub(crate) seek_max: MaxSeekHeuristic,
 }
 
 impl<T> ProgressBarIter<T> {
@@ -157,7 +157,7 @@ impl<R: io::Read> io::Read for ProgressBarIter<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let inc = self.it.read(buf)?;
         self.progress.set_position(
-            self.dejitter
+            self.seek_max
                 .update_seq(self.progress.position(), inc as u64),
         );
         Ok(inc)
@@ -166,7 +166,7 @@ impl<R: io::Read> io::Read for ProgressBarIter<R> {
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         let inc = self.it.read_vectored(bufs)?;
         self.progress.set_position(
-            self.dejitter
+            self.seek_max
                 .update_seq(self.progress.position(), inc as u64),
         );
         Ok(inc)
@@ -175,7 +175,7 @@ impl<R: io::Read> io::Read for ProgressBarIter<R> {
     fn read_to_string(&mut self, buf: &mut String) -> io::Result<usize> {
         let inc = self.it.read_to_string(buf)?;
         self.progress.set_position(
-            self.dejitter
+            self.seek_max
                 .update_seq(self.progress.position(), inc as u64),
         );
         Ok(inc)
@@ -184,7 +184,7 @@ impl<R: io::Read> io::Read for ProgressBarIter<R> {
     fn read_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
         self.it.read_exact(buf)?;
         self.progress.set_position(
-            self.dejitter
+            self.seek_max
                 .update_seq(self.progress.position(), buf.len() as u64),
         );
         Ok(())
@@ -199,7 +199,7 @@ impl<R: io::BufRead> io::BufRead for ProgressBarIter<R> {
     fn consume(&mut self, amt: usize) {
         self.it.consume(amt);
         self.progress.set_position(
-            self.dejitter
+            self.seek_max
                 .update_seq(self.progress.position(), amt.try_into().unwrap()),
         );
     }
@@ -213,7 +213,7 @@ impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
             if let io::SeekFrom::Current(0) = f {
                 pos
             } else {
-                self.progress.set_position(self.dejitter.update_seek(pos));
+                self.progress.set_position(self.seek_max.update_seek(pos));
                 pos
             }
         })
@@ -353,7 +353,7 @@ impl<W: tokio::io::AsyncWrite + Unpin> tokio::io::AsyncWrite for ProgressBarIter
         Pin::new(&mut self.it).poll_write(cx, buf).map(|poll| {
             poll.map(|inc| {
                 let oldprog = self.progress.position();
-                let newprog = self.dejitter.update_seq(oldprog, inc.try_into().unwrap());
+                let newprog = self.seek_max.update_seq(oldprog, inc.try_into().unwrap());
                 self.progress.set_position(newprog);
                 inc
             })
@@ -382,7 +382,7 @@ impl<W: tokio::io::AsyncRead + Unpin> tokio::io::AsyncRead for ProgressBarIter<W
         if let Poll::Ready(_e) = &poll {
             let inc = buf.filled().len() as u64 - prev_len;
             let oldprog = self.progress.position();
-            let newprog = self.dejitter.update_seq(oldprog, inc);
+            let newprog = self.seek_max.update_seq(oldprog, inc);
             self.progress.set_position(newprog);
         }
         poll
@@ -399,7 +399,7 @@ impl<W: tokio::io::AsyncSeek + Unpin> tokio::io::AsyncSeek for ProgressBarIter<W
     fn poll_complete(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<u64>> {
         let poll = Pin::new(&mut self.it).poll_complete(cx);
         if let Poll::Ready(Ok(pos)) = &poll {
-            let newpos = self.dejitter.update_seek(*pos);
+            let newpos = self.seek_max.update_seek(*pos);
             self.progress.set_position(newpos);
         }
 
@@ -420,7 +420,7 @@ impl<W: tokio::io::AsyncBufRead + Unpin + tokio::io::AsyncRead> tokio::io::Async
     fn consume(mut self: Pin<&mut Self>, amt: usize) {
         Pin::new(&mut self.it).consume(amt);
         let oldprog = self.progress.position();
-        let newprog = self.dejitter.update_seq(oldprog, amt.try_into().unwrap());
+        let newprog = self.seek_max.update_seq(oldprog, amt.try_into().unwrap());
         self.progress.set_position(newprog);
     }
 }
@@ -449,7 +449,7 @@ impl<W: io::Write> io::Write for ProgressBarIter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.it.write(buf).map(|inc| {
             self.progress.set_position(
-                self.dejitter
+                self.seek_max
                     .update_seq(self.progress.position(), inc as u64),
             );
             inc
@@ -459,7 +459,7 @@ impl<W: io::Write> io::Write for ProgressBarIter<W> {
     fn write_vectored(&mut self, bufs: &[io::IoSlice]) -> io::Result<usize> {
         self.it.write_vectored(bufs).map(|inc| {
             self.progress.set_position(
-                self.dejitter
+                self.seek_max
                     .update_seq(self.progress.position(), inc as u64),
             );
             inc
@@ -480,7 +480,7 @@ impl<S, T: Iterator<Item = S>> ProgressIterator for T {
         ProgressBarIter {
             it: self,
             progress,
-            dejitter: MaxSeekHeuristic::default(),
+            seek_max: MaxSeekHeuristic::default(),
         }
     }
 }

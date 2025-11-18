@@ -44,7 +44,7 @@ impl<S: Send, T: ParallelIterator<Item = S>> ParallelProgressIterator for T {
         ProgressBarIter {
             it: self,
             progress,
-            dejitter: MaxSeekHeuristic::default(),
+            seek_max: MaxSeekHeuristic::default(),
         }
     }
 }
@@ -103,7 +103,7 @@ impl<T, P: Producer<Item = T>> Producer for ProgressProducer<P> {
         ProgressBarIter {
             it: self.base.into_iter(),
             progress: self.progress,
-            dejitter: MaxSeekHeuristic::default(),
+            seek_max: MaxSeekHeuristic::default(),
         }
     }
 

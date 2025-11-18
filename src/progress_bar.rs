@@ -498,7 +498,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: read,
-            dejitter: iter::MaxSeekHeuristic::default(),
+            seek_max: iter::MaxSeekHeuristic::default(),
         }
     }
 
@@ -520,7 +520,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: write,
-            dejitter: iter::MaxSeekHeuristic::default(),
+            seek_max: iter::MaxSeekHeuristic::default(),
         }
     }
 
@@ -547,7 +547,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: write,
-            dejitter: iter::MaxSeekHeuristic::default(),
+            seek_max: iter::MaxSeekHeuristic::default(),
         }
     }
 
@@ -571,7 +571,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: read,
-            dejitter: iter::MaxSeekHeuristic::default(),
+            seek_max: iter::MaxSeekHeuristic::default(),
         }
     }
 
@@ -594,7 +594,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: stream,
-            dejitter: iter::MaxSeekHeuristic::default(),
+            seek_max: iter::MaxSeekHeuristic::default(),
         }
     }
 
