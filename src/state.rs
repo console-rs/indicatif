@@ -313,8 +313,8 @@ impl ProgressState {
 
     /// The expected total duration (that is, elapsed time + expected ETA)
     pub fn duration(&self) -> Duration {
-        match (&self.status, self.len) {
-            (Status::DoneVisible(duration) | Status::DoneHidden(duration), _) => *duration,
+        match (self.status, self.len) {
+            (Status::DoneVisible(duration) | Status::DoneHidden(duration), _) => duration,
             (Status::InProgress, Some(_)) => self.started.elapsed().saturating_add(self.eta()),
             (Status::InProgress, None) => Duration::ZERO,
         }
@@ -677,7 +677,7 @@ fn secs_to_duration(s: f64) -> Duration {
     Duration::new(secs, nanos)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) enum Status {
     InProgress,
     DoneVisible(Duration),
