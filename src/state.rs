@@ -842,7 +842,7 @@ mod tests {
         );
     }
 
-    fn state_started_at(start_at: Instant) -> BarState {
+    fn state_started_at(started: Instant) -> BarState {
         BarState {
             draw_target: ProgressDrawTarget::hidden(),
             on_finish: ProgressFinish::default(),
@@ -853,8 +853,8 @@ mod tests {
                     len: None,
                     tick: 0,
                     status: Status::InProgress,
-                    started: start_at,
-                    est: Estimator::new(start_at),
+                    started,
+                    est: Estimator::new(started),
                     message: TabExpandedString::NoTabs("".into()),
                     prefix: TabExpandedString::NoTabs("".into()),
                 }
