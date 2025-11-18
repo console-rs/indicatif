@@ -38,7 +38,8 @@ impl BarState {
     /// Finishes the progress bar using the [`ProgressFinish`] behavior stored
     /// in the [`ProgressStyle`].
     pub(crate) fn finish_using_style(&mut self, now: Instant, finish: ProgressFinish) {
-        self.state.status = Status::DoneVisible;
+        let duration = now.duration_since(self.state.started);
+        self.state.status = Status::DoneVisible(duration);
         match finish {
             ProgressFinish::AndLeave => {
                 if let Some(len) = self.state.len {
@@ -55,7 +56,7 @@ impl BarState {
                 if let Some(len) = self.state.len {
                     self.state.pos.set(len);
                 }
-                self.state.status = Status::DoneHidden;
+                self.state.status = Status::DoneHidden(duration);
             }
             ProgressFinish::Abandon => {}
             ProgressFinish::AbandonWithMessage(msg) => {
@@ -165,7 +166,7 @@ impl BarState {
         }
 
         if let Some(width) = width {
-            if !matches!(self.state.status, Status::DoneHidden) {
+            if !matches!(self.state.status, Status::DoneHidden(_)) {
                 self.style
                     .format_state(&self.state, &mut draw_state.lines, width);
             }
@@ -204,7 +205,7 @@ impl BarState {
         let mut draw_state = drawable.state();
 
         if let Some(width) = width {
-            if !matches!(self.state.status, Status::DoneHidden) {
+            if !matches!(self.state.status, Status::DoneHidden(_)) {
                 self.style
                     .format_state(&self.state, &mut draw_state.lines, width);
             }
@@ -269,8 +270,8 @@ impl ProgressState {
     pub fn is_finished(&self) -> bool {
         match self.status {
             Status::InProgress => false,
-            Status::DoneVisible => true,
-            Status::DoneHidden => true,
+            Status::DoneVisible(_) => true,
+            Status::DoneHidden(_) => true,
         }
     }
 
@@ -312,10 +313,17 @@ impl ProgressState {
 
     /// The expected total duration (that is, elapsed time + expected ETA)
     pub fn duration(&self) -> Duration {
-        if self.len.is_none() || self.is_finished() {
-            return Duration::new(0, 0);
+        match self.status {
+            Status::InProgress => {
+                if self.len.is_none() {
+                    return Duration::new(0, 0);
+                } else {
+                    self.started.elapsed().saturating_add(self.eta())
+                }
+            }
+            Status::DoneVisible(duration) => duration,
+            Status::DoneHidden(duration) => duration,
         }
-        self.started.elapsed().saturating_add(self.eta())
     }
 
     /// The number of steps per second
@@ -678,8 +686,8 @@ fn secs_to_duration(s: f64) -> Duration {
 #[derive(Debug)]
 pub(crate) enum Status {
     InProgress,
-    DoneVisible,
-    DoneHidden,
+    DoneVisible(Duration),
+    DoneHidden(Duration),
 }
 
 pub(crate) const DEFAULT_TAB_WIDTH: usize = 8;
@@ -688,6 +696,30 @@ pub(crate) const DEFAULT_TAB_WIDTH: usize = 8;
 mod tests {
     use super::*;
     use crate::ProgressBar;
+
+    impl BarState {
+        /// Custom constructor for testing duration on finish
+        fn with_start_at(start_at: Instant) -> Self {
+            BarState {
+                draw_target: ProgressDrawTarget::hidden(),
+                on_finish: ProgressFinish::default(),
+                style: ProgressStyle::default_bar(),
+                state: {
+                    ProgressState {
+                        pos: Arc::new(AtomicPosition::new()),
+                        len: None,
+                        tick: 0,
+                        status: Status::InProgress,
+                        started: start_at,
+                        est: Estimator::new(start_at),
+                        message: TabExpandedString::NoTabs("".into()),
+                        prefix: TabExpandedString::NoTabs("".into()),
+                    }
+                },
+                tab_width: DEFAULT_TAB_WIDTH,
+            }
+        }
+    }
 
     // https://github.com/rust-lang/rust-clippy/issues/10281
     #[allow(clippy::uninlined_format_args)]
@@ -804,6 +836,40 @@ mod tests {
         let duration = Duration::new(42, 100_000_000);
         let secs = duration_to_secs(duration);
         assert_eq!(secs_to_duration(secs), duration);
+    }
+
+    #[test]
+    fn test_duration_after_finish_and_leave() {
+        let duration = Duration::from_secs(42);
+        let now = Instant::now();
+
+        let mut state = BarState::with_start_at(now - duration);
+        state.finish_using_style(now, ProgressFinish::AndLeave);
+
+        assert_eq!(
+            state.state.duration(),
+            duration,
+            "Expected duration: {}, actual: {}",
+            duration_to_secs(duration),
+            duration_to_secs(state.state.duration())
+        );
+    }
+
+    #[test]
+    fn test_duration_after_finish_and_clear() {
+        let duration = Duration::from_secs(42);
+        let now = Instant::now();
+
+        let mut state = BarState::with_start_at(now - duration);
+        state.finish_using_style(now, ProgressFinish::AndClear);
+
+        assert_eq!(
+            state.state.duration(),
+            duration,
+            "Expected duration: {}, actual: {}",
+            duration_to_secs(duration),
+            duration_to_secs(state.state.duration())
+        );
     }
 
     #[test]
