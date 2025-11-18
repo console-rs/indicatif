@@ -332,9 +332,9 @@ impl<W: tokio::io::AsyncWrite + Unpin> tokio::io::AsyncWrite for ProgressBarIter
     ) -> Poll<io::Result<usize>> {
         Pin::new(&mut self.it).poll_write(cx, buf).map(|poll| {
             poll.map(|inc| {
-                let oldprog = self.progress.position();
-                let newprog = self.seek_max.update_seq(oldprog, inc.try_into().unwrap());
-                self.progress.set_position(newprog);
+                let pos = self.progress.position();
+                let new = self.seek_max.update_seq(pos, inc as u64);
+                self.progress.set_position(new);
                 inc
             })
         })
@@ -361,9 +361,9 @@ impl<W: tokio::io::AsyncRead + Unpin> tokio::io::AsyncRead for ProgressBarIter<W
         let poll = Pin::new(&mut self.it).poll_read(cx, buf);
         if let Poll::Ready(_e) = &poll {
             let inc = buf.filled().len() as u64 - prev_len;
-            let oldprog = self.progress.position();
-            let newprog = self.seek_max.update_seq(oldprog, inc);
-            self.progress.set_position(newprog);
+            let pos = self.progress.position();
+            let new = self.seek_max.update_seq(pos, inc);
+            self.progress.set_position(new);
         }
         poll
     }
@@ -379,8 +379,8 @@ impl<W: tokio::io::AsyncSeek + Unpin> tokio::io::AsyncSeek for ProgressBarIter<W
     fn poll_complete(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<u64>> {
         let poll = Pin::new(&mut self.it).poll_complete(cx);
         if let Poll::Ready(Ok(pos)) = &poll {
-            let newpos = self.seek_max.update_seek(*pos);
-            self.progress.set_position(newpos);
+            let new = self.seek_max.update_seek(*pos);
+            self.progress.set_position(new);
         }
 
         poll
@@ -399,9 +399,9 @@ impl<W: tokio::io::AsyncBufRead + Unpin + tokio::io::AsyncRead> tokio::io::Async
 
     fn consume(mut self: Pin<&mut Self>, amt: usize) {
         Pin::new(&mut self.it).consume(amt);
-        let oldprog = self.progress.position();
-        let newprog = self.seek_max.update_seq(oldprog, amt.try_into().unwrap());
-        self.progress.set_position(newprog);
+        let pos = self.progress.position();
+        let new = self.seek_max.update_seq(pos, amt as u64);
+        self.progress.set_position(new);
     }
 }
 
