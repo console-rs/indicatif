@@ -313,16 +313,10 @@ impl ProgressState {
 
     /// The expected total duration (that is, elapsed time + expected ETA)
     pub fn duration(&self) -> Duration {
-        match self.status {
-            Status::InProgress => {
-                if self.len.is_none() {
-                    Duration::new(0, 0)
-                } else {
-                    self.started.elapsed().saturating_add(self.eta())
-                }
-            }
-            Status::DoneVisible(duration) => duration,
-            Status::DoneHidden(duration) => duration,
+        match (&self.status, self.len) {
+            (Status::DoneVisible(duration) | Status::DoneHidden(duration), _) => *duration,
+            (Status::InProgress, Some(_)) => self.started.elapsed().saturating_add(self.eta()),
+            (Status::InProgress, None) => Duration::ZERO,
         }
     }
 
@@ -697,30 +691,6 @@ mod tests {
     use super::*;
     use crate::ProgressBar;
 
-    impl BarState {
-        /// Custom constructor for testing duration on finish
-        fn with_start_at(start_at: Instant) -> Self {
-            BarState {
-                draw_target: ProgressDrawTarget::hidden(),
-                on_finish: ProgressFinish::default(),
-                style: ProgressStyle::default_bar(),
-                state: {
-                    ProgressState {
-                        pos: Arc::new(AtomicPosition::new()),
-                        len: None,
-                        tick: 0,
-                        status: Status::InProgress,
-                        started: start_at,
-                        est: Estimator::new(start_at),
-                        message: TabExpandedString::NoTabs("".into()),
-                        prefix: TabExpandedString::NoTabs("".into()),
-                    }
-                },
-                tab_width: DEFAULT_TAB_WIDTH,
-            }
-        }
-    }
-
     // https://github.com/rust-lang/rust-clippy/issues/10281
     #[allow(clippy::uninlined_format_args)]
     #[test]
@@ -843,7 +813,7 @@ mod tests {
         let duration = Duration::from_secs(42);
         let now = Instant::now();
 
-        let mut state = BarState::with_start_at(now - duration);
+        let mut state = state_started_at(now - duration);
         state.finish_using_style(now, ProgressFinish::AndLeave);
 
         assert_eq!(
@@ -860,7 +830,7 @@ mod tests {
         let duration = Duration::from_secs(42);
         let now = Instant::now();
 
-        let mut state = BarState::with_start_at(now - duration);
+        let mut state = state_started_at(now - duration);
         state.finish_using_style(now, ProgressFinish::AndClear);
 
         assert_eq!(
@@ -870,6 +840,27 @@ mod tests {
             duration_to_secs(duration),
             duration_to_secs(state.state.duration())
         );
+    }
+
+    fn state_started_at(start_at: Instant) -> BarState {
+        BarState {
+            draw_target: ProgressDrawTarget::hidden(),
+            on_finish: ProgressFinish::default(),
+            style: ProgressStyle::default_bar(),
+            state: {
+                ProgressState {
+                    pos: Arc::new(AtomicPosition::new()),
+                    len: None,
+                    tick: 0,
+                    status: Status::InProgress,
+                    started: start_at,
+                    est: Estimator::new(start_at),
+                    message: TabExpandedString::NoTabs("".into()),
+                    prefix: TabExpandedString::NoTabs("".into()),
+                }
+            },
+            tab_width: DEFAULT_TAB_WIDTH,
+        }
     }
 
     #[test]
