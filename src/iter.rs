@@ -236,18 +236,18 @@ pub(crate) struct SeekMax<const RESET: u8 = 5, const HISTORY: usize = 10> {
 impl<const RESET: u8, const HISTORY: usize> SeekMax<RESET, HISTORY> {
     fn update_seq(&mut self, prev_pos: u64, delta: u64) -> u64 {
         let new_pos = prev_pos + delta;
-        if let Some((buf, seq)) = &mut self.buf {
-            *seq += 1;
-            if *seq >= RESET {
-                self.buf = None;
-                return new_pos;
-            }
+        let Some((buf, seq)) = &mut self.buf else {
+            return new_pos;
+        };
 
-            buf.update(new_pos);
-            buf.max()
-        } else {
-            new_pos
+        *seq += 1;
+        if *seq >= RESET {
+            self.buf = None;
+            return new_pos;
         }
+
+        buf.update(new_pos);
+        buf.max()
     }
 
     fn update_seek(&mut self, newpos: u64) -> u64 {
