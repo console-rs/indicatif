@@ -226,8 +226,8 @@ impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
 
 /// Calculates a more stable visual position from jittery seeks to show to the user.
 ///
-/// It does so by holding the maximum position encountered out of the last HISTORY read/write positions.
-/// As an optimization it deallocates the history when only sequential operations are performed RESET times in a row.
+/// Holds the maximum position encountered out of the last HISTORY read/write positions.
+/// Drops history when only sequential operations are performed RESET times in a row.
 #[derive(Debug, Default)]
 pub(crate) struct SeekMax<const RESET: u8 = 5, const HISTORY: usize = 10> {
     buf: Option<(Box<MaxRingBuf<HISTORY>>, u8)>,
@@ -261,41 +261,27 @@ impl<const RESET: u8, const HISTORY: usize> SeekMax<RESET, HISTORY> {
 }
 
 /// Ring buffer that remembers the maximum contained value.
-///
-/// can be used to quickly calculate the maximum value of a history of data points.
 #[derive(Debug)]
 struct MaxRingBuf<const HISTORY: usize = 10> {
     history: [u64; HISTORY],
-    // invariant_h: always a valid index into history
-    head: u8,
-    // invariant_m: always a valid index into history
-    max_pos: u8,
+    head: u8,    // must be < HISTORY
+    max_pos: u8, // must be < HISTORY
 }
 
 impl<const HISTORY: usize> MaxRingBuf<HISTORY> {
-    /// Adds a value to the history.
-    /// Updates internal bookkeeping to remember the maximum value.
+    /// Updates internal bookkeeping to remember the maximum value
     ///
-    /// # Performance:
-    /// amortized O(1):
-    /// each regular update is O(1).
-    /// Only updates that overwrite the position the maximum was stored in with a smaller number do a seek of the buffer,
-    /// searching for the new maximum.
-    /// This only happens on average each 1/HISTORY and has a cost of HISTORY,
-    /// therefore amortizing to O(1).
+    /// Updates that overwrite the position the maximum was stored in with a smaller number do a
+    /// seek of the buffer, searching for the new maximum. This only happens on average each
+    /// 1 / HISTORY and has a cost of HISTORY, therefore amortizing to O(1).
     ///
-    /// In case there is some linear increase with jitter,
-    ///   as expected in this specific use-case,
+    /// In case there is some linear increase with jitter, as expected in this specific use-case,
     /// as long as there is one bigger update each HISTORY updates the scan is never triggered at all.
     ///
     /// Worst case would be linearly decreasing values, which is still O(1).
     fn update(&mut self, new: u64) {
-        // exploit invariant_h to eliminate bounds checks & panic code path
         let head = usize::from(self.head) % self.history.len();
-        // exploit invariant_m to eliminate bounds checks & panic code path
         let max_pos = usize::from(self.max_pos) % self.history.len();
-
-        // save max now in case it gets overwritten in the next line
         let prev_max = self.history[max_pos];
         self.history[head] = new;
 
@@ -312,15 +298,12 @@ impl<const HISTORY: usize> MaxRingBuf<HISTORY> {
                 .max_by_key(|(_, v)| *v)
                 .expect("array has fixded size > 0");
             // invariant_m: idx is from an enumeration of history
-            self.max_pos = idx.try_into().expect("history.len() <= u8::MAX");
+            self.max_pos = idx as u8;
         }
 
-        // invariant_h: head is kept in bounds by %-ing with history.len()
-        //     it is a ring buffer so wrapping around is expected behaviour.
         self.head = (self.head + 1) % (self.history.len() as u8);
     }
 
-    /// Returns the maximum value out of the memorized entries
     fn max(&self) -> u64 {
         // exploit invariant_m to eliminate bounds checks & panic code path
         self.history[self.max_pos as usize % self.history.len()]
@@ -333,9 +316,7 @@ impl<const HISTORY: usize> Default for MaxRingBuf<HISTORY> {
         assert!(HISTORY > 0);
         Self {
             history: [0; HISTORY],
-            // invariant_h: we asserted that history has at least one element, therefore index 0 is valid
             head: 0,
-            // invariant_m: we asserted that history has at least one element, therefore index 0 is valid
             max_pos: 0,
         }
     }
