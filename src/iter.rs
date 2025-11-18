@@ -62,7 +62,7 @@ where
 pub struct ProgressBarIter<T> {
     pub(crate) it: T,
     pub progress: ProgressBar,
-    pub(crate) seek_max: MaxSeekHeuristic,
+    pub(crate) seek_max: SeekMax,
 }
 
 impl<T> ProgressBarIter<T> {
@@ -230,11 +230,11 @@ impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
 /// It does so by holding the maximum position encountered out of the last HISTORY read/write positions.
 /// As an optimization it deallocates the history when only sequential operations are performed RESET times in a row.
 #[derive(Debug, Default)]
-pub(crate) struct MaxSeekHeuristic<const RESET: u8 = 5, const HISTORY: usize = 10> {
+pub(crate) struct SeekMax<const RESET: u8 = 5, const HISTORY: usize = 10> {
     buf: Option<(Box<MaxRingBuf<HISTORY>>, u8)>,
 }
 
-impl<const RESET: u8, const HISTORY: usize> MaxSeekHeuristic<RESET, HISTORY> {
+impl<const RESET: u8, const HISTORY: usize> SeekMax<RESET, HISTORY> {
     fn update_seq(&mut self, prev_pos: u64, delta: u64) -> u64 {
         let new_pos = prev_pos + delta;
         if let Some((buf, seq)) = &mut self.buf {
@@ -480,7 +480,7 @@ impl<S, T: Iterator<Item = S>> ProgressIterator for T {
         ProgressBarIter {
             it: self,
             progress,
-            seek_max: MaxSeekHeuristic::default(),
+            seek_max: SeekMax::default(),
         }
     }
 }
