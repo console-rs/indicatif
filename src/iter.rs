@@ -208,14 +208,13 @@ impl<R: io::BufRead> io::BufRead for ProgressBarIter<R> {
 impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
     fn seek(&mut self, f: io::SeekFrom) -> io::Result<u64> {
         self.it.seek(f).map(|pos| {
-            // this kind of seek is used to find the current position, but does not alter it
-            // generally equivalent to stream_position()
-            if let io::SeekFrom::Current(0) = f {
-                pos
-            } else {
+            if f != io::SeekFrom::Current(0) {
+                // this kind of seek is used to find the current position, but does not alter it
+                // generally equivalent to stream_position()
                 self.progress.set_position(self.seek_max.update_seek(pos));
-                pos
             }
+
+            pos
         })
     }
     // Pass this through to preserve optimizations that the inner I/O object may use here
