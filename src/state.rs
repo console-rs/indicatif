@@ -316,7 +316,7 @@ impl ProgressState {
         match self.status {
             Status::InProgress => {
                 if self.len.is_none() {
-                    return Duration::new(0, 0);
+                    Duration::new(0, 0)
                 } else {
                     self.started.elapsed().saturating_add(self.eta())
                 }
