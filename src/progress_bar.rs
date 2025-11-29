@@ -628,6 +628,11 @@ impl ProgressBar {
         self.state().state.elapsed()
     }
 
+    /// Returns the current tab width
+    pub fn tab_width(&self) -> usize {
+        self.state().tab_width
+    }
+
     /// Index in the `MultiState`
     pub(crate) fn index(&self) -> Option<usize> {
         self.state().draw_target.remote().map(|(_, idx)| idx)
