@@ -82,6 +82,11 @@ impl ProgressDrawTarget {
     }
 
     /// Draw to a boxed object that implements the [`TermLike`] trait.
+    ///
+    /// Warning: unlike `stdout()`, `stderr()` and `term()`, this method does not set a default
+    /// refresh rate. For most uses, consider using `term_like_with_hz()` instead.
+    ///
+    /// (indicatif defaults to a refresh rate of 20 times per second in other methods.)
     pub fn term_like(term_like: Box<dyn TermLike>) -> Self {
         Self {
             kind: TargetKind::TermLike {
