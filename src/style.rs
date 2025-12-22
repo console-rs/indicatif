@@ -304,7 +304,11 @@ impl ProgressStyle {
                                 buf.write_fmt(format_args!("{}", HumanCount(len))).unwrap();
                             }
                             "percent" => buf
-                                .write_fmt(format_args!("{:.*}", 0, state.fraction() * 100f32))
+                                .write_fmt(format_args!(
+                                    "{:.*}",
+                                    0,
+                                    (state.fraction() * 100f32).floor()
+                                ))
                                 .unwrap(),
                             "percent_precise" => buf
                                 .write_fmt(format_args!("{:.*}", 3, state.fraction() * 100f32))
@@ -1177,5 +1181,44 @@ mod tests {
         assert_eq!(&buf[1], "prefix foo");
         assert_eq!(&buf[2], "bar");
         assert_eq!(&buf[3], "baz");
+    }
+
+    #[test]
+    fn test_pct_precision() {
+        // seeing something that's not finished as 100% hurts my eyes
+        const WIDTH: u16 = 80;
+        let pos = Arc::new(AtomicPosition::new());
+        pos.set(358);
+        let state = ProgressState::new(Some(359), pos.clone());
+
+        let style = ProgressStyle::default_bar()
+            .template(&format!("{{pos}}/{{len}} {{percent}}%"))
+            .unwrap();
+        let mut buf = Vec::new();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "358/359 99%");
+        buf.clear();
+        pos.set(359);
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "359/359 100%");
+    }
+
+    #[test]
+    fn test_pct_precise_precision() {
+        const WIDTH: u16 = 80;
+        let pos = Arc::new(AtomicPosition::new());
+        pos.set(999999);
+        let state = ProgressState::new(Some(1000000), pos.clone());
+
+        let style = ProgressStyle::default_bar()
+            .template(&format!("{{pos}}/{{len}} {{percent_precise}}%"))
+            .unwrap();
+        let mut buf = Vec::new();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "999999/1000000 100.000%");
+        buf.clear();
+        pos.set(1000000);
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "1000000/1000000 100.000%");
     }
 }
