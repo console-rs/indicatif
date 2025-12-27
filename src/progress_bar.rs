@@ -634,7 +634,7 @@ impl ProgressBar {
     }
 
     /// Index in the `MultiState`
-    pub(crate) fn index(&self) -> Option<usize> {
+    pub fn index(&self) -> Option<usize> {
         self.state().draw_target.remote().map(|(_, idx)| idx)
     }
 
