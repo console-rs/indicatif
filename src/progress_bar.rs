@@ -15,7 +15,7 @@ use web_time::Instant;
 use crate::draw_target::ProgressDrawTarget;
 use crate::state::{AtomicPosition, BarState, ProgressFinish, Reset, TabExpandedString};
 use crate::style::ProgressStyle;
-use crate::{ProgressBarIter, ProgressIterator, ProgressState};
+use crate::{iter, ProgressBarIter, ProgressIterator, ProgressState};
 
 /// A progress bar or spinner
 ///
@@ -347,6 +347,11 @@ impl ProgressBar {
         state.update_estimate_and_draw(Instant::now());
     }
 
+    /// Sets the elapsed time for the progress bar
+    pub fn set_elapsed(&self, elapsed: Duration) {
+        self.state().state.started = Instant::now().checked_sub(elapsed).unwrap();
+    }
+
     /// Creates a new weak reference to this [`ProgressBar`]
     pub fn downgrade(&self) -> WeakProgressBar {
         WeakProgressBar {
@@ -512,6 +517,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: read,
+            seek_max: iter::SeekMax::default(),
         }
     }
 
@@ -533,6 +539,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: write,
+            seek_max: iter::SeekMax::default(),
         }
     }
 
@@ -559,6 +566,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: write,
+            seek_max: iter::SeekMax::default(),
         }
     }
 
@@ -582,6 +590,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: read,
+            seek_max: iter::SeekMax::default(),
         }
     }
 
@@ -604,6 +613,7 @@ impl ProgressBar {
         ProgressBarIter {
             progress: self.clone(),
             it: stream,
+            seek_max: iter::SeekMax::default(),
         }
     }
 
@@ -635,6 +645,11 @@ impl ProgressBar {
     /// Returns the current elapsed time
     pub fn elapsed(&self) -> Duration {
         self.state().state.elapsed()
+    }
+
+    /// Returns the current tab width
+    pub fn tab_width(&self) -> usize {
+        self.state().tab_width
     }
 
     /// Index in the `MultiState`
