@@ -12,7 +12,7 @@ fn main() {
 
     let pb = ProgressBar::new(1024)
         .with_style(style)
-        .with_finish_style(Some(finish_style))
+        .with_finish_style(finish_style)
         .with_finish(indicatif::ProgressFinish::AndLeave);
 
     for _ in 0..1024 {

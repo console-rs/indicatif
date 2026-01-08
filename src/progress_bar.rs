@@ -94,10 +94,11 @@ impl ProgressBar {
     }
 
     /// A convenience builder-like function for a progress bar with a given style
-    pub fn with_finish_style(self, style: Option<ProgressStyle>) -> Self {
-        self.set_finish_style(style);
+    pub fn with_finish_style(self, style: ProgressStyle) -> Self {
+        self.set_finish_style(Some(style));
         self
     }
+
     /// A convenience builder-like function for a progress bar with a given tab width
     pub fn with_tab_width(self, tab_width: usize) -> Self {
         self.state().set_tab_width(tab_width);
