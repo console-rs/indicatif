@@ -175,7 +175,7 @@ impl ProgressBar {
     ///
     /// When this is enabled a background thread will regularly tick the progress bar in the given
     /// interval. This is useful to advance progress bars that are very slow by themselves.
-    pub fn enable_steady_tick(&self, interval: Duration) {
+    pub fn enable_steady_tick(&self, interval: Duration, reaction: TickerReaction) {
         // The way we test for ticker termination is with a single static `AtomicBool`. Since cargo
         // runs tests concurrently, we have a `TICKER_TEST` lock to make sure tests using ticker
         // don't step on each other. This check catches attempts to use tickers in tests without
@@ -196,7 +196,7 @@ impl ProgressBar {
             return;
         }
 
-        self.stop_and_replace_ticker(Some(interval));
+        self.stop_and_replace_ticker(Some((interval, reaction)));
     }
 
     /// Undoes [`ProgressBar::enable_steady_tick()`]
@@ -204,13 +204,14 @@ impl ProgressBar {
         self.stop_and_replace_ticker(None);
     }
 
-    fn stop_and_replace_ticker(&self, interval: Option<Duration>) {
+    fn stop_and_replace_ticker(&self, interval: Option<(Duration, TickerReaction)>) {
         let mut ticker_state = self.ticker.lock().unwrap();
         if let Some(ticker) = ticker_state.take() {
             ticker.stop();
         }
 
-        *ticker_state = interval.map(|interval| Ticker::new(interval, &self.state));
+        *ticker_state =
+            interval.map(|(interval, reaction)| Ticker::new(interval, reaction, &self.state));
     }
 
     /// Manually ticks the spinner or progress bar
@@ -683,6 +684,16 @@ impl WeakProgressBar {
     }
 }
 
+/// Behavior of a steady ticker when its progress bar is ticked
+#[derive(Debug, Clone, Copy, Default)]
+pub enum TickerReaction {
+    /// Only ever tick when the interval has passed, ignoring manual ticks
+    #[default]
+    OnTimeout,
+    /// Immediately tick when done so manually, or after the interval has passed
+    Immediately,
+}
+
 pub(crate) struct Ticker {
     stopping: Arc<(Mutex<bool>, Condvar)>,
     join_handle: Option<thread::JoinHandle<()>>,
@@ -699,7 +710,11 @@ impl Drop for Ticker {
 static TICKER_RUNNING: AtomicBool = AtomicBool::new(false);
 
 impl Ticker {
-    pub(crate) fn new(interval: Duration, bar_state: &Arc<Mutex<BarState>>) -> Self {
+    pub(crate) fn new(
+        interval: Duration,
+        reaction: TickerReaction,
+        bar_state: &Arc<Mutex<BarState>>,
+    ) -> Self {
         debug_assert!(!interval.is_zero());
 
         // A `Mutex<bool>` is used as a flag to indicate whether the ticker was requested to stop.
@@ -712,7 +727,7 @@ impl Ticker {
             state: Arc::downgrade(bar_state),
         };
 
-        let join_handle = thread::spawn(move || control.run(interval));
+        let join_handle = thread::spawn(move || control.run(interval, reaction));
         Self {
             stopping,
             join_handle: Some(join_handle),
@@ -731,9 +746,11 @@ struct TickerControl {
 }
 
 impl TickerControl {
-    fn run(&self, interval: Duration) {
+    fn run(&self, interval: Duration, reaction: TickerReaction) {
         #[cfg(test)]
         TICKER_RUNNING.store(true, Ordering::SeqCst);
+
+        let mut last_tick = None;
 
         while let Some(arc) = self.state.upgrade() {
             let mut state = arc.lock().unwrap();
@@ -741,16 +758,44 @@ impl TickerControl {
                 break;
             }
 
-            state.tick(Instant::now());
+            let now = Instant::now();
+
+            let do_tick = match reaction {
+                TickerReaction::Immediately => true,
+                TickerReaction::OnTimeout => match last_tick {
+                    None => true,
+                    Some(last_tick) => {
+                        let passed = now - last_tick;
+                        passed >= interval
+                    }
+                },
+            };
+
+            if do_tick {
+                state.tick(now);
+                last_tick = Some(now);
+            }
 
             drop(state); // Don't forget to drop the lock before sleeping
             drop(arc); // Also need to drop Arc otherwise BarState won't be dropped
+
+            let timeout = match last_tick {
+                None => interval,
+                Some(last_tick) => {
+                    let next_tick = last_tick + interval;
+                    let Some(timeout) = next_tick.checked_duration_since(now) else {
+                        // do next tick right away
+                        continue;
+                    };
+                    timeout
+                }
+            };
 
             // Wait for `interval` but return early if we are notified
             let result = self
                 .stopping
                 .1
-                .wait_timeout(self.stopping.0.lock().unwrap(), interval)
+                .wait_timeout(self.stopping.0.lock().unwrap(), timeout)
                 .unwrap();
 
             // Stop the ticker when the mutex flag was set
@@ -839,7 +884,7 @@ mod tests {
         assert!(!TICKER_RUNNING.load(Ordering::SeqCst));
 
         let pb = ProgressBar::new_spinner();
-        pb.enable_steady_tick(Duration::from_millis(50));
+        pb.enable_steady_tick(Duration::from_millis(50), TickerReaction::default());
 
         // Give the thread time to start up
         thread::sleep(Duration::from_millis(250));
@@ -856,7 +901,7 @@ mod tests {
         assert!(!TICKER_RUNNING.load(Ordering::SeqCst));
 
         let pb = ProgressBar::new_spinner();
-        pb.enable_steady_tick(Duration::from_millis(50));
+        pb.enable_steady_tick(Duration::from_millis(50), TickerReaction::default());
         let pb2 = pb.clone();
 
         // Give the thread time to start up
