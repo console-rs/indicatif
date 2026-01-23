@@ -175,9 +175,6 @@ impl ProgressBar {
     ///
     /// When this is enabled a background thread will regularly tick the progress bar in the given
     /// interval. This is useful to advance progress bars that are very slow by themselves.
-    ///
-    /// When steady ticks are enabled, calling [`ProgressBar::tick()`] on a progress bar does not
-    /// have any effect.
     pub fn enable_steady_tick(&self, interval: Duration) {
         // The way we test for ticker termination is with a single static `AtomicBool`. Since cargo
         // runs tests concurrently, we have a `TICKER_TEST` lock to make sure tests using ticker
@@ -224,8 +221,10 @@ impl ProgressBar {
     }
 
     fn tick_inner(&self, now: Instant) {
-        // Only tick if a `Ticker` isn't installed
-        if self.ticker.lock().unwrap().is_none() {
+        // If a ticker thread is installed, notify it to do the ticking
+        if let Some(ref ticker) = *self.ticker.lock().unwrap() {
+            ticker.stopping.1.notify_one();
+        } else {
             self.state().tick(now);
         }
     }
@@ -747,17 +746,15 @@ impl TickerControl {
             drop(state); // Don't forget to drop the lock before sleeping
             drop(arc); // Also need to drop Arc otherwise BarState won't be dropped
 
-            // Wait for `interval` but return early if we are notified to stop
+            // Wait for `interval` but return early if we are notified
             let result = self
                 .stopping
                 .1
-                .wait_timeout_while(self.stopping.0.lock().unwrap(), interval, |stopped| {
-                    !*stopped
-                })
+                .wait_timeout(self.stopping.0.lock().unwrap(), interval)
                 .unwrap();
 
-            // If the wait didn't time out, it means we were notified to stop
-            if !result.1.timed_out() {
+            // Stop the ticker when the mutex flag was set
+            if *result.0 {
                 break;
             }
         }
