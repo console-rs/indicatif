@@ -1,11 +1,11 @@
 use std::thread;
 use std::time::Duration;
 
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle, TickerReaction};
 
 fn main() {
     let pb = ProgressBar::new_spinner();
-    pb.enable_steady_tick(Duration::from_millis(120));
+    pb.enable_steady_tick(Duration::from_millis(120), TickerReaction::default());
     pb.set_style(
         ProgressStyle::with_template("{spinner:.blue} {msg}")
             .unwrap()

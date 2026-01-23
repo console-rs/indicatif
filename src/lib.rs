@@ -61,10 +61,10 @@
 //!
 //! ```rust
 //! use std::time::Duration;
-//! use indicatif::ProgressBar;
+//! use indicatif::{ProgressBar, TickerReaction};
 //!
 //! let bar = ProgressBar::new_spinner();
-//! bar.enable_steady_tick(Duration::from_millis(100));
+//! bar.enable_steady_tick(Duration::from_millis(100), TickerReaction::default());
 //! // ... do some work
 //! bar.finish();
 //! ```
@@ -266,7 +266,7 @@ pub use crate::format::{
 pub use crate::in_memory::InMemoryTerm;
 pub use crate::iter::{ProgressBarIter, ProgressIterator};
 pub use crate::multi::{MultiProgress, MultiProgressAlignment};
-pub use crate::progress_bar::{ProgressBar, WeakProgressBar};
+pub use crate::progress_bar::{ProgressBar, TickerReaction, WeakProgressBar};
 #[cfg(feature = "rayon")]
 pub use crate::rayon::ParallelProgressIterator;
 pub use crate::state::{ProgressFinish, ProgressState};
