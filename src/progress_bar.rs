@@ -175,7 +175,11 @@ impl ProgressBar {
     ///
     /// When this is enabled a background thread will regularly tick the progress bar in the given
     /// interval. This is useful to advance progress bars that are very slow by themselves.
-    pub fn enable_steady_tick(&self, interval: Duration, reaction: TickerReaction) {
+    ///
+    /// When steady ticks are enabled, calling [`ProgressBar::tick()`] on a progress bar does not
+    /// have any effect. Consider using [`ProgressBar::enable_responsive_tick()`] when the progress
+    /// bar should update immediately instead.
+    pub fn enable_steady_tick(&self, interval: Duration) {
         // The way we test for ticker termination is with a single static `AtomicBool`. Since cargo
         // runs tests concurrently, we have a `TICKER_TEST` lock to make sure tests using ticker
         // don't step on each other. This check catches attempts to use tickers in tests without
@@ -196,10 +200,44 @@ impl ProgressBar {
             return;
         }
 
+        let reaction = TickerReaction::OnTimeout;
         self.stop_and_replace_ticker(Some((interval, reaction)));
     }
 
-    /// Undoes [`ProgressBar::enable_steady_tick()`]
+    /// Spawns a background thread to tick the progress bar
+    ///
+    /// When this is enabled a background thread will regularly tick the progress bar in the given
+    /// interval. This is useful to advance progress bars that are very slow by themselves.
+    ///
+    /// When responsive ticks are enabled, calling [`ProgressBar::tick()`] will immediately update
+    /// the progress bar. Consider using [`ProgressBar::enable_steady_tick()`] for a steady periodic
+    /// tick.
+    pub fn enable_responsive_tick(&self, interval: Duration) {
+        // The way we test for ticker termination is with a single static `AtomicBool`. Since cargo
+        // runs tests concurrently, we have a `TICKER_TEST` lock to make sure tests using ticker
+        // don't step on each other. This check catches attempts to use tickers in tests without
+        // acquiring the lock.
+        #[cfg(test)]
+        {
+            let guard = TICKER_TEST.try_lock();
+            let lock_acquired = guard.is_ok();
+            // Drop the guard before panicking to avoid poisoning the lock (which would cause other
+            // ticker tests to fail)
+            drop(guard);
+            if lock_acquired {
+                panic!("you must acquire the TICKER_TEST lock in your test to use this method");
+            }
+        }
+
+        if interval.is_zero() {
+            return;
+        }
+
+        let reaction = TickerReaction::Immediately;
+        self.stop_and_replace_ticker(Some((interval, reaction)));
+    }
+
+    /// Undoes both [`ProgressBar::enable_steady_tick()`] and [`ProgressBar::enable_responsive_tick()`]
     pub fn disable_steady_tick(&self) {
         self.stop_and_replace_ticker(None);
     }
@@ -685,10 +723,9 @@ impl WeakProgressBar {
 }
 
 /// Behavior of a steady ticker when its progress bar is ticked
-#[derive(Debug, Clone, Copy, Default)]
-pub enum TickerReaction {
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum TickerReaction {
     /// Only ever tick when the interval has passed, ignoring manual ticks
-    #[default]
     OnTimeout,
     /// Immediately tick when done so manually, or after the interval has passed
     Immediately,
@@ -791,7 +828,7 @@ impl TickerControl {
                 }
             };
 
-            // Wait for `interval` but return early if we are notified
+            // Wait for `timeout` but return early if we are notified
             let result = self
                 .stopping
                 .1
@@ -884,7 +921,7 @@ mod tests {
         assert!(!TICKER_RUNNING.load(Ordering::SeqCst));
 
         let pb = ProgressBar::new_spinner();
-        pb.enable_steady_tick(Duration::from_millis(50), TickerReaction::default());
+        pb.enable_steady_tick(Duration::from_millis(50));
 
         // Give the thread time to start up
         thread::sleep(Duration::from_millis(250));
@@ -901,7 +938,7 @@ mod tests {
         assert!(!TICKER_RUNNING.load(Ordering::SeqCst));
 
         let pb = ProgressBar::new_spinner();
-        pb.enable_steady_tick(Duration::from_millis(50), TickerReaction::default());
+        pb.enable_steady_tick(Duration::from_millis(50));
         let pb2 = pb.clone();
 
         // Give the thread time to start up

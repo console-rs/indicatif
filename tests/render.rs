@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use indicatif::{
     InMemoryTerm, MultiProgress, MultiProgressAlignment, ProgressBar, ProgressDrawTarget,
-    ProgressFinish, ProgressStyle, TermLike, TickerReaction,
+    ProgressFinish, ProgressStyle, TermLike,
 };
 use pretty_assertions::assert_eq;
 
@@ -504,7 +504,7 @@ fn ticker_drop() {
                 .with_finish(ProgressFinish::AndLeave)
                 .with_message(format!("doing stuff {i}")),
         );
-        new_spinner.enable_steady_tick(Duration::from_millis(100), TickerReaction::default());
+        new_spinner.enable_steady_tick(Duration::from_millis(100));
         spinner.replace(new_spinner);
     }
 
