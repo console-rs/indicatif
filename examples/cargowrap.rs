@@ -2,7 +2,7 @@ use std::io::{BufRead, BufReader};
 use std::process;
 use std::time::{Duration, Instant};
 
-use indicatif::{HumanDuration, ProgressBar, ProgressStyle, TickerReaction};
+use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 
 pub fn main() {
     let started = Instant::now();
@@ -10,7 +10,7 @@ pub fn main() {
     println!("Compiling package in release mode...");
 
     let pb = ProgressBar::new_spinner();
-    pb.enable_steady_tick(Duration::from_millis(200), TickerReaction::default());
+    pb.enable_steady_tick(Duration::from_millis(200));
     pb.set_style(
         ProgressStyle::with_template("{spinner:.dim.bold} cargo: {wide_msg}")
             .unwrap()
