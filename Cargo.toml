@@ -35,8 +35,9 @@ pretty_assertions = "1.4.0"
 web-time = { version = "1.1.0", optional = true }
 
 [features]
-default = ["unicode-width", "console/unicode-width", "wasmbind"]
-improved_unicode = ["unicode-segmentation", "unicode-width", "console/unicode-width"]
+default = ["unicode-width", "wasmbind"]
+unicode-width = ["dep:unicode-width", "console/unicode-width"]
+improved_unicode = ["unicode-segmentation", "unicode-width"]
 in_memory = ["vt100"]
 futures = ["dep:futures-core"]
 wasmbind = ["dep:web-time"]
