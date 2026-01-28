@@ -244,6 +244,9 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(unreachable_pub)]
 
+#[cfg(all(target_arch = "wasm32", not(feature = "wasmbind")))]
+compile_error!("The 'wasmbind' feature must be enabled when compiling for wasm32.");
+
 mod draw_target;
 mod format;
 #[cfg(feature = "in_memory")]

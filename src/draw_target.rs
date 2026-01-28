@@ -8,7 +8,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use console::{Term, TermTarget};
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "wasmbind"))]
 use web_time::Instant;
 
 use crate::multi::{MultiProgressAlignment, MultiState};

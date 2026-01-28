@@ -9,7 +9,7 @@ use std::{fmt, io, thread};
 
 #[cfg(test)]
 use once_cell::sync::Lazy;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "wasmbind"))]
 use web_time::Instant;
 
 use crate::draw_target::ProgressDrawTarget;
