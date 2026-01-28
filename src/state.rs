@@ -6,7 +6,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use portable_atomic::{AtomicU64, AtomicU8, Ordering};
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "wasmbind"))]
 use web_time::Instant;
 
 use crate::draw_target::{LineType, ProgressDrawTarget};
