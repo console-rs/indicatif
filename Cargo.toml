@@ -16,7 +16,7 @@ exclude = ["screenshots/*"]
 console = { version = "0.16", default-features = false, features = ["ansi-parsing", "std"] }
 futures-core = { version = "0.3", default-features = false, optional = true }
 unit-prefix = "0.5.1"
-portable-atomic = "1.12.0"
+portable-atomic = "1.13.1"
 rayon = { version = "1.1", optional = true }
 tokio = { version = "1", optional = true, features = ["io-util"] }
 unicode-segmentation = { version = "1", optional = true }
