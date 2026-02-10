@@ -207,14 +207,12 @@ impl<R: io::BufRead> io::BufRead for ProgressBarIter<R> {
 
 impl<S: io::Seek> io::Seek for ProgressBarIter<S> {
     fn seek(&mut self, f: io::SeekFrom) -> io::Result<u64> {
-        self.it.seek(f).map(|pos| {
+        self.it.seek(f).inspect(|&pos| {
             if f != io::SeekFrom::Current(0) {
                 // this kind of seek is used to find the current position, but does not alter it
                 // generally equivalent to stream_position()
                 self.progress.set_position(self.seek_max.update_seek(pos));
             }
-
-            pos
         })
     }
     // Pass this through to preserve optimizations that the inner I/O object may use here
@@ -331,11 +329,10 @@ impl<W: tokio::io::AsyncWrite + Unpin> tokio::io::AsyncWrite for ProgressBarIter
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
         Pin::new(&mut self.it).poll_write(cx, buf).map(|poll| {
-            poll.map(|inc| {
+            poll.inspect(|&inc| {
                 let pos = self.progress.position();
                 let new = self.seek_max.update_seq(pos, inc as u64);
                 self.progress.set_position(new);
-                inc
             })
         })
     }
@@ -427,22 +424,20 @@ impl<S: futures_core::Stream + Unpin> futures_core::Stream for ProgressBarIter<S
 
 impl<W: io::Write> io::Write for ProgressBarIter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.it.write(buf).map(|inc| {
+        self.it.write(buf).inspect(|&inc| {
             self.progress.set_position(
                 self.seek_max
                     .update_seq(self.progress.position(), inc as u64),
             );
-            inc
         })
     }
 
     fn write_vectored(&mut self, bufs: &[io::IoSlice]) -> io::Result<usize> {
-        self.it.write_vectored(bufs).map(|inc| {
+        self.it.write_vectored(bufs).inspect(|&inc| {
             self.progress.set_position(
                 self.seek_max
                     .update_seq(self.progress.position(), inc as u64),
             );
-            inc
         })
     }
 

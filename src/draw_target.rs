@@ -206,7 +206,7 @@ impl ProgressDrawTarget {
                 last_line_count,
                 rate_limiter,
                 draw_state,
-            } => match force_draw || rate_limiter.as_mut().map_or(true, |r| r.allow(now)) {
+            } => match force_draw || rate_limiter.as_mut().is_none_or(|r| r.allow(now)) {
                 true => Some(Drawable::TermLike {
                     term_like: &**inner,
                     last_line_count,
