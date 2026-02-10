@@ -6,7 +6,7 @@ use std::time::Duration;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use once_cell::sync::Lazy;
 use rand::rngs::ThreadRng;
-use rand::{Rng, RngCore};
+use rand::{Rng, RngExt};
 
 #[derive(Debug, Clone)]
 enum Action {
@@ -150,7 +150,7 @@ fn main() {
 }
 
 /// The function guarantees to return the action, that is valid for the current tree.
-fn get_action(rng: &mut dyn RngCore, tree: &Mutex<Vec<&Elem>>) -> Option<Action> {
+fn get_action(rng: &mut dyn Rng, tree: &Mutex<Vec<&Elem>>) -> Option<Action> {
     let elem_len = ELEMENTS.len() as u64;
     let list_len = tree.lock().unwrap().len() as u64;
     let sum_free = tree

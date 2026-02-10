@@ -9,7 +9,7 @@ use console::style;
 use indicatif::{MultiProgress, MultiProgressAlignment, ProgressBar, ProgressStyle};
 use once_cell::sync::Lazy;
 use rand::rngs::ThreadRng;
-use rand::{Rng, RngCore};
+use rand::{Rng, RngExt};
 
 #[derive(Debug, Clone)]
 enum Action {
@@ -254,7 +254,7 @@ pub fn main() {
 }
 
 /// The function guarantees to return the action, that is valid for the current tree.
-fn get_action(rng: &mut dyn RngCore, items: &[&Item]) -> Action {
+fn get_action(rng: &mut dyn Rng, items: &[&Item]) -> Action {
     let elem_idx = ELEM_IDX.load(Ordering::SeqCst);
     // the indices of those items, that not completed yet
     let uncompleted = items
