@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use console::{style, Emoji};
 use indicatif::{HumanDuration, MultiProgress, ProgressBar, ProgressStyle};
 use rand::prelude::IndexedRandom;
-use rand::Rng;
+use rand::RngExt;
 
 static PACKAGES: &[&str] = &[
     "fs-events",
