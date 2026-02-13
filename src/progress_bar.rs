@@ -722,15 +722,6 @@ impl WeakProgressBar {
     }
 }
 
-/// Behavior of a steady ticker when its progress bar is ticked
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum TickerReaction {
-    /// Only ever tick when the interval has passed, ignoring manual ticks
-    OnTimeout,
-    /// Immediately tick when done so manually, or after the interval has passed
-    Immediately,
-}
-
 pub(crate) struct Ticker {
     stopping: Arc<(Mutex<bool>, Condvar)>,
     join_handle: Option<thread::JoinHandle<()>>,
@@ -844,6 +835,15 @@ impl TickerControl {
         #[cfg(test)]
         TICKER_RUNNING.store(false, Ordering::SeqCst);
     }
+}
+
+/// Behavior of a steady ticker when its progress bar is ticked
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum TickerReaction {
+    /// Only ever tick when the interval has passed, ignoring manual ticks
+    OnTimeout,
+    /// Immediately tick when done so manually, or after the interval has passed
+    Immediately,
 }
 
 // Tests using the global TICKER_RUNNING flag need to be serialized
