@@ -262,7 +262,10 @@ impl ProgressBar {
     fn tick_inner(&self, now: Instant) {
         // If a ticker thread is installed, notify it to do the ticking
         if let Some(ref ticker) = *self.ticker.lock().unwrap() {
-            ticker.stopping.1.notify_one();
+            match ticker.reaction {
+                TickerReaction::OnTimeout => (),
+                TickerReaction::Immediately => ticker.stopping.1.notify_one(),
+            }
         } else {
             self.state().tick(now);
         }
@@ -725,6 +728,7 @@ impl WeakProgressBar {
 pub(crate) struct Ticker {
     stopping: Arc<(Mutex<bool>, Condvar)>,
     join_handle: Option<thread::JoinHandle<()>>,
+    reaction: TickerReaction,
 }
 
 impl Drop for Ticker {
@@ -755,10 +759,11 @@ impl Ticker {
             state: Arc::downgrade(bar_state),
         };
 
-        let join_handle = thread::spawn(move || control.run(interval, reaction));
+        let join_handle = thread::spawn(move || control.run(interval));
         Self {
             stopping,
             join_handle: Some(join_handle),
+            reaction,
         }
     }
 
@@ -774,11 +779,9 @@ struct TickerControl {
 }
 
 impl TickerControl {
-    fn run(&self, interval: Duration, reaction: TickerReaction) {
+    fn run(&self, interval: Duration) {
         #[cfg(test)]
         TICKER_RUNNING.store(true, Ordering::SeqCst);
-
-        let mut last_tick = None;
 
         while let Some(arc) = self.state.upgrade() {
             let mut state = arc.lock().unwrap();
@@ -786,44 +789,16 @@ impl TickerControl {
                 break;
             }
 
-            let now = Instant::now();
-
-            let do_tick = match reaction {
-                TickerReaction::Immediately => true,
-                TickerReaction::OnTimeout => match last_tick {
-                    None => true,
-                    Some(last_tick) => {
-                        let passed = now - last_tick;
-                        passed >= interval
-                    }
-                },
-            };
-
-            if do_tick {
-                state.tick(now);
-                last_tick = Some(now);
-            }
+            state.tick(Instant::now());
 
             drop(state); // Don't forget to drop the lock before sleeping
             drop(arc); // Also need to drop Arc otherwise BarState won't be dropped
 
-            let timeout = match last_tick {
-                None => interval,
-                Some(last_tick) => {
-                    let next_tick = last_tick + interval;
-                    let Some(timeout) = next_tick.checked_duration_since(now) else {
-                        // do next tick right away
-                        continue;
-                    };
-                    timeout
-                }
-            };
-
-            // Wait for `timeout` but return early if we are notified
+            // Wait for `interval` but return early if we are notified
             let result = self
                 .stopping
                 .1
-                .wait_timeout(self.stopping.0.lock().unwrap(), timeout)
+                .wait_timeout(self.stopping.0.lock().unwrap(), interval)
                 .unwrap();
 
             // Stop the ticker when the mutex flag was set
