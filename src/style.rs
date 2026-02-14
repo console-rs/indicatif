@@ -296,12 +296,38 @@ impl ProgressStyle {
                             "msg" => buf.push_str(state.message.expanded()),
                             "prefix" => buf.push_str(state.prefix.expanded()),
                             "pos" => buf.write_fmt(format_args!("{pos}")).unwrap(),
-                            "human_pos" => {
+                            "human_pos_formatted" => {
                                 buf.write_fmt(format_args!("{}", HumanCount(pos))).unwrap();
                             }
+                            "human_pos" => {
+                                if let Some(width) = width {
+                                    buf.write_fmt(format_args!(
+                                        "{:#.1$}",
+                                        HumanCount(pos),
+                                        *width as usize
+                                    ))
+                                    .unwrap();
+                                } else {
+                                    buf.write_fmt(format_args!("{:#}", HumanCount(pos)))
+                                        .unwrap();
+                                }
+                            }
                             "len" => buf.write_fmt(format_args!("{len}")).unwrap(),
-                            "human_len" => {
+                            "human_len_formatted" => {
                                 buf.write_fmt(format_args!("{}", HumanCount(len))).unwrap();
+                            }
+                            "human_len" => {
+                                if let Some(width) = width {
+                                    buf.write_fmt(format_args!(
+                                        "{:#.1$}",
+                                        HumanCount(len),
+                                        *width as usize
+                                    ))
+                                    .unwrap();
+                                } else {
+                                    buf.write_fmt(format_args!("{:#}", HumanCount(len)))
+                                        .unwrap();
+                                }
                             }
                             "percent" => buf
                                 .write_fmt(format_args!("{:.*}", 0, state.fraction() * 100f32))
@@ -331,7 +357,7 @@ impl ProgressStyle {
                             "elapsed" => buf
                                 .write_fmt(format_args!("{:#}", HumanDuration(state.elapsed())))
                                 .unwrap(),
-                            "per_sec" => {
+                            "per_sec_formatted" => {
                                 if let Some(width) = width {
                                     buf.write_fmt(format_args!(
                                         "{:.1$}/s",
@@ -342,6 +368,22 @@ impl ProgressStyle {
                                 } else {
                                     buf.write_fmt(format_args!(
                                         "{}/s",
+                                        HumanFloatCount(state.per_sec())
+                                    ))
+                                    .unwrap();
+                                }
+                            }
+                            "per_sec" => {
+                                if let Some(width) = width {
+                                    buf.write_fmt(format_args!(
+                                        "{:#.1$}/s",
+                                        HumanFloatCount(state.per_sec()),
+                                        *width as usize
+                                    ))
+                                    .unwrap();
+                                } else {
+                                    buf.write_fmt(format_args!(
+                                        "{:#}/s",
                                         HumanFloatCount(state.per_sec())
                                     ))
                                     .unwrap();
@@ -1177,5 +1219,43 @@ mod tests {
         assert_eq!(&buf[1], "prefix foo");
         assert_eq!(&buf[2], "bar");
         assert_eq!(&buf[3], "baz");
+    }
+
+    #[test]
+    fn human_count_handling() {
+        const WIDTH: u16 = 80;
+        let pos = Arc::new(AtomicPosition::new());
+        pos.set(543_234);
+        let state = ProgressState::new(Some(1_000_000), pos);
+        let mut buf = Vec::new();
+
+        let mut style = ProgressStyle::default_bar();
+        style.template = Template::from_str("{pos} / {len}").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+
+        assert_eq!(buf.len(), 1);
+        assert_eq!(&buf[0], "543234 / 1000000");
+
+        buf.clear();
+        style.template =
+            Template::from_str("{human_pos_formatted} / {human_len_formatted}").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+
+        assert_eq!(buf.len(), 1);
+        assert_eq!(&buf[0], "543,234 / 1,000,000");
+
+        buf.clear();
+        style.template = Template::from_str("{human_pos} / {human_len}").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+
+        assert_eq!(buf.len(), 1);
+        assert_eq!(&buf[0], "543k / 1.00M");
+
+        buf.clear();
+        style.template = Template::from_str("{human_pos:3} / {human_len:3}").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+
+        assert_eq!(buf.len(), 1);
+        assert_eq!(&buf[0], "543.234k / 1.000M");
     }
 }
