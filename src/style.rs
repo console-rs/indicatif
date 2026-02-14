@@ -9,7 +9,7 @@ use unicode_width::UnicodeWidthChar;
 use console::{measure_text_width, AnsiCodeIterator, Style};
 #[cfg(feature = "unicode-segmentation")]
 use unicode_segmentation::UnicodeSegmentation;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "wasmbind"))]
 use web_time::Instant;
 
 use crate::draw_target::LineType;

@@ -8,7 +8,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use console::{Term, TermTarget};
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "wasmbind"))]
 use web_time::Instant;
 
 use crate::multi::{MultiProgressAlignment, MultiState};
@@ -69,8 +69,13 @@ impl ProgressDrawTarget {
     /// hidden.  This is done so that piping to a file will not produce
     /// useless escape codes in that file.
     ///
+    /// Progress bars will also be hidden if `NO_COLOR` is set or `TERM` is unset/`dumb`.
+    ///
     /// Will panic if `refresh_rate` is `0`.
     pub fn term(term: Term, refresh_rate: u8) -> Self {
+        if !term.features().colors_supported() {
+            return Self::hidden();
+        }
         Self {
             kind: TargetKind::Term {
                 term,
@@ -178,10 +183,6 @@ impl ProgressDrawTarget {
                 rate_limiter,
                 draw_state,
             } => {
-                if !term.is_term() {
-                    return None;
-                }
-
                 match force_draw || rate_limiter.allow(now) {
                     true => Some(Drawable::Term {
                         term,

@@ -1,6 +1,6 @@
 [package]
 name = "indicatif"
-version = "0.18.3"
+version = "0.18.4"
 edition = "2021"
 rust-version = "1.71"
 description = "A progress bar and cli reporting library for Rust"
@@ -16,7 +16,7 @@ exclude = ["screenshots/*"]
 console = { version = "0.16", default-features = false, features = ["ansi-parsing", "std"] }
 futures-core = { version = "0.3", default-features = false, optional = true }
 unit-prefix = "0.5.1"
-portable-atomic = "1.0.0"
+portable-atomic = "1.12.0"
 rayon = { version = "1.1", optional = true }
 tokio = { version = "1", optional = true, features = ["io-util"] }
 unicode-segmentation = { version = "1", optional = true }
@@ -32,13 +32,15 @@ futures = "0.3" # so the doctest for wrap_stream is nice
 pretty_assertions = "1.4.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-web-time = "1.1.0"
+web-time = { version = "1.1.0", optional = true }
 
 [features]
-default = ["unicode-width", "console/unicode-width"]
-improved_unicode = ["unicode-segmentation", "unicode-width", "console/unicode-width"]
+default = ["unicode-width", "wasmbind"]
+unicode-width = ["dep:unicode-width", "console/unicode-width"]
+improved_unicode = ["unicode-segmentation", "unicode-width"]
 in_memory = ["vt100"]
 futures = ["dep:futures-core"]
+wasmbind = ["dep:web-time"]
 
 [package.metadata.docs.rs]
 all-features = true
