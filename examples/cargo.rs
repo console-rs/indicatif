@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use console::{Style, Term};
 use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
-use rand::Rng;
+use rand::RngExt;
 
 static CRATES: &[(&str, &str)] = &[
     ("console", "v0.14.1"),

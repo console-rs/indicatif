@@ -2,7 +2,7 @@ use std::thread;
 use std::time::Duration;
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use rand::Rng;
+use rand::RngExt;
 
 fn main() {
     let styles = [
