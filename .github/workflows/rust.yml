@@ -64,7 +64,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.71"
+          toolchain: "1.85"
       - run: cargo check --lib --all-features
 
   lint:
