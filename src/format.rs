@@ -3,91 +3,9 @@ use std::time::Duration;
 
 use unit_prefix::NumberPrefix;
 
-const SECOND: Duration = Duration::from_secs(1);
-const MINUTE: Duration = Duration::from_secs(60);
-const HOUR: Duration = Duration::from_secs(60 * 60);
-const DAY: Duration = Duration::from_secs(24 * 60 * 60);
-const WEEK: Duration = Duration::from_secs(7 * 24 * 60 * 60);
-const YEAR: Duration = Duration::from_secs(365 * 24 * 60 * 60);
-
-/// Wraps an std duration for human basic formatting.
-#[derive(Debug)]
-pub struct FormattedDuration(pub Duration);
-
 /// Wraps an std duration for human readable formatting.
 #[derive(Debug)]
 pub struct HumanDuration(pub Duration);
-
-/// Formats bytes for human readability
-///
-/// # Examples
-/// ```rust
-/// # use indicatif::HumanBytes;
-/// assert_eq!("15 B",     format!("{}", HumanBytes(15)));
-/// assert_eq!("1.46 KiB", format!("{}", HumanBytes(1_500)));
-/// assert_eq!("1.43 MiB", format!("{}", HumanBytes(1_500_000)));
-/// assert_eq!("1.40 GiB", format!("{}", HumanBytes(1_500_000_000)));
-/// assert_eq!("1.36 TiB", format!("{}", HumanBytes(1_500_000_000_000)));
-/// assert_eq!("1.33 PiB", format!("{}", HumanBytes(1_500_000_000_000_000)));
-/// ```
-#[derive(Debug)]
-pub struct HumanBytes(pub u64);
-
-/// Formats bytes for human readability using SI prefixes
-///
-/// # Examples
-/// ```rust
-/// # use indicatif::DecimalBytes;
-/// assert_eq!("15 B",    format!("{}", DecimalBytes(15)));
-/// assert_eq!("1.50 kB", format!("{}", DecimalBytes(1_500)));
-/// assert_eq!("1.50 MB", format!("{}", DecimalBytes(1_500_000)));
-/// assert_eq!("1.50 GB", format!("{}", DecimalBytes(1_500_000_000)));
-/// assert_eq!("1.50 TB", format!("{}", DecimalBytes(1_500_000_000_000)));
-/// assert_eq!("1.50 PB", format!("{}", DecimalBytes(1_500_000_000_000_000)));
-/// ```
-#[derive(Debug)]
-pub struct DecimalBytes(pub u64);
-
-/// Formats bytes for human readability using ISO/IEC prefixes
-///
-/// # Examples
-/// ```rust
-/// # use indicatif::BinaryBytes;
-/// assert_eq!("15 B",     format!("{}", BinaryBytes(15)));
-/// assert_eq!("1.46 KiB", format!("{}", BinaryBytes(1_500)));
-/// assert_eq!("1.43 MiB", format!("{}", BinaryBytes(1_500_000)));
-/// assert_eq!("1.40 GiB", format!("{}", BinaryBytes(1_500_000_000)));
-/// assert_eq!("1.36 TiB", format!("{}", BinaryBytes(1_500_000_000_000)));
-/// assert_eq!("1.33 PiB", format!("{}", BinaryBytes(1_500_000_000_000_000)));
-/// ```
-#[derive(Debug)]
-pub struct BinaryBytes(pub u64);
-
-/// Formats counts for human readability using commas
-#[derive(Debug)]
-pub struct HumanCount(pub u64);
-
-/// Formats counts for human readability using commas for floats
-#[derive(Debug)]
-pub struct HumanFloatCount(pub f64);
-
-impl fmt::Display for FormattedDuration {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut t = self.0.as_secs();
-        let seconds = t % 60;
-        t /= 60;
-        let minutes = t % 60;
-        t /= 60;
-        let hours = t % 24;
-        t /= 24;
-        if t > 0 {
-            let days = t;
-            write!(f, "{days}d {hours:02}:{minutes:02}:{seconds:02}")
-        } else {
-            write!(f, "{hours:02}:{minutes:02}:{seconds:02}")
-        }
-    }
-}
 
 // `HumanDuration` should be as intuitively understandable as possible.
 // So we want to round, not truncate: otherwise 1 hour and 59 minutes
@@ -139,6 +57,43 @@ const UNITS: &[(Duration, &str, &str)] = &[
     (SECOND, "second", "s"),
 ];
 
+/// Wraps an std duration for human basic formatting.
+#[derive(Debug)]
+pub struct FormattedDuration(pub Duration);
+
+impl fmt::Display for FormattedDuration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut t = self.0.as_secs();
+        let seconds = t % 60;
+        t /= 60;
+        let minutes = t % 60;
+        t /= 60;
+        let hours = t % 24;
+        t /= 24;
+        if t > 0 {
+            let days = t;
+            write!(f, "{days}d {hours:02}:{minutes:02}:{seconds:02}")
+        } else {
+            write!(f, "{hours:02}:{minutes:02}:{seconds:02}")
+        }
+    }
+}
+
+/// Formats bytes for human readability
+///
+/// # Examples
+/// ```rust
+/// # use indicatif::HumanBytes;
+/// assert_eq!("15 B",     format!("{}", HumanBytes(15)));
+/// assert_eq!("1.46 KiB", format!("{}", HumanBytes(1_500)));
+/// assert_eq!("1.43 MiB", format!("{}", HumanBytes(1_500_000)));
+/// assert_eq!("1.40 GiB", format!("{}", HumanBytes(1_500_000_000)));
+/// assert_eq!("1.36 TiB", format!("{}", HumanBytes(1_500_000_000_000)));
+/// assert_eq!("1.33 PiB", format!("{}", HumanBytes(1_500_000_000_000_000)));
+/// ```
+#[derive(Debug)]
+pub struct HumanBytes(pub u64);
+
 impl fmt::Display for HumanBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match NumberPrefix::binary(self.0 as f64) {
@@ -147,6 +102,21 @@ impl fmt::Display for HumanBytes {
         }
     }
 }
+
+/// Formats bytes for human readability using SI prefixes
+///
+/// # Examples
+/// ```rust
+/// # use indicatif::DecimalBytes;
+/// assert_eq!("15 B",    format!("{}", DecimalBytes(15)));
+/// assert_eq!("1.50 kB", format!("{}", DecimalBytes(1_500)));
+/// assert_eq!("1.50 MB", format!("{}", DecimalBytes(1_500_000)));
+/// assert_eq!("1.50 GB", format!("{}", DecimalBytes(1_500_000_000)));
+/// assert_eq!("1.50 TB", format!("{}", DecimalBytes(1_500_000_000_000)));
+/// assert_eq!("1.50 PB", format!("{}", DecimalBytes(1_500_000_000_000_000)));
+/// ```
+#[derive(Debug)]
+pub struct DecimalBytes(pub u64);
 
 impl fmt::Display for DecimalBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -157,6 +127,21 @@ impl fmt::Display for DecimalBytes {
     }
 }
 
+/// Formats bytes for human readability using ISO/IEC prefixes
+///
+/// # Examples
+/// ```rust
+/// # use indicatif::BinaryBytes;
+/// assert_eq!("15 B",     format!("{}", BinaryBytes(15)));
+/// assert_eq!("1.46 KiB", format!("{}", BinaryBytes(1_500)));
+/// assert_eq!("1.43 MiB", format!("{}", BinaryBytes(1_500_000)));
+/// assert_eq!("1.40 GiB", format!("{}", BinaryBytes(1_500_000_000)));
+/// assert_eq!("1.36 TiB", format!("{}", BinaryBytes(1_500_000_000_000)));
+/// assert_eq!("1.33 PiB", format!("{}", BinaryBytes(1_500_000_000_000_000)));
+/// ```
+#[derive(Debug)]
+pub struct BinaryBytes(pub u64);
+
 impl fmt::Display for BinaryBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match NumberPrefix::binary(self.0 as f64) {
@@ -165,6 +150,10 @@ impl fmt::Display for BinaryBytes {
         }
     }
 }
+
+/// Formats counts for human readability using commas
+#[derive(Debug)]
+pub struct HumanCount(pub u64);
 
 impl fmt::Display for HumanCount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -182,6 +171,10 @@ impl fmt::Display for HumanCount {
         Ok(())
     }
 }
+
+/// Formats counts for human readability using commas for floats
+#[derive(Debug)]
+pub struct HumanFloatCount(pub f64);
 
 impl fmt::Display for HumanFloatCount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -211,6 +204,13 @@ impl fmt::Display for HumanFloatCount {
         Ok(())
     }
 }
+
+const SECOND: Duration = Duration::from_secs(1);
+const MINUTE: Duration = Duration::from_secs(60);
+const HOUR: Duration = Duration::from_secs(60 * 60);
+const DAY: Duration = Duration::from_secs(24 * 60 * 60);
+const WEEK: Duration = Duration::from_secs(7 * 24 * 60 * 60);
+const YEAR: Duration = Duration::from_secs(365 * 24 * 60 * 60);
 
 #[cfg(test)]
 mod tests {
