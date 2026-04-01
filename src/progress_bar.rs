@@ -618,7 +618,14 @@ impl ProgressBar {
         self.state().state.elapsed()
     }
 
-    /// Index in the `MultiState`
+    /// Opaque index in the `MultiState`.
+    ///
+    /// This value is an implementation detail and does not necessarily correspond to visual
+    /// position on the screen.
+    ///
+    /// It is an index into `MultiState::members`, which is not in any particular order (due to
+    /// reclaiming of indices from the `MultiState::free_set`).
+    #[doc(hidden)]
     pub fn index(&self) -> Option<usize> {
         self.state().draw_target.remote().map(|(_, idx)| idx)
     }
