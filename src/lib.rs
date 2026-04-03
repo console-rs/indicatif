@@ -17,6 +17,7 @@
 //!
 //! * **Progress bars**
 //!   * [`ProgressBar`](struct.ProgressBar.html) for bars and spinners
+//!   * [`MultiBar`](struct.MultiBar.html) for deferred configuration with [`MultiProgress`]
 //!   * [`MultiProgress`](struct.MultiProgress.html) for multiple bars
 //! * **Data Formatting**
 //!   * [`HumanBytes`](struct.HumanBytes.html) for formatting bytes
@@ -35,6 +36,12 @@
 //!
 //! Additionally a [`MultiProgress`] utility is provided that can manage
 //! rendering multiple progress bars at once (eg: from multiple threads).
+//! When adding bars to a [`MultiProgress`], use [`MultiBar`] to configure
+//! them — it captures settings without triggering premature draws.
+//!
+//! Passing a [`ProgressBar`] directly to [`MultiProgress::add`] is still
+//! supported for backwards compatibility, but **will be removed in a future
+//! release**. New code should always use [`MultiBar`].
 //!
 //! To whet your appetite, this is what this can look like:
 //!
@@ -253,6 +260,7 @@ mod format;
 mod in_memory;
 mod iter;
 mod multi;
+mod multi_bar;
 mod progress_bar;
 #[cfg(feature = "rayon")]
 mod rayon;
@@ -269,6 +277,7 @@ pub use crate::format::{
 pub use crate::in_memory::InMemoryTerm;
 pub use crate::iter::{ProgressBarIter, ProgressIterator};
 pub use crate::multi::{MultiProgress, MultiProgressAlignment};
+pub use crate::multi_bar::{MultiBar, MultiProgressInput};
 pub use crate::progress_bar::{ProgressBar, WeakProgressBar};
 #[cfg(feature = "rayon")]
 pub use crate::rayon::ParallelProgressIterator;
@@ -292,4 +301,5 @@ mod tests {
     impl MustBeThreadSafe for ProgressState {}
     impl MustBeThreadSafe for ProgressStyle {}
     impl MustBeThreadSafe for WeakProgressBar {}
+    impl MustBeThreadSafe for MultiBar {}
 }

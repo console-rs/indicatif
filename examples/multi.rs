@@ -1,7 +1,7 @@
 use std::thread;
 use std::time::Duration;
 
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{MultiBar, MultiProgress, ProgressStyle};
 
 use rand::RngExt;
 
@@ -14,15 +14,17 @@ fn main() {
     .progress_chars("##-");
 
     let n = 200;
-    let pb = m.add(ProgressBar::new(n));
-    pb.set_style(sty.clone());
-    pb.set_message("todo");
-    let pb2 = m.add(ProgressBar::new(n));
-    pb2.set_style(sty.clone());
-    pb2.set_message("finished");
-
-    let pb3 = m.insert_after(&pb2, ProgressBar::new(1024));
-    pb3.set_style(sty);
+    let pb = m.add(
+        MultiBar::new(n)
+            .with_style(sty.clone())
+            .with_message("todo"),
+    );
+    let pb2 = m.add(
+        MultiBar::new(n)
+            .with_style(sty.clone())
+            .with_message("finished"),
+    );
+    let pb3 = m.insert_after(&pb2, MultiBar::new(1024).with_style(sty));
 
     m.println("starting!").unwrap();
 

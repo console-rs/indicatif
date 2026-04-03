@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use indicatif::{
-    InMemoryTerm, MultiProgress, MultiProgressAlignment, ProgressBar, ProgressDrawTarget,
+    InMemoryTerm, MultiBar, MultiProgress, MultiProgressAlignment, ProgressBar, ProgressDrawTarget,
     ProgressFinish, ProgressStyle, TermLike,
 };
 use pretty_assertions::assert_eq;
@@ -133,7 +133,7 @@ fn multi_progress_single_bar_and_leave() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let pb1 = mp.add(ProgressBar::new(10).with_finish(ProgressFinish::AndLeave));
+    let pb1 = mp.add(MultiBar::new(10).with_finish(ProgressFinish::AndLeave));
 
     assert_eq!(in_mem.contents(), String::new());
 
@@ -156,7 +156,7 @@ fn multi_progress_single_bar_and_clear() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let pb1 = mp.add(ProgressBar::new(10));
+    let pb1 = mp.add(MultiBar::new(10));
 
     assert_eq!(in_mem.contents(), String::new());
 
@@ -176,8 +176,8 @@ fn multi_progress_two_bars() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let pb1 = mp.add(ProgressBar::new(10).with_finish(ProgressFinish::AndLeave));
-    let pb2 = mp.add(ProgressBar::new(5));
+    let pb1 = mp.add(MultiBar::new(10).with_finish(ProgressFinish::AndLeave));
+    let pb2 = mp.add(MultiBar::new(5));
 
     assert_eq!(in_mem.contents(), String::new());
 
@@ -220,9 +220,9 @@ fn multi_progress() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let pb1 = mp.add(ProgressBar::new(10).with_finish(ProgressFinish::AndLeave));
-    let pb2 = mp.add(ProgressBar::new(5));
-    let pb3 = mp.add(ProgressBar::new(100));
+    let pb1 = mp.add(MultiBar::new(10).with_finish(ProgressFinish::AndLeave));
+    let pb2 = mp.add(MultiBar::new(5));
+    let pb3 = mp.add(MultiBar::new(100));
 
     assert_eq!(in_mem.contents(), String::new());
 
@@ -285,9 +285,9 @@ fn multi_progress_println() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let pb1 = mp.add(ProgressBar::new(10));
-    let pb2 = mp.add(ProgressBar::new(5));
-    let pb3 = mp.add(ProgressBar::new(100));
+    let pb1 = mp.add(MultiBar::new(10));
+    let pb2 = mp.add(MultiBar::new(5));
+    let pb3 = mp.add(MultiBar::new(100));
 
     assert_eq!(in_mem.contents(), "");
 
@@ -351,8 +351,8 @@ fn multi_progress_suspend() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let pb1 = mp.add(ProgressBar::new(10));
-    let pb2 = mp.add(ProgressBar::new(10));
+    let pb1 = mp.add(MultiBar::new(10));
+    let pb2 = mp.add(MultiBar::new(10));
 
     assert_eq!(in_mem.contents(), "");
 
@@ -425,7 +425,7 @@ fn multi_progress_move_cursor() {
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
     mp.set_move_cursor(true);
 
-    let pb1 = mp.add(ProgressBar::new(10));
+    let pb1 = mp.add(MultiBar::new(10));
     pb1.tick();
     assert_eq!(
         in_mem.moves_since_last_check(),
@@ -436,7 +436,7 @@ Flush
 "#
     );
 
-    let pb2 = mp.add(ProgressBar::new(10));
+    let pb2 = mp.add(MultiBar::new(10));
     pb2.tick();
     assert_eq!(
         in_mem.moves_since_last_check(),
@@ -471,10 +471,7 @@ fn multi_progress_println_bar_with_target() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let pb = mp.add(ProgressBar::with_draw_target(
-        Some(10),
-        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
-    ));
+    let pb = mp.add(MultiBar::new(10));
 
     assert_eq!(in_mem.contents(), "");
 
@@ -500,7 +497,7 @@ fn ticker_drop() {
 
     for i in 0..5 {
         let new_spinner = mp.add(
-            ProgressBar::new_spinner()
+            MultiBar::new_spinner()
                 .with_finish(ProgressFinish::AndLeave)
                 .with_message(format!("doing stuff {i}")),
         );
@@ -521,7 +518,7 @@ fn manually_inc_ticker() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let spinner = mp.add(ProgressBar::new_spinner().with_message("msg"));
+    let spinner = mp.add(MultiBar::new_spinner().with_message("msg"));
 
     assert_eq!(in_mem.contents(), "");
 
@@ -544,9 +541,9 @@ fn multi_progress_prune_zombies() {
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
     let pb0 = mp
-        .add(ProgressBar::new(10))
+        .add(MultiBar::new(10))
         .with_finish(ProgressFinish::AndLeave);
-    let pb1 = mp.add(ProgressBar::new(15));
+    let pb1 = mp.add(MultiBar::new(15));
     pb0.tick();
     assert_eq!(
         in_mem.contents(),
@@ -582,15 +579,15 @@ fn multi_progress_prune_zombies_2() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let pb1 = mp.add(ProgressBar::new(10).with_finish(ProgressFinish::AndLeave));
-    let pb2 = mp.add(ProgressBar::new(5));
+    let pb1 = mp.add(MultiBar::new(10).with_finish(ProgressFinish::AndLeave));
+    let pb2 = mp.add(MultiBar::new(5));
     let pb3 = mp
-        .add(ProgressBar::new(100))
+        .add(MultiBar::new(100))
         .with_finish(ProgressFinish::Abandon);
     let pb4 = mp
-        .add(ProgressBar::new(500))
+        .add(MultiBar::new(500))
         .with_finish(ProgressFinish::AndLeave);
-    let pb5 = mp.add(ProgressBar::new(7));
+    let pb5 = mp.add(MultiBar::new(7));
 
     assert_eq!(in_mem.contents(), String::new());
 
@@ -737,7 +734,7 @@ fn basic_tab_expansion() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let spinner = mp.add(ProgressBar::new_spinner().with_message("Test\t:)"));
+    let spinner = mp.add(MultiBar::new_spinner().with_message("Test\t:)"));
     spinner.tick();
 
     // 8 is the default number of spaces
@@ -754,7 +751,7 @@ fn tab_expansion_in_template() {
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
     let spinner = mp.add(
-        ProgressBar::new_spinner()
+        MultiBar::new_spinner()
             .with_message("Test\t:)")
             .with_prefix("Pre\tfix!")
             .with_style(ProgressStyle::with_template("{spinner}{prefix}\t{msg}").unwrap()),
@@ -779,11 +776,7 @@ fn progress_style_tab_width_unification() {
     // Style will have default of 8 spaces for tabs
     let style = ProgressStyle::with_template("{msg}\t{msg}").unwrap();
 
-    let spinner = mp.add(
-        ProgressBar::new_spinner()
-            .with_message("OK")
-            .with_tab_width(4),
-    );
+    let spinner = mp.add(MultiBar::new_spinner().with_message("OK").with_tab_width(4));
 
     // Setting the spinner's style to |style| should override the style's tab width with that of bar
     spinner.set_style(style);
@@ -827,14 +820,14 @@ fn _multi_progress_clear_zombies(ticks: usize) {
     let style = ProgressStyle::with_template("{msg}").unwrap();
 
     let pb1 = mp.add(
-        ProgressBar::new_spinner()
+        MultiBar::new_spinner()
             .with_style(style.clone())
             .with_message("pb1"),
     );
     pb1.tick();
 
     let pb2 = mp.add(
-        ProgressBar::new_spinner()
+        MultiBar::new_spinner()
             .with_style(style)
             .with_message("pb2"),
     );
@@ -863,19 +856,19 @@ fn multi_zombie_handling() {
     let style = ProgressStyle::with_template("{msg}").unwrap();
 
     let pb1 = mp.add(
-        ProgressBar::new_spinner()
+        MultiBar::new_spinner()
             .with_style(style.clone())
             .with_message("pb1"),
     );
     pb1.tick();
     let pb2 = mp.add(
-        ProgressBar::new_spinner()
+        MultiBar::new_spinner()
             .with_style(style.clone())
             .with_message("pb2"),
     );
     pb2.tick();
     let pb3 = mp.add(
-        ProgressBar::new_spinner()
+        MultiBar::new_spinner()
             .with_style(style)
             .with_message("pb3"),
     );
@@ -921,8 +914,8 @@ fn multi_progress_multiline_msg() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let pb1 = mp.add(ProgressBar::new_spinner().with_message("test1"));
-    let pb2 = mp.add(ProgressBar::new_spinner().with_message("test2"));
+    let pb1 = mp.add(MultiBar::new_spinner().with_message("test1"));
+    let pb2 = mp.add(MultiBar::new_spinner().with_message("test2"));
 
     assert_eq!(in_mem.contents(), "");
 
@@ -1008,8 +1001,8 @@ fn multi_progress_bottom_alignment() {
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
     mp.set_alignment(MultiProgressAlignment::Bottom);
 
-    let pb1 = mp.add(ProgressBar::new_spinner().with_message("test1"));
-    let pb2 = mp.add(ProgressBar::new_spinner().with_message("test2"));
+    let pb1 = mp.add(MultiBar::new_spinner().with_message("test1"));
+    let pb2 = mp.add(MultiBar::new_spinner().with_message("test2"));
 
     pb1.tick();
     pb2.tick();
@@ -1113,9 +1106,9 @@ fn multi_progress_println_terminal_wrap() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let pb1 = mp.add(ProgressBar::new(10));
-    let pb2 = mp.add(ProgressBar::new(5));
-    let pb3 = mp.add(ProgressBar::new(100));
+    let pb1 = mp.add(MultiBar::new(10));
+    let pb2 = mp.add(MultiBar::new(5));
+    let pb3 = mp.add(MultiBar::new(100));
 
     assert_eq!(in_mem.contents(), "");
 
@@ -1216,11 +1209,10 @@ fn multi_progress_many_bars() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let pb1 = mp.add(ProgressBar::new(10).with_finish(ProgressFinish::AndLeave));
+    let pb1 = mp.add(MultiBar::new(10).with_finish(ProgressFinish::AndLeave));
     let mut spinners = vec![];
     for i in 0..7 {
-        let spinner = ProgressBar::new_spinner().with_message(i.to_string());
-        mp.add(spinner.clone());
+        let spinner = mp.add(MultiBar::new_spinner().with_message(i.to_string()));
         spinners.push(spinner);
     }
 
@@ -1527,11 +1519,10 @@ fn multi_progress_many_spinners() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let pb1 = mp.add(ProgressBar::new(10).with_finish(ProgressFinish::AndLeave));
+    let pb1 = mp.add(MultiBar::new(10).with_finish(ProgressFinish::AndLeave));
     let mut spinners = vec![];
     for i in 0..7 {
-        let spinner = ProgressBar::new_spinner().with_message(i.to_string());
-        mp.add(spinner.clone());
+        let spinner = mp.add(MultiBar::new_spinner().with_message(i.to_string()));
         spinners.push(spinner);
     }
 
@@ -1896,7 +1887,7 @@ fn orphan_lines_message_above_multi_progress_bar() {
     let mp =
         MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
 
-    let pb = mp.add(ProgressBar::new(10));
+    let pb = mp.add(MultiBar::new(10));
 
     orphan_lines_message_above_progress_bar_test(&pb, &in_mem);
 }

@@ -9,6 +9,7 @@ use crate::draw_target::{
     visual_line_count, DrawState, DrawStateWrapper, LineAdjust, LineType, ProgressDrawTarget,
     VisualLines,
 };
+use crate::multi_bar::MultiProgressInput;
 use crate::progress_bar::ProgressBar;
 #[cfg(all(target_arch = "wasm32", feature = "wasmbind"))]
 use web_time::Instant;
@@ -71,74 +72,94 @@ impl MultiProgress {
         self.state.write().unwrap().alignment = alignment;
     }
 
-    /// Adds a progress bar.
+    /// Adds a progress bar or [`MultiBar`] configuration.
     ///
-    /// The progress bar added will have the draw target changed to a
+    /// The resulting progress bar will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom [`ProgressDrawTarget`] settings.
     ///
     /// The progress bar will be positioned below all other bars currently
     /// in the [`MultiProgress`].
     ///
-    /// Adding a progress bar that is already a member of the [`MultiProgress`]
+    /// Adding a [`ProgressBar`] that is already a member of the [`MultiProgress`]
     /// will have no effect.
-    pub fn add(&self, pb: ProgressBar) -> ProgressBar {
-        self.internalize(InsertLocation::End, pb)
+    ///
+    /// Passing a [`ProgressBar`] directly is supported for backwards compatibility
+    /// but **will be removed in a future release**. Use [`MultiBar`] instead to
+    /// avoid premature draw bugs (see [#677]).
+    ///
+    /// [`MultiBar`]: crate::MultiBar
+    /// [#677]: https://github.com/console-rs/indicatif/issues/677
+    pub fn add(&self, pb: impl Into<MultiProgressInput>) -> ProgressBar {
+        self.internalize(InsertLocation::End, pb.into())
     }
 
-    /// Inserts a progress bar.
+    /// Inserts a progress bar or [`MultiBar`] configuration.
     ///
     /// The progress bar inserted at position `index` will have the draw
     /// target changed to a remote draw target that is intercepted by the
     /// multi progress object overriding custom [`ProgressDrawTarget`] settings.
     ///
-    /// If `index >= MultiProgressState::objects.len()`, the progress bar
-    /// is added to the end of the list.
+    /// If `index` is greater than or equal to the number of currently tracked
+    /// progress bars, the bar is added to the end of the list.
     ///
-    /// Inserting a progress bar that is already a member of the [`MultiProgress`]
+    /// Inserting a [`ProgressBar`] that is already a member of the [`MultiProgress`]
     /// will have no effect.
-    pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
-        self.internalize(InsertLocation::Index(index), pb)
+    ///
+    /// [`MultiBar`]: crate::MultiBar
+    pub fn insert(&self, index: usize, pb: impl Into<MultiProgressInput>) -> ProgressBar {
+        self.internalize(InsertLocation::Index(index), pb.into())
     }
 
-    /// Inserts a progress bar from the back.
+    /// Inserts a progress bar or [`MultiBar`] configuration from the back.
     ///
-    /// The progress bar inserted at position `MultiProgressState::objects.len() - index`
-    /// will have the draw target changed to a remote draw target that is
-    /// intercepted by the multi progress object overriding custom
-    /// [`ProgressDrawTarget`] settings.
+    /// The progress bar is inserted counting from the end of the list.
     ///
-    /// If `index >= MultiProgressState::objects.len()`, the progress bar
-    /// is added to the start of the list.
+    /// If `index` is greater than or equal to the number of currently tracked
+    /// progress bars, the bar is added to the start of the list.
     ///
-    /// Inserting a progress bar that is already a member of the [`MultiProgress`]
+    /// Inserting a [`ProgressBar`] that is already a member of the [`MultiProgress`]
     /// will have no effect.
-    pub fn insert_from_back(&self, index: usize, pb: ProgressBar) -> ProgressBar {
-        self.internalize(InsertLocation::IndexFromBack(index), pb)
+    ///
+    /// [`MultiBar`]: crate::MultiBar
+    pub fn insert_from_back(&self, index: usize, pb: impl Into<MultiProgressInput>) -> ProgressBar {
+        self.internalize(InsertLocation::IndexFromBack(index), pb.into())
     }
 
-    /// Inserts a progress bar before an existing one.
+    /// Inserts a progress bar or [`MultiBar`] configuration before an existing one.
     ///
-    /// The progress bar added will have the draw target changed to a
+    /// The resulting progress bar will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom [`ProgressDrawTarget`] settings.
     ///
-    /// Inserting a progress bar that is already a member of the [`MultiProgress`]
+    /// Inserting a [`ProgressBar`] that is already a member of the [`MultiProgress`]
     /// will have no effect.
-    pub fn insert_before(&self, before: &ProgressBar, pb: ProgressBar) -> ProgressBar {
-        self.internalize(InsertLocation::Before(before.index().unwrap()), pb)
+    ///
+    /// [`MultiBar`]: crate::MultiBar
+    pub fn insert_before(
+        &self,
+        before: &ProgressBar,
+        pb: impl Into<MultiProgressInput>,
+    ) -> ProgressBar {
+        self.internalize(InsertLocation::Before(before.index().unwrap()), pb.into())
     }
 
-    /// Inserts a progress bar after an existing one.
+    /// Inserts a progress bar or [`MultiBar`] configuration after an existing one.
     ///
-    /// The progress bar added will have the draw target changed to a
+    /// The resulting progress bar will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom [`ProgressDrawTarget`] settings.
     ///
-    /// Inserting a progress bar that is already a member of the [`MultiProgress`]
+    /// Inserting a [`ProgressBar`] that is already a member of the [`MultiProgress`]
     /// will have no effect.
-    pub fn insert_after(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
-        self.internalize(InsertLocation::After(after.index().unwrap()), pb)
+    ///
+    /// [`MultiBar`]: crate::MultiBar
+    pub fn insert_after(
+        &self,
+        after: &ProgressBar,
+        pb: impl Into<MultiProgressInput>,
+    ) -> ProgressBar {
+        self.internalize(InsertLocation::After(after.index().unwrap()), pb.into())
     }
 
     /// Removes a progress bar.
@@ -162,13 +183,14 @@ impl MultiProgress {
         self.state.write().unwrap().remove_idx(idx);
     }
 
-    fn internalize(&self, location: InsertLocation, pb: ProgressBar) -> ProgressBar {
+    fn internalize(&self, location: InsertLocation, input: MultiProgressInput) -> ProgressBar {
         let mut state = self.state.write().unwrap();
         let idx = state.insert(location);
+        let is_stderr = state.draw_target.is_stderr();
         drop(state);
 
-        pb.set_draw_target(ProgressDrawTarget::new_remote(self.state.clone(), idx));
-        pb
+        let draw_target = ProgressDrawTarget::new_remote(self.state.clone(), idx);
+        input.materialize(draw_target, is_stderr)
     }
 
     /// Print a log line above all progress bars in the [`MultiProgress`]
