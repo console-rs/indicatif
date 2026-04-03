@@ -13,7 +13,133 @@ use crate::progress_bar::ProgressBar;
 #[cfg(all(target_arch = "wasm32", feature = "wasmbind"))]
 use web_time::Instant;
 
-/// Manages multiple progress bars from different threads
+/// Manages multiple progress bars, potentially from different threads.
+///
+/// # `ProgressBar` lifecycle in a `MultiProgress`
+/// This section was written to help you avoid unexpected behavior when using `MultiProgress`. The two most common
+/// issues that users face are:
+///
+/// 1. Inadvertent draws prior to adding to the `MultiProgress`
+/// 2. `ProgressBar`s getting dropped too soon
+///
+/// ## Inadvertent draws
+/// `MultiProgress` can only coordinate drawing progress bars on the screen if it is aware of them. A common bug is to
+/// create a `ProgressBar`, accidentally cause it to draw (or tick), and then later add it to the `MultiProgress`. This
+/// can lead to screen corruption since `MultiProgress` has no way to "undo" whatever the `ProgressBar` did before
+/// the bar came under its purview.
+///
+/// Here's an example of potentially problematic code. The bar is created at (1) but added to the `MultiProgress` at
+/// (2).
+///
+/// ```rust,ignore
+/// // Bad code, do not use!
+/// let m = MultiProgress::new();
+/// let pb = ProgressBar::new(100);      // (1)
+/// // It's awfully tempting to touch
+/// // `pb`, before it's added to `m`...
+/// m.add(pb);                           // (2)
+/// ```
+///
+/// Instead, create the `ProgressBar` and add it to the `MultiProgress` as a single call:
+///
+/// ```rust,ignore
+/// // Better code
+/// let m = MultiProgress::new();
+/// let pb = m.add(ProgressBar::new(100));
+/// // Then style/exercise it as you please:
+/// // e.g. pb.set_style()
+/// ```
+///
+/// Future work may deprecate the "bad" API and steer users toward the "good" model. See <https://github.com/console-rs/indicatif/issues/677> for example.
+///
+/// ## Premature drops
+/// Consider this code, with an overall "total" `ProgressBar` and an individual `ProgressBar` for each of 5 jobs. The
+/// intention is that when each job bar finishes, it stays on the screen with the "DONE!" message. Also, during job
+/// processing, we call [`MultiProgress::suspend`] to temporarily clear the terminal and manually print some extra
+/// messages.
+///
+/// ```rust
+/// use indicatif::{MultiProgress, ProgressBar, ProgressFinish, ProgressStyle};
+/// use std::borrow::Cow;
+///
+/// fn main() {
+///     let m = MultiProgress::new();
+///     let sty = ProgressStyle::with_template(
+///         "{prefix:<10} [{elapsed}] {bar:20.red/blue} {pos:>7}/{len:7} {msg}",
+///     )
+///     .unwrap()
+///     .progress_chars("##-");
+///
+///     let total = m.add(ProgressBar::new(10));
+///     total.set_style(sty.clone());
+///     total.set_prefix("total");
+///     for i in 0..5 {
+///         let name = format!("Job #{i}");
+///         let pb = m.insert_before(
+///             &total,
+///             ProgressBar::new(3).with_finish(ProgressFinish::WithMessage(Cow::Borrowed("DONE!"))),
+///         );
+///
+///         pb.set_style(sty.clone());
+///         pb.set_prefix(name);
+///         for _ in 0..3 {
+///             // Temporarily clear the screen so we can print a message to the terminal
+///             m.suspend(|| {
+///                 eprintln!("from job #{i}...");
+///             });
+///
+///             pb.inc(1);
+///         }
+///         pb.finish_using_style();
+///         total.inc(1);
+///     }
+///
+///     total.finish();
+/// }
+///
+/// ```
+///
+/// Running the example, we see that it is broken:
+///
+#[doc = include_str!("../screenshots/mp-drop-before.svg")]
+///
+/// The issue is that at the end of each loop iteration, `pb` is dropped. Conceptually `MultiProgress` only maintains
+/// weak references to `ProgressBar`s. At the next loop iteration, `suspend` causes `MultiProgress` to clear the screen.
+/// `MultiProgress`' "zombie" algorithm ensures the dropped (zombie) bar is not left behind on the screen. But
+/// `MultiProgress` can't reconstitute the 'finish' state (i.e. "DONE!" text), since the bar no longer exists.
+///
+/// The solution is to ensure each `ProgressBar` lives long enough:
+/// ```rust,ignore
+/// // Vec to hold handles
+/// let mut pbs = vec![];
+/// for i in 0..5 {
+///     let name = format!("Job #{i}");
+///     let pb = m.insert_before(
+///         &total,
+///         ProgressBar::new(3).with_finish(ProgressFinish::WithMessage(Cow::Borrowed("DONE!"))),
+///     );
+///     // Stash a handle to the pb to keep it alive till end of loop
+///     pbs.push(pb.clone());
+///
+///     pb.set_style(sty.clone());
+///     pb.set_prefix(name);
+///     // ... snipped ...
+/// }
+/// ```
+///
+#[doc = include_str!("../screenshots/mp-drop-after.svg")]
+///
+/// ## The "zombie" algorithm
+/// The "zombie" algorithm is a compromise. If the user lets a `ProgressBar` drop, then it is taken as a strong hint that
+/// we can forget about it. But, the [`MultiProgress::println`] method advertises the ability to print a message above
+/// **all** progress bars.
+///
+/// As a compromise, `MultiProgress` will keep track of how many lines of text were last printed to the screen, even for
+/// `ProgressBar`s that have dropped. But the next time `MultiProgress` clears the screen, e.g. for a
+/// [`MultiProgress::suspend`] or [`MultiProgress::println`], any so-called "zombie lines" at the head of the list are wiped
+/// but then not re-drawn. If you really want those lines to be persisted on screen, then keep the `ProgressBar`s around
+/// longer, as described in the previous section.
+///
 #[derive(Debug, Clone)]
 pub struct MultiProgress {
     pub(crate) state: Arc<RwLock<MultiState>>,
