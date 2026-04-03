@@ -416,12 +416,10 @@ impl MultiState {
                 self.ordering.insert(pos, idx);
             }
             InsertLocation::After(after_idx) => {
-                let pos = self.ordering.iter().position(|i| *i == after_idx).unwrap();
-                self.ordering.insert(pos + 1, idx);
+                self.ordering.insert(self.visual_index(after_idx) + 1, idx);
             }
             InsertLocation::Before(before_idx) => {
-                let pos = self.ordering.iter().position(|i| *i == before_idx).unwrap();
-                self.ordering.insert(pos, idx);
+                self.ordering.insert(self.visual_index(before_idx), idx);
             }
         }
 
@@ -464,6 +462,14 @@ impl MultiState {
 
     fn len(&self) -> usize {
         self.members.len() - self.free_set.len()
+    }
+
+    /// Map from opaque index to position on screen.
+    pub(crate) fn visual_index(&self, opaque_index: usize) -> usize {
+        self.ordering
+            .iter()
+            .position(|v| *v == opaque_index)
+            .expect("no such member")
     }
 }
 

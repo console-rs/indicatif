@@ -644,6 +644,15 @@ impl ProgressBar {
         self.state().draw_target.remote().map(|(_, idx)| idx)
     }
 
+    /// If this [`ProgressBar`] is a member of a [`MultiProgress`](crate::MultiProgress), then return visual position
+    /// on screen. Otherwise, `None`.
+    pub fn visual_index(&self) -> Option<usize> {
+        self.state()
+            .draw_target
+            .remote()
+            .map(|(remote, idx)| remote.read().unwrap().visual_index(idx))
+    }
+
     /// Current message
     pub fn message(&self) -> String {
         self.state().state.message.expanded().to_string()
