@@ -13,6 +13,7 @@ use once_cell::sync::Lazy;
 use web_time::Instant;
 
 use crate::draw_target::ProgressDrawTarget;
+use crate::multi::MultiStateIndex;
 use crate::state::{AtomicPosition, BarState, ProgressFinish, Reset, TabExpandedString};
 use crate::style::ProgressStyle;
 use crate::{iter, ProgressBarIter, ProgressIterator, ProgressState};
@@ -633,9 +634,18 @@ impl ProgressBar {
         self.state().tab_width
     }
 
-    /// Index in the `MultiState`
-    pub(crate) fn index(&self) -> Option<usize> {
+    /// Returns opaque index into `MultiState::members`
+    pub(crate) fn index(&self) -> Option<MultiStateIndex> {
         self.state().draw_target.remote().map(|(_, idx)| idx)
+    }
+
+    /// If this [`ProgressBar`] is a member of a [`MultiProgress`](crate::MultiProgress), then return visual position
+    /// on screen. Otherwise, `None`.
+    pub fn visual_index(&self) -> Option<usize> {
+        self.state()
+            .draw_target
+            .remote()
+            .map(|(remote, idx)| remote.read().unwrap().visual_index(idx))
     }
 
     /// Current message
