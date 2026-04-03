@@ -24,16 +24,37 @@ pub struct HumanDuration(pub Duration);
 
 impl fmt::Display for HumanDuration {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.0 == Duration::ZERO {
+            return write!(f, "0 seconds");
+        }
+
         let mut idx = 0;
         for (i, &(cur, _, _)) in UNITS.iter().enumerate() {
             idx = i;
             match UNITS.get(i + 1) {
+                // Stop if value minus half of the next smaller unit is above 1.5x current unit
                 Some(&next) if self.0.saturating_add(next.0 / 2) >= cur + cur / 2 => break,
                 _ => continue,
             }
         }
 
         let (unit, name, alt) = UNITS[idx];
+        if self.0 < Duration::new(1, 900_000_000) {
+            let precision = if self.0 > Duration::from_millis(150) {
+                1
+            } else if self.0 > Duration::from_millis(15) {
+                2
+            } else {
+                3
+            };
+
+            let s = self.0.as_secs_f64();
+            return match f.alternate() {
+                true => write!(f, "{s:.*}s", precision),
+                false => write!(f, "{s:.*} seconds", precision),
+            };
+        }
+
         // FIXME when `div_duration_f64` is stable
         let mut t = (self.0.as_secs_f64() / unit.as_secs_f64()).round() as usize;
         if idx < UNITS.len() - 1 {
@@ -231,22 +252,25 @@ mod tests {
             "0 seconds",
             format!("{}", HumanDuration(Duration::from_secs(0)))
         );
-        assert_eq!("0 seconds", format!("{}", HumanDuration(MILLI)));
-        assert_eq!("0 seconds", format!("{}", HumanDuration(499 * MILLI)));
-        assert_eq!("1 second", format!("{}", HumanDuration(500 * MILLI)));
-        assert_eq!("1 second", format!("{}", HumanDuration(999 * MILLI)));
+        assert_eq!("0.001 seconds", format!("{}", HumanDuration(MILLI)));
+        assert_eq!("0.008 seconds", format!("{}", HumanDuration(8 * MILLI)));
+        assert_eq!("0.011 seconds", format!("{}", HumanDuration(11 * MILLI)));
+        assert_eq!("0.02 seconds", format!("{}", HumanDuration(17 * MILLI)));
+        assert_eq!("0.5 seconds", format!("{}", HumanDuration(499 * MILLI)));
+        assert_eq!("0.5 seconds", format!("{}", HumanDuration(500 * MILLI)));
+        assert_eq!("1.0 seconds", format!("{}", HumanDuration(999 * MILLI)));
     }
 
     #[test]
     fn human_duration_less_than_two_seconds() {
-        assert_eq!("1 second", format!("{}", HumanDuration(1499 * MILLI)));
-        assert_eq!("2 seconds", format!("{}", HumanDuration(1500 * MILLI)));
+        assert_eq!("1.5 seconds", format!("{}", HumanDuration(1499 * MILLI)));
+        assert_eq!("1.5 seconds", format!("{}", HumanDuration(1500 * MILLI)));
         assert_eq!("2 seconds", format!("{}", HumanDuration(1999 * MILLI)));
     }
 
     #[test]
     fn human_duration_one_unit() {
-        assert_eq!("1 second", format!("{}", HumanDuration(SECOND)));
+        assert_eq!("1.0 seconds", format!("{}", HumanDuration(SECOND)));
         assert_eq!("60 seconds", format!("{}", HumanDuration(MINUTE)));
         assert_eq!("60 minutes", format!("{}", HumanDuration(HOUR)));
         assert_eq!("24 hours", format!("{}", HumanDuration(DAY)));

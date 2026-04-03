@@ -1078,11 +1078,12 @@ fn progress_bar_terminal_wrap() {
             .unwrap(),
     );
     pb.finish_with_message("Finished");
+    let contents = in_mem.contents();
     assert_eq!(
-        in_mem.contents(),
+        &contents[..contents.len() - 2], // Lop off the millisecond duration which can vary
         r#"    Finished downloa
 ding 435.96 KiB in 0
-s"#
+.00"#
     );
 
     println!("{:?}", in_mem.contents())
