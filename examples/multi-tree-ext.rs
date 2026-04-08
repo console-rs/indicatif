@@ -6,7 +6,9 @@ use std::thread;
 use std::time::Duration;
 
 use console::style;
-use indicatif::{MultiBar, MultiProgress, MultiProgressAlignment, ProgressBar, ProgressStyle};
+use indicatif::{
+    MultiProgress, MultiProgressAlignment, ProgressBar, ProgressBarBuilder, ProgressStyle,
+};
 use once_cell::sync::Lazy;
 use rand::rngs::ThreadRng;
 use rand::{Rng, RngExt};
@@ -171,8 +173,8 @@ pub fn main() {
         ProgressStyle::with_template("[{pos:>2}/{len:2}] {prefix}{spinner:.green} {msg}").unwrap();
     let sty_fin = ProgressStyle::with_template("[{pos:>2}/{len:2}] {prefix}{msg}").unwrap();
 
-    let pb_main = mp.add(
-        MultiBar::new(
+    let pb_main = mp.register(
+        ProgressBarBuilder::new(
             ELEMENTS
                 .iter()
                 .map(|e| match e {
@@ -198,9 +200,9 @@ pub fn main() {
             }
             Action::ModifyTree(elem_idx) => match &ELEMENTS[elem_idx] {
                 Elem::AddItem(item) => {
-                    let pb = mp2.insert(
+                    let pb = mp2.register_at(
                         item.index,
-                        MultiBar::new(PB_LEN)
+                        ProgressBarBuilder::new(PB_LEN)
                             .with_style(sty_aux.clone())
                             .with_prefix("  ".repeat(item.indent))
                             .with_message(item.key.clone()),

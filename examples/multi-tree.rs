@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use indicatif::{MultiBar, MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressBarBuilder, ProgressStyle};
 use once_cell::sync::Lazy;
 use rand::rngs::ThreadRng;
 use rand::{Rng, RngExt};
@@ -91,7 +91,9 @@ fn main() {
     let sty_main = ProgressStyle::with_template("{bar:40.green/yellow} {pos:>4}/{len:4}").unwrap();
     let sty_aux = ProgressStyle::with_template("{spinner:.green} {msg} {pos:>4}/{len:4}").unwrap();
 
-    let pb_main = mp.add(MultiBar::new(ELEMENTS.iter().map(|e| e.len).sum()).with_style(sty_main));
+    let pb_main = mp.register(
+        ProgressBarBuilder::new(ELEMENTS.iter().map(|e| e.len).sum()).with_style(sty_main),
+    );
 
     let tree: Arc<Mutex<Vec<(&Elem, ProgressBar)>>> =
         Arc::new(Mutex::new(Vec::with_capacity(ELEMENTS.len())));
@@ -111,9 +113,9 @@ fn main() {
                 }
                 Some(Action::AddProgressBar(el_idx)) => {
                     let elem = &ELEMENTS[el_idx];
-                    let pb = mp2.insert(
+                    let pb = mp2.register_at(
                         elem.index + 1,
-                        MultiBar::new(elem.len)
+                        ProgressBarBuilder::new(elem.len)
                             .with_style(sty_aux.clone())
                             .with_message(format!("{}  {}", "  ".repeat(elem.indent), elem.key)),
                     );

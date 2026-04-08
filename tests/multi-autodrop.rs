@@ -1,13 +1,13 @@
 use std::thread;
 use std::time::Duration;
 
-use indicatif::{MultiBar, MultiProgress};
+use indicatif::{MultiProgress, ProgressBarBuilder};
 
 #[test]
 fn main() {
     let pb = {
         let m = MultiProgress::new();
-        m.add(MultiBar::new(10))
+        m.register(ProgressBarBuilder::new(10))
         // The MultiProgress is dropped here.
     };
 

@@ -1,7 +1,7 @@
 use std::thread;
 use std::time::Duration;
 
-use indicatif::{MultiBar, MultiProgress, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBarBuilder, ProgressStyle};
 use rand::RngExt;
 
 fn main() {
@@ -18,8 +18,8 @@ fn main() {
     let handles: Vec<_> = styles
         .iter()
         .map(|s| {
-            let pb = m.add(
-                MultiBar::new(512)
+            let pb = m.register(
+                ProgressBarBuilder::new(512)
                     .with_style(
                         ProgressStyle::with_template(&format!(
                             "{{prefix:.bold}}▕{{bar:.{}}}▏{{msg}}",

@@ -9,8 +9,8 @@ use crate::draw_target::{
     visual_line_count, DrawState, DrawStateWrapper, LineAdjust, LineType, ProgressDrawTarget,
     VisualLines,
 };
-use crate::multi_bar::MultiProgressInput;
 use crate::progress_bar::ProgressBar;
+use crate::progress_bar_builder::ProgressBarBuilder;
 #[cfg(all(target_arch = "wasm32", feature = "wasmbind"))]
 use web_time::Instant;
 
@@ -72,9 +72,54 @@ impl MultiProgress {
         self.state.write().unwrap().alignment = alignment;
     }
 
-    /// Adds a progress bar or [`MultiBar`] configuration.
+    /// Registers a [`ProgressBarBuilder`] with this [`MultiProgress`].
     ///
-    /// The resulting progress bar will have the draw target changed to a
+    /// The builder is materialized into a [`ProgressBar`] whose draw target is
+    /// a remote target intercepted by this [`MultiProgress`]. The resulting bar
+    /// is positioned below all other bars currently in the [`MultiProgress`].
+    ///
+    /// Using a [`ProgressBarBuilder`] avoids the footgun of configuring a
+    /// [`ProgressBar`] (which triggers draws to stderr) before adding it to a
+    /// [`MultiProgress`]. See [#677] for details.
+    ///
+    /// [#677]: https://github.com/console-rs/indicatif/issues/677
+    pub fn register(&self, builder: ProgressBarBuilder) -> ProgressBar {
+        self.internalize_builder(InsertLocation::End, builder)
+    }
+
+    /// Registers a [`ProgressBarBuilder`] at the given index.
+    ///
+    /// If `index` is greater than or equal to the number of currently tracked
+    /// progress bars, the bar is added to the end of the list.
+    pub fn register_at(&self, index: usize, builder: ProgressBarBuilder) -> ProgressBar {
+        self.internalize_builder(InsertLocation::Index(index), builder)
+    }
+
+    /// Registers a [`ProgressBarBuilder`] at the given index, counting from the back.
+    ///
+    /// If `index` is greater than or equal to the number of currently tracked
+    /// progress bars, the bar is added to the start of the list.
+    pub fn register_from_back(&self, index: usize, builder: ProgressBarBuilder) -> ProgressBar {
+        self.internalize_builder(InsertLocation::IndexFromBack(index), builder)
+    }
+
+    /// Registers a [`ProgressBarBuilder`] before an existing progress bar.
+    pub fn register_before(
+        &self,
+        before: &ProgressBar,
+        builder: ProgressBarBuilder,
+    ) -> ProgressBar {
+        self.internalize_builder(InsertLocation::Before(before.index().unwrap()), builder)
+    }
+
+    /// Registers a [`ProgressBarBuilder`] after an existing progress bar.
+    pub fn register_after(&self, after: &ProgressBar, builder: ProgressBarBuilder) -> ProgressBar {
+        self.internalize_builder(InsertLocation::After(after.index().unwrap()), builder)
+    }
+
+    /// Adds a progress bar.
+    ///
+    /// The progress bar added will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
     /// object overriding custom [`ProgressDrawTarget`] settings.
     ///
@@ -83,18 +128,14 @@ impl MultiProgress {
     ///
     /// Adding a [`ProgressBar`] that is already a member of the [`MultiProgress`]
     /// will have no effect.
-    ///
-    /// Passing a [`ProgressBar`] directly is supported for backwards compatibility
-    /// but **will be removed in a future release**. Use [`MultiBar`] instead to
-    /// avoid premature draw bugs (see [#677]).
-    ///
-    /// [`MultiBar`]: crate::MultiBar
-    /// [#677]: https://github.com/console-rs/indicatif/issues/677
-    pub fn add(&self, pb: impl Into<MultiProgressInput>) -> ProgressBar {
-        self.internalize(InsertLocation::End, pb.into())
+    #[deprecated(
+        note = "use `MultiProgress::register` with a `ProgressBarBuilder` instead to avoid premature draws (see #677)"
+    )]
+    pub fn add(&self, pb: ProgressBar) -> ProgressBar {
+        self.internalize_pb(InsertLocation::End, pb)
     }
 
-    /// Inserts a progress bar or [`MultiBar`] configuration.
+    /// Inserts a progress bar at the given index.
     ///
     /// The progress bar inserted at position `index` will have the draw
     /// target changed to a remote draw target that is intercepted by the
@@ -105,13 +146,14 @@ impl MultiProgress {
     ///
     /// Inserting a [`ProgressBar`] that is already a member of the [`MultiProgress`]
     /// will have no effect.
-    ///
-    /// [`MultiBar`]: crate::MultiBar
-    pub fn insert(&self, index: usize, pb: impl Into<MultiProgressInput>) -> ProgressBar {
-        self.internalize(InsertLocation::Index(index), pb.into())
+    #[deprecated(
+        note = "use `MultiProgress::register_at` with a `ProgressBarBuilder` instead to avoid premature draws (see #677)"
+    )]
+    pub fn insert(&self, index: usize, pb: ProgressBar) -> ProgressBar {
+        self.internalize_pb(InsertLocation::Index(index), pb)
     }
 
-    /// Inserts a progress bar or [`MultiBar`] configuration from the back.
+    /// Inserts a progress bar at the given index, counting from the back.
     ///
     /// The progress bar is inserted counting from the end of the list.
     ///
@@ -120,13 +162,14 @@ impl MultiProgress {
     ///
     /// Inserting a [`ProgressBar`] that is already a member of the [`MultiProgress`]
     /// will have no effect.
-    ///
-    /// [`MultiBar`]: crate::MultiBar
-    pub fn insert_from_back(&self, index: usize, pb: impl Into<MultiProgressInput>) -> ProgressBar {
-        self.internalize(InsertLocation::IndexFromBack(index), pb.into())
+    #[deprecated(
+        note = "use `MultiProgress::register_from_back` with a `ProgressBarBuilder` instead to avoid premature draws (see #677)"
+    )]
+    pub fn insert_from_back(&self, index: usize, pb: ProgressBar) -> ProgressBar {
+        self.internalize_pb(InsertLocation::IndexFromBack(index), pb)
     }
 
-    /// Inserts a progress bar or [`MultiBar`] configuration before an existing one.
+    /// Inserts a progress bar before an existing one.
     ///
     /// The resulting progress bar will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
@@ -134,17 +177,14 @@ impl MultiProgress {
     ///
     /// Inserting a [`ProgressBar`] that is already a member of the [`MultiProgress`]
     /// will have no effect.
-    ///
-    /// [`MultiBar`]: crate::MultiBar
-    pub fn insert_before(
-        &self,
-        before: &ProgressBar,
-        pb: impl Into<MultiProgressInput>,
-    ) -> ProgressBar {
-        self.internalize(InsertLocation::Before(before.index().unwrap()), pb.into())
+    #[deprecated(
+        note = "use `MultiProgress::register_before` with a `ProgressBarBuilder` instead to avoid premature draws (see #677)"
+    )]
+    pub fn insert_before(&self, before: &ProgressBar, pb: ProgressBar) -> ProgressBar {
+        self.internalize_pb(InsertLocation::Before(before.index().unwrap()), pb)
     }
 
-    /// Inserts a progress bar or [`MultiBar`] configuration after an existing one.
+    /// Inserts a progress bar after an existing one.
     ///
     /// The resulting progress bar will have the draw target changed to a
     /// remote draw target that is intercepted by the multi progress
@@ -152,22 +192,20 @@ impl MultiProgress {
     ///
     /// Inserting a [`ProgressBar`] that is already a member of the [`MultiProgress`]
     /// will have no effect.
-    ///
-    /// [`MultiBar`]: crate::MultiBar
-    pub fn insert_after(
-        &self,
-        after: &ProgressBar,
-        pb: impl Into<MultiProgressInput>,
-    ) -> ProgressBar {
-        self.internalize(InsertLocation::After(after.index().unwrap()), pb.into())
+    #[deprecated(
+        note = "use `MultiProgress::register_after` with a `ProgressBarBuilder` instead to avoid premature draws (see #677)"
+    )]
+    pub fn insert_after(&self, after: &ProgressBar, pb: ProgressBar) -> ProgressBar {
+        self.internalize_pb(InsertLocation::After(after.index().unwrap()), pb)
     }
 
     /// Removes a progress bar.
     ///
-    /// The progress bar is removed only if it was previously inserted or added
-    /// by the methods [`MultiProgress::insert`] or [`MultiProgress::add`].
-    /// If the passed progress bar does not satisfy the condition above,
-    /// the `remove` method does nothing.
+    /// The progress bar is removed only if it was previously added to this
+    /// [`MultiProgress`] via any of the [`register`](MultiProgress::register) /
+    /// `register_*` methods (or the deprecated [`add`](MultiProgress::add) /
+    /// `insert*` methods). If the passed progress bar does not satisfy the
+    /// condition above, the `remove` method does nothing.
     pub fn remove(&self, pb: &ProgressBar) {
         let mut state = pb.state();
         let idx = match &state.draw_target.remote() {
@@ -183,14 +221,39 @@ impl MultiProgress {
         self.state.write().unwrap().remove_idx(idx);
     }
 
-    fn internalize(&self, location: InsertLocation, input: MultiProgressInput) -> ProgressBar {
+    fn internalize_pb(&self, location: InsertLocation, pb: ProgressBar) -> ProgressBar {
         let mut state = self.state.write().unwrap();
         let idx = state.insert(location);
-        let is_stderr = state.draw_target.is_stderr();
         drop(state);
 
         let draw_target = ProgressDrawTarget::new_remote(self.state.clone(), idx);
-        input.materialize(draw_target, is_stderr)
+        pb.set_draw_target(draw_target);
+        pb
+    }
+
+    fn internalize_builder(
+        &self,
+        location: InsertLocation,
+        builder: ProgressBarBuilder,
+    ) -> ProgressBar {
+        // Phase 1: read is_stderr under a brief read lock.
+        let is_stderr = self.state.read().unwrap().draw_target.is_stderr();
+
+        // Phase 2: build the ProgressBar (panic-safe — no MultiState slot is held,
+        // so a panic here cannot leak a slot).
+        let (pb, steady_tick) = builder.build_unregistered(is_stderr);
+
+        // Phase 3: reserve the slot and wire up the remote draw target.
+        let idx = self.state.write().unwrap().insert(location);
+        let draw_target = ProgressDrawTarget::new_remote(self.state.clone(), idx);
+        pb.set_draw_target(draw_target);
+
+        // Phase 4: start steady tick LAST (spawns a thread that reads the draw target).
+        if let Some(interval) = steady_tick {
+            pb.enable_steady_tick(interval);
+        }
+
+        pb
     }
 
     /// Print a log line above all progress bars in the [`MultiProgress`]
@@ -540,9 +603,10 @@ enum InsertLocation {
 
 #[cfg(test)]
 mod tests {
-    use crate::{MultiProgress, ProgressBar, ProgressDrawTarget};
+    use crate::{MultiProgress, ProgressBar, ProgressBarBuilder, ProgressDrawTarget};
 
     #[test]
+    #[allow(deprecated)]
     fn late_pb_drop() {
         let pb = ProgressBar::new(10);
         let mpb = MultiProgress::new();
@@ -563,20 +627,20 @@ mod tests {
     #[test]
     fn multi_progress_hidden() {
         let mpb = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let pb = mpb.add(ProgressBar::new(123));
+        let pb = mpb.register(ProgressBarBuilder::new(123));
         pb.finish();
     }
 
     #[test]
     fn multi_progress_modifications() {
         let mp = MultiProgress::new();
-        let p0 = mp.add(ProgressBar::new(1));
-        let p1 = mp.add(ProgressBar::new(1));
-        let p2 = mp.add(ProgressBar::new(1));
-        let p3 = mp.add(ProgressBar::new(1));
+        let p0 = mp.register(ProgressBarBuilder::new(1));
+        let p1 = mp.register(ProgressBarBuilder::new(1));
+        let p2 = mp.register(ProgressBarBuilder::new(1));
+        let p3 = mp.register(ProgressBarBuilder::new(1));
         mp.remove(&p2);
         mp.remove(&p1);
-        let p4 = mp.insert(1, ProgressBar::new(1));
+        let p4 = mp.register_at(1, ProgressBarBuilder::new(1));
 
         let state = mp.state.read().unwrap();
         // the removed place for p1 is reused
@@ -605,13 +669,13 @@ mod tests {
     }
 
     #[test]
-    fn multi_progress_insert_from_back() {
+    fn multi_progress_register_from_back() {
         let mp = MultiProgress::new();
-        let p0 = mp.add(ProgressBar::new(1));
-        let p1 = mp.add(ProgressBar::new(1));
-        let p2 = mp.add(ProgressBar::new(1));
-        let p3 = mp.insert_from_back(1, ProgressBar::new(1));
-        let p4 = mp.insert_from_back(10, ProgressBar::new(1));
+        let p0 = mp.register(ProgressBarBuilder::new(1));
+        let p1 = mp.register(ProgressBarBuilder::new(1));
+        let p2 = mp.register(ProgressBarBuilder::new(1));
+        let p3 = mp.register_from_back(1, ProgressBarBuilder::new(1));
+        let p4 = mp.register_from_back(10, ProgressBarBuilder::new(1));
 
         let state = mp.state.read().unwrap();
         assert_eq!(state.ordering, vec![4, 0, 1, 3, 2]);
@@ -623,13 +687,13 @@ mod tests {
     }
 
     #[test]
-    fn multi_progress_insert_after() {
+    fn multi_progress_register_after() {
         let mp = MultiProgress::new();
-        let p0 = mp.add(ProgressBar::new(1));
-        let p1 = mp.add(ProgressBar::new(1));
-        let p2 = mp.add(ProgressBar::new(1));
-        let p3 = mp.insert_after(&p2, ProgressBar::new(1));
-        let p4 = mp.insert_after(&p0, ProgressBar::new(1));
+        let p0 = mp.register(ProgressBarBuilder::new(1));
+        let p1 = mp.register(ProgressBarBuilder::new(1));
+        let p2 = mp.register(ProgressBarBuilder::new(1));
+        let p3 = mp.register_after(&p2, ProgressBarBuilder::new(1));
+        let p4 = mp.register_after(&p0, ProgressBarBuilder::new(1));
 
         let state = mp.state.read().unwrap();
         assert_eq!(state.ordering, vec![0, 4, 1, 2, 3]);
@@ -641,13 +705,13 @@ mod tests {
     }
 
     #[test]
-    fn multi_progress_insert_before() {
+    fn multi_progress_register_before() {
         let mp = MultiProgress::new();
-        let p0 = mp.add(ProgressBar::new(1));
-        let p1 = mp.add(ProgressBar::new(1));
-        let p2 = mp.add(ProgressBar::new(1));
-        let p3 = mp.insert_before(&p0, ProgressBar::new(1));
-        let p4 = mp.insert_before(&p2, ProgressBar::new(1));
+        let p0 = mp.register(ProgressBarBuilder::new(1));
+        let p1 = mp.register(ProgressBarBuilder::new(1));
+        let p2 = mp.register(ProgressBarBuilder::new(1));
+        let p3 = mp.register_before(&p0, ProgressBarBuilder::new(1));
+        let p4 = mp.register_before(&p2, ProgressBarBuilder::new(1));
 
         let state = mp.state.read().unwrap();
         assert_eq!(state.ordering, vec![3, 0, 1, 4, 2]);
@@ -659,15 +723,15 @@ mod tests {
     }
 
     #[test]
-    fn multi_progress_insert_before_and_after() {
+    fn multi_progress_register_before_and_after() {
         let mp = MultiProgress::new();
-        let p0 = mp.add(ProgressBar::new(1));
-        let p1 = mp.add(ProgressBar::new(1));
-        let p2 = mp.add(ProgressBar::new(1));
-        let p3 = mp.insert_before(&p0, ProgressBar::new(1));
-        let p4 = mp.insert_after(&p3, ProgressBar::new(1));
-        let p5 = mp.insert_after(&p3, ProgressBar::new(1));
-        let p6 = mp.insert_before(&p1, ProgressBar::new(1));
+        let p0 = mp.register(ProgressBarBuilder::new(1));
+        let p1 = mp.register(ProgressBarBuilder::new(1));
+        let p2 = mp.register(ProgressBarBuilder::new(1));
+        let p3 = mp.register_before(&p0, ProgressBarBuilder::new(1));
+        let p4 = mp.register_after(&p3, ProgressBarBuilder::new(1));
+        let p5 = mp.register_after(&p3, ProgressBarBuilder::new(1));
+        let p6 = mp.register_before(&p1, ProgressBarBuilder::new(1));
 
         let state = mp.state.read().unwrap();
         assert_eq!(state.ordering, vec![3, 5, 4, 0, 6, 1, 2]);
@@ -683,8 +747,8 @@ mod tests {
     #[test]
     fn multi_progress_multiple_remove() {
         let mp = MultiProgress::new();
-        let p0 = mp.add(ProgressBar::new(1));
-        let p1 = mp.add(ProgressBar::new(1));
+        let p0 = mp.register(ProgressBarBuilder::new(1));
+        let p1 = mp.register(ProgressBarBuilder::new(1));
         // double remove beyond the first one have no effect
         mp.remove(&p0);
         mp.remove(&p0);
@@ -704,6 +768,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn mp_no_crash_double_add() {
         let mp = MultiProgress::new();
         let pb = mp.add(ProgressBar::new(10));

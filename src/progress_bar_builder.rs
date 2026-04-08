@@ -9,22 +9,22 @@ use crate::style::ProgressStyle;
 
 /// A deferred progress bar configuration for use with [`MultiProgress`].
 ///
-/// Unlike [`ProgressBar`], a `MultiBar` never draws to the terminal on its own.
-/// Configuration is captured and applied only when the `MultiBar` is added to a
-/// [`MultiProgress`] via methods like [`MultiProgress::add`].
+/// Unlike [`ProgressBar`], a `ProgressBarBuilder` never draws to the terminal on
+/// its own. Configuration is captured and applied only when the builder is
+/// registered with a [`MultiProgress`] via methods like
+/// [`MultiProgress::register`].
 ///
 /// This avoids a common footgun where a [`ProgressBar`] is configured (triggering
 /// premature draws to stderr) before being added to a [`MultiProgress`], causing
 /// screen corruption. See [#677] for details.
 ///
-/// Dropping a `MultiBar` without adding it to a [`MultiProgress`] is a no-op —
-/// no resources are allocated until materialization.
+/// Dropping a `ProgressBarBuilder` without registering it is a no-op — no
+/// resources are allocated until materialization.
 ///
 /// # Migration
 ///
-/// Passing a [`ProgressBar`] directly to [`MultiProgress::add`] is supported
-/// for backwards compatibility but will be removed in a future release. To
-/// migrate, replace:
+/// Passing a [`ProgressBar`] directly to [`MultiProgress::add`] is deprecated.
+/// To migrate, replace:
 ///
 /// ```rust,ignore
 /// let pb = mp.add(ProgressBar::new(100));
@@ -35,22 +35,41 @@ use crate::style::ProgressStyle;
 /// with:
 ///
 /// ```rust,ignore
-/// let pb = mp.add(
-///     MultiBar::new(100)
+/// let pb = mp.register(
+///     ProgressBarBuilder::new(100)
 ///         .with_message("downloading")
 ///         .with_steady_tick(Duration::from_millis(100))
 /// );
 /// ```
 ///
+/// ## Behavior difference: style colors for non-stderr draw targets
+///
+/// When migrating code that configures a style on a [`MultiProgress`] whose
+/// draw target is **not** stderr (e.g. [`ProgressDrawTarget::term_like`]),
+/// there is a subtle behavior difference. The old path created a
+/// [`ProgressBar`] that defaulted to stderr, then applied the style via
+/// [`ProgressBar::set_style`]; because that method's stderr-color handling
+/// checks the pb's *current* draw target, a freshly-constructed bar always
+/// took the stderr branch and [`ProgressStyle::set_for_stderr`] was applied
+/// to the style before the remote draw target was swapped in. The new path
+/// reads the MultiProgress's draw target to decide whether to apply stderr
+/// color handling, so custom draw targets get their natural (non-stderr)
+/// color treatment. This is usually the desired behavior, but it can
+/// produce different colors than the deprecated path for the same style.
+///
+/// [`ProgressDrawTarget::term_like`]: crate::ProgressDrawTarget::term_like
+/// [`ProgressBar::set_style`]: crate::ProgressBar::set_style
+/// [`ProgressStyle::set_for_stderr`]: crate::style::ProgressStyle::set_for_stderr
+///
 /// # Example
 ///
 /// ```rust
 /// use std::time::Duration;
-/// use indicatif::{MultiBar, MultiProgress, ProgressStyle};
+/// use indicatif::{ProgressBarBuilder, MultiProgress, ProgressStyle};
 ///
 /// let mp = MultiProgress::new();
-/// let pb = mp.add(
-///     MultiBar::new(100)
+/// let pb = mp.register(
+///     ProgressBarBuilder::new(100)
 ///         .with_style(ProgressStyle::with_template("{bar:40} {pos}/{len} {msg}").unwrap())
 ///         .with_message("downloading")
 ///         .with_steady_tick(Duration::from_millis(100))
@@ -58,11 +77,12 @@ use crate::style::ProgressStyle;
 /// ```
 ///
 /// [`MultiProgress`]: crate::MultiProgress
+/// [`MultiProgress::register`]: crate::MultiProgress::register
 /// [`MultiProgress::add`]: crate::MultiProgress::add
 /// [`ProgressBar`]: crate::ProgressBar
 /// [#677]: https://github.com/console-rs/indicatif/issues/677
 #[derive(Clone)]
-pub struct MultiBar {
+pub struct ProgressBarBuilder {
     len: Option<u64>,
     style: Option<ProgressStyle>,
     message: Option<Cow<'static, str>>,
@@ -75,9 +95,9 @@ pub struct MultiBar {
 }
 
 // ProgressStyle doesn't implement Debug, so we print all other fields
-impl fmt::Debug for MultiBar {
+impl fmt::Debug for ProgressBarBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("MultiBar")
+        f.debug_struct("ProgressBarBuilder")
             .field("len", &self.len)
             .field("message", &self.message)
             .field("prefix", &self.prefix)
@@ -90,7 +110,7 @@ impl fmt::Debug for MultiBar {
     }
 }
 
-impl MultiBar {
+impl ProgressBarBuilder {
     fn base() -> Self {
         Self {
             len: None,
@@ -105,7 +125,7 @@ impl MultiBar {
         }
     }
 
-    /// Creates a new `MultiBar` with a given length.
+    /// Creates a new `ProgressBarBuilder` with a given length.
     pub fn new(len: u64) -> Self {
         Self {
             len: Some(len),
@@ -113,12 +133,12 @@ impl MultiBar {
         }
     }
 
-    /// Creates a new `MultiBar` without a specified length.
+    /// Creates a new `ProgressBarBuilder` without a specified length.
     pub fn no_length() -> Self {
         Self::base()
     }
 
-    /// Creates a new spinner-style `MultiBar` (no length, default spinner style).
+    /// Creates a new spinner-style `ProgressBarBuilder` (no length, default spinner style).
     pub fn new_spinner() -> Self {
         Self {
             style: Some(ProgressStyle::default_spinner()),
@@ -181,8 +201,8 @@ impl MultiBar {
 
     /// Enables steady tick with the given interval after materialization.
     ///
-    /// The tick thread will only be started when this `MultiBar` is added to a
-    /// [`MultiProgress`].
+    /// The tick thread will only be started when this builder is registered
+    /// with a [`MultiProgress`].
     ///
     /// [`MultiProgress`]: crate::MultiProgress
     pub fn with_steady_tick(mut self, interval: Duration) -> Self {
@@ -190,37 +210,58 @@ impl MultiBar {
         self
     }
 
-    /// Materialize into a [`ProgressBar`] with the given draw target.
+    /// Build an unregistered [`ProgressBar`] with a hidden draw target and return
+    /// it along with the optional steady_tick interval to apply later.
+    ///
+    /// This is **not** a user-facing "build a hidden progress bar" helper — it is
+    /// the panic-safe phase of materialization used internally by
+    /// [`MultiProgress::register`]. It applies all builder configuration (any of
+    /// which may panic — e.g. [`ProgressBar::with_elapsed`] panics if the elapsed
+    /// duration exceeds the time since system boot) BEFORE the [`MultiProgress`]
+    /// reserves a slot for the bar, so a panic here cannot leak a slot. The
+    /// caller is expected to reserve a slot, then call
+    /// [`ProgressBar::set_draw_target`] and [`ProgressBar::enable_steady_tick`]
+    /// to complete materialization.
     ///
     /// `is_stderr` indicates whether the [`MultiProgress`]'s draw target is stderr,
     /// used for style color detection. Another thread could call
     /// [`MultiProgress::set_draw_target`] after we read `is_stderr` but before the
-    /// style is applied, making the stderr detection stale. This is an inherited
-    /// limitation matching the existing [`ProgressBar`] path.
+    /// style is applied, making the stderr detection stale. This matches the
+    /// TOCTOU window that exists on the deprecated [`MultiProgress::add`] path.
     ///
     /// [`MultiProgress`]: crate::MultiProgress
+    /// [`MultiProgress::register`]: crate::MultiProgress::register
+    /// [`MultiProgress::add`]: crate::MultiProgress::add
     /// [`MultiProgress::set_draw_target`]: crate::MultiProgress::set_draw_target
-    pub(crate) fn materialize(
-        self,
-        draw_target: ProgressDrawTarget,
-        is_stderr: bool,
-    ) -> ProgressBar {
-        // INVARIANT: tab_width must be set before prefix/message (affects tab expansion).
-        // INVARIANT: draw target must be set after all style/content configuration.
-        // INVARIANT: steady_tick must be last (spawns a thread that reads the draw target).
+    pub(crate) fn build_unregistered(self, is_stderr: bool) -> (ProgressBar, Option<Duration>) {
+        // PARITY: every `ProgressBar::with_*` method that has a corresponding
+        // field on `ProgressBarBuilder` must also be applied here. When adding a
+        // new `with_*` method to `ProgressBar`, mirror it onto `ProgressBarBuilder`
+        // and extend this chain. There is no compile-time enforcement of this
+        // parity.
+        //
+        // ORDER (defense-in-depth, not strictly load-bearing today):
+        // `BarState::set_tab_width` currently propagates the new tab_width into
+        // the existing prefix/message/style, and `BarState::set_style` re-applies
+        // `state.tab_width` to the new style — so swapping the order of
+        // `with_tab_width`/`with_style`/`with_prefix`/`with_message` would
+        // produce the same output under today's implementation. We keep
+        // tab_width first anyway so a future refactor of either `set_tab_width`
+        // or `set_style` that drops the cross-propagation doesn't silently
+        // change tab-expansion behavior.
 
-        // 1. Create with hidden target (no draws possible)
+        // 1. Create with a hidden target (no draws possible during construction).
         let pb = ProgressBar::with_draw_target(self.len, ProgressDrawTarget::hidden());
 
-        // 2. Apply tab_width FIRST — with_prefix/with_message use the current
-        //    tab_width for tab expansion, so this must precede them.
+        // 2. Apply tab_width first so subsequent steps that read `state.tab_width`
+        //    (prefix/message tab expansion, style tab_width) observe the user value.
         let pb = if let Some(tw) = self.tab_width {
             pb.with_tab_width(tw)
         } else {
             pb
         };
 
-        // 3. Apply style, adjusting for stderr color detection if needed
+        // 3. Apply style, adjusting for stderr color detection if needed.
         let pb = if let Some(mut style) = self.style {
             if is_stderr {
                 style.set_for_stderr();
@@ -230,7 +271,7 @@ impl MultiBar {
             pb
         };
 
-        // 4. Apply remaining configuration
+        // 4. Apply remaining configuration.
         let pb = if let Some(prefix) = self.prefix {
             pb.with_prefix(prefix)
         } else {
@@ -257,59 +298,7 @@ impl MultiBar {
             pb
         };
 
-        // 5. Set the real draw target (MultiProgress remote target)
-        pb.set_draw_target(draw_target);
-
-        // 6. Start steady tick LAST (spawns thread, must draw to correct target)
-        if let Some(interval) = self.steady_tick {
-            pb.enable_steady_tick(interval);
-        }
-
-        pb
-    }
-}
-
-/// Input type for [`MultiProgress`] add/insert methods.
-///
-/// This type is public because it appears in method signatures, but you should not need
-/// to construct it directly. Pass a [`ProgressBar`] or [`MultiBar`] to [`MultiProgress`]
-/// methods instead.
-///
-/// [`MultiProgress`]: crate::MultiProgress
-#[doc(hidden)]
-#[non_exhaustive]
-pub enum MultiProgressInput {
-    ProgressBar(ProgressBar),
-    MultiBar(Box<MultiBar>),
-}
-
-impl MultiProgressInput {
-    pub(crate) fn materialize(
-        self,
-        draw_target: ProgressDrawTarget,
-        is_stderr: bool,
-    ) -> ProgressBar {
-        match self {
-            Self::ProgressBar(pb) => {
-                pb.set_draw_target(draw_target);
-                pb
-            }
-            Self::MultiBar(mb) => mb.materialize(draw_target, is_stderr),
-        }
-    }
-}
-
-/// Backwards-compatible conversion. Will be removed in a future release;
-/// use [`MultiBar`] instead.
-impl From<ProgressBar> for MultiProgressInput {
-    fn from(pb: ProgressBar) -> Self {
-        Self::ProgressBar(pb)
-    }
-}
-
-impl From<MultiBar> for MultiProgressInput {
-    fn from(mb: MultiBar) -> Self {
-        Self::MultiBar(Box::new(mb))
+        (pb, self.steady_tick)
     }
 }
 
@@ -321,75 +310,79 @@ mod tests {
     use super::*;
 
     #[test]
-    fn multi_bar_new_sets_length() {
+    fn builder_new_sets_length() {
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let pb = mp.add(MultiBar::new(42));
+        let pb = mp.register(ProgressBarBuilder::new(42));
         assert_eq!(pb.length(), Some(42));
     }
 
     #[test]
-    fn multi_bar_no_length() {
+    fn builder_no_length() {
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let pb = mp.add(MultiBar::no_length());
+        let pb = mp.register(ProgressBarBuilder::no_length());
         assert_eq!(pb.length(), None);
     }
 
     #[test]
-    fn multi_bar_new_spinner_has_no_length() {
+    fn builder_new_spinner_has_no_length() {
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let pb = mp.add(MultiBar::new_spinner());
+        let pb = mp.register(ProgressBarBuilder::new_spinner());
         assert_eq!(pb.length(), None);
     }
 
     #[test]
-    fn multi_bar_with_message() {
+    fn builder_with_message() {
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let pb = mp.add(MultiBar::new(10).with_message("hello"));
+        let pb = mp.register(ProgressBarBuilder::new(10).with_message("hello"));
         assert_eq!(pb.message(), "hello");
     }
 
     #[test]
-    fn multi_bar_with_prefix() {
+    fn builder_with_prefix() {
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let pb = mp.add(MultiBar::new(10).with_prefix("[1/3]"));
+        let pb = mp.register(ProgressBarBuilder::new(10).with_prefix("[1/3]"));
         assert_eq!(pb.prefix(), "[1/3]");
     }
 
     #[test]
-    fn multi_bar_with_position() {
+    fn builder_with_position() {
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let pb = mp.add(MultiBar::new(100).with_position(50));
+        let pb = mp.register(ProgressBarBuilder::new(100).with_position(50));
         assert_eq!(pb.position(), 50);
     }
 
     #[test]
-    fn multi_bar_with_style() {
+    fn builder_with_style() {
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
         let style = ProgressStyle::with_template("{msg}").unwrap();
-        let pb = mp.add(MultiBar::new(10).with_style(style));
+        let pb = mp.register(ProgressBarBuilder::new(10).with_style(style));
         pb.set_message("test");
         assert_eq!(pb.message(), "test");
     }
 
     #[test]
-    fn multi_bar_with_elapsed() {
+    fn builder_with_elapsed() {
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let pb = mp.add(MultiBar::new(100).with_elapsed(Duration::from_secs(42)));
+        let pb = mp.register(ProgressBarBuilder::new(100).with_elapsed(Duration::from_secs(42)));
         assert!(pb.elapsed() >= Duration::from_secs(42));
     }
 
     #[test]
-    fn multi_bar_with_tab_width() {
+    fn builder_with_tab_width() {
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let pb = mp.add(MultiBar::new(10).with_tab_width(4).with_message("a\tb"));
+        let pb = mp.register(
+            ProgressBarBuilder::new(10)
+                .with_tab_width(4)
+                .with_message("a\tb"),
+        );
         assert_eq!(pb.tab_width(), 4);
     }
 
     #[test]
-    fn multi_bar_builder_chaining() {
+    fn builder_chaining() {
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let pb = mp.add(
-            MultiBar::new(100)
+        let pb = mp.register(
+            ProgressBarBuilder::new(100)
                 .with_message("downloading")
                 .with_prefix("[1/3]")
                 .with_position(25),
@@ -401,6 +394,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn backwards_compat_progress_bar_still_works() {
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
         let pb = crate::ProgressBar::new(100);
@@ -409,30 +403,32 @@ mod tests {
     }
 
     #[test]
-    fn multi_bar_with_finish() {
+    fn builder_with_finish() {
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let pb = mp.add(MultiBar::new(10).with_finish(ProgressFinish::AndLeave));
+        let pb = mp.register(ProgressBarBuilder::new(10).with_finish(ProgressFinish::AndLeave));
         pb.finish();
         assert!(pb.is_finished());
     }
 
     #[test]
-    fn multi_bar_clone() {
-        let mb = MultiBar::new(100).with_message("test").with_prefix("pfx");
-        let mb2 = mb.clone();
+    fn builder_clone() {
+        let builder = ProgressBarBuilder::new(100)
+            .with_message("test")
+            .with_prefix("pfx");
+        let builder2 = builder.clone();
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let pb = mp.add(mb2);
+        let pb = mp.register(builder2);
         assert_eq!(pb.message(), "test");
         assert_eq!(pb.prefix(), "pfx");
     }
 
     #[test]
-    fn multi_bar_insert_before_after() {
+    fn builder_register_before_after() {
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-        let p0 = mp.add(MultiBar::new(1));
-        let p1 = mp.add(MultiBar::new(2));
-        let p2 = mp.insert_after(&p1, MultiBar::new(3));
-        let p3 = mp.insert_before(&p0, MultiBar::new(4));
+        let p0 = mp.register(ProgressBarBuilder::new(1));
+        let p1 = mp.register(ProgressBarBuilder::new(2));
+        let p2 = mp.register_after(&p1, ProgressBarBuilder::new(3));
+        let p3 = mp.register_before(&p0, ProgressBarBuilder::new(4));
         assert_eq!(p0.length(), Some(1));
         assert_eq!(p1.length(), Some(2));
         assert_eq!(p2.length(), Some(3));
