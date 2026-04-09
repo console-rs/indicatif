@@ -50,16 +50,15 @@ use crate::style::ProgressStyle;
 /// [`ProgressBar`] that defaulted to stderr, then applied the style via
 /// [`ProgressBar::set_style`]; because that method's stderr-color handling
 /// checks the pb's *current* draw target, a freshly-constructed bar always
-/// took the stderr branch and [`ProgressStyle::set_for_stderr`] was applied
-/// to the style before the remote draw target was swapped in. The new path
-/// reads the MultiProgress's draw target to decide whether to apply stderr
-/// color handling, so custom draw targets get their natural (non-stderr)
-/// color treatment. This is usually the desired behavior, but it can
-/// produce different colors than the deprecated path for the same style.
+/// took the stderr branch and the stderr-color variant of the style was
+/// applied before the remote draw target was swapped in. The new path reads
+/// the MultiProgress's draw target to decide whether to apply stderr color
+/// handling, so custom draw targets get their natural (non-stderr) color
+/// treatment. This is usually the desired behavior, but it can produce
+/// different colors than the deprecated path for the same style.
 ///
 /// [`ProgressDrawTarget::term_like`]: crate::ProgressDrawTarget::term_like
 /// [`ProgressBar::set_style`]: crate::ProgressBar::set_style
-/// [`ProgressStyle::set_for_stderr`]: crate::style::ProgressStyle::set_for_stderr
 ///
 /// # Example
 ///
