@@ -542,12 +542,10 @@ impl MultiState {
                 self.ordering.insert(pos, idx);
             }
             InsertLocation::After(after_idx) => {
-                let pos = self.ordering.iter().position(|i| *i == after_idx).unwrap();
-                self.ordering.insert(pos + 1, idx);
+                self.ordering.insert(self.visual_index(after_idx) + 1, idx);
             }
             InsertLocation::Before(before_idx) => {
-                let pos = self.ordering.iter().position(|i| *i == before_idx).unwrap();
-                self.ordering.insert(pos, idx);
+                self.ordering.insert(self.visual_index(before_idx), idx);
             }
         }
 
@@ -590,6 +588,14 @@ impl MultiState {
 
     fn len(&self) -> usize {
         self.members.len() - self.free_set.len()
+    }
+
+    /// Map from opaque index to position on screen.
+    pub(crate) fn visual_index(&self, opaque_index: usize) -> usize {
+        self.ordering
+            .iter()
+            .position(|v| *v == opaque_index)
+            .expect("no such member")
     }
 }
 
@@ -678,9 +684,28 @@ mod tests {
         let p1 = mp.add(ProgressBar::new(1));
         let p2 = mp.add(ProgressBar::new(1));
         let p3 = mp.add(ProgressBar::new(1));
+
+        // Check position of bars on screen
+        assert_eq!(
+            &[
+                p0.visual_index().unwrap(),
+                p1.visual_index().unwrap(),
+                p2.visual_index().unwrap(),
+                p3.visual_index().unwrap()
+            ],
+            &[0, 1, 2, 3]
+        );
+
         mp.remove(&p2);
         mp.remove(&p1);
+
+        assert_eq!(
+            &[p0.visual_index().unwrap(), p3.visual_index().unwrap()],
+            &[0, 1]
+        );
+
         let p4 = mp.insert(1, ProgressBar::new(1));
+        assert_eq!(p4.visual_index().unwrap(), 1);
 
         let state = mp.state.read().unwrap();
         // the removed place for p1 is reused
@@ -706,6 +731,18 @@ mod tests {
         assert_eq!(p1.index(), None);
         assert_eq!(p2.index(), None);
         assert_eq!(p3.index().unwrap(), 3);
+
+        // Check position of bars on screen
+        assert_eq!(
+            &[
+                p0.visual_index(),
+                p1.visual_index(),
+                p2.visual_index(),
+                p3.visual_index(),
+                p4.visual_index()
+            ],
+            &[Some(0), None, None, Some(2), Some(1)]
+        );
     }
 
     #[test]
@@ -724,6 +761,18 @@ mod tests {
         assert_eq!(p2.index().unwrap(), 2);
         assert_eq!(p3.index().unwrap(), 3);
         assert_eq!(p4.index().unwrap(), 4);
+
+        // Check position of bars on screen
+        assert_eq!(
+            &[
+                p0.visual_index().unwrap(),
+                p1.visual_index().unwrap(),
+                p2.visual_index().unwrap(),
+                p3.visual_index().unwrap(),
+                p4.visual_index().unwrap()
+            ],
+            &[1, 2, 4, 3, 0]
+        );
     }
 
     #[test]
@@ -742,6 +791,18 @@ mod tests {
         assert_eq!(p2.index().unwrap(), 2);
         assert_eq!(p3.index().unwrap(), 3);
         assert_eq!(p4.index().unwrap(), 4);
+
+        // Check position of bars on screen
+        assert_eq!(
+            &[
+                p0.visual_index().unwrap(),
+                p1.visual_index().unwrap(),
+                p2.visual_index().unwrap(),
+                p3.visual_index().unwrap(),
+                p4.visual_index().unwrap()
+            ],
+            &[0, 2, 3, 4, 1]
+        );
     }
 
     #[test]
@@ -760,6 +821,18 @@ mod tests {
         assert_eq!(p2.index().unwrap(), 2);
         assert_eq!(p3.index().unwrap(), 3);
         assert_eq!(p4.index().unwrap(), 4);
+
+        // Check position of bars on screen
+        assert_eq!(
+            &[
+                p0.visual_index().unwrap(),
+                p1.visual_index().unwrap(),
+                p2.visual_index().unwrap(),
+                p3.visual_index().unwrap(),
+                p4.visual_index().unwrap()
+            ],
+            &[1, 2, 4, 0, 3]
+        );
     }
 
     #[test]
@@ -782,6 +855,20 @@ mod tests {
         assert_eq!(p4.index().unwrap(), 4);
         assert_eq!(p5.index().unwrap(), 5);
         assert_eq!(p6.index().unwrap(), 6);
+
+        // Check position of bars on screen
+        assert_eq!(
+            &[
+                p0.visual_index().unwrap(),
+                p1.visual_index().unwrap(),
+                p2.visual_index().unwrap(),
+                p3.visual_index().unwrap(),
+                p4.visual_index().unwrap(),
+                p5.visual_index().unwrap(),
+                p6.visual_index().unwrap()
+            ],
+            &[3, 5, 6, 0, 2, 1, 4]
+        );
     }
 
     #[test]
