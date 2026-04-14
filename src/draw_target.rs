@@ -554,7 +554,7 @@ impl DrawState {
         // full height exceeds the terminal height.
         let mut real_height = VisualLines::default();
 
-        for (idx, line) in self.lines.iter().enumerate() {
+        for line in self.lines.iter() {
             let line_height = line.wrapped_height(term_width);
 
             // Check here for bar lines that exceed the terminal height
@@ -567,20 +567,12 @@ impl DrawState {
                 real_height += line_height;
             }
 
-            // Print a new line if this is not the first line printed this tick
-            // the first line will automatically wrap due to the filler below
-            if idx != 0 {
-                term.write_line("")?;
-            }
-
             term.write_str(line.as_ref())?;
 
-            if idx + 1 == self.lines.len() {
-                // For the last line of the output, keep the cursor on the right terminal
-                // side so that next user writes/prints will happen on the next line
-                let last_line_filler = line_height.as_usize() * term_width - line.console_width();
-                term.write_str(&" ".repeat(last_line_filler))?;
-            }
+            // clear the line and keep the cursor on the right terminal side so that
+            // future writes/prints will happen on the next line
+            let line_filler = line_height.as_usize() * term_width - line.console_width();
+            term.write_str(&" ".repeat(line_filler))?;
         }
 
         term.flush()?;
