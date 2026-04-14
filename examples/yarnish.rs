@@ -2,7 +2,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use console::{style, Emoji};
-use indicatif::{HumanDuration, MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{HumanDuration, MultiProgress, ProgressBar, ProgressBarBuilder, ProgressStyle};
 use rand::prelude::IndexedRandom;
 use rand::RngExt;
 
@@ -72,9 +72,11 @@ pub fn main() {
     let handles: Vec<_> = (0..4u32)
         .map(|i| {
             let count = rng.random_range(30..80);
-            let pb = m.add(ProgressBar::new(count));
-            pb.set_style(spinner_style.clone());
-            pb.set_prefix(format!("[{}/?]", i + 1));
+            let pb = m.register(
+                ProgressBarBuilder::new(count)
+                    .with_style(spinner_style.clone())
+                    .with_prefix(format!("[{}/?]", i + 1)),
+            );
             thread::spawn(move || {
                 let mut rng = rand::rng();
                 let pkg = PACKAGES.choose(&mut rng).unwrap();

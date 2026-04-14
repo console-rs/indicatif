@@ -690,13 +690,13 @@ impl PartialEq<str> for LineType {
 #[cfg(test)]
 mod tests {
     use crate::draw_target::LineType;
-    use crate::{MultiProgress, ProgressBar, ProgressDrawTarget};
+    use crate::{MultiProgress, ProgressBarBuilder, ProgressDrawTarget};
 
     #[test]
     fn multi_is_hidden() {
         let mp = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
 
-        let pb = mp.add(ProgressBar::new(100));
+        let pb = mp.register(ProgressBarBuilder::new(100));
         assert!(mp.is_hidden());
         assert!(pb.is_hidden());
     }
