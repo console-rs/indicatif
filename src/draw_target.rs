@@ -143,6 +143,7 @@ impl ProgressDrawTarget {
     pub(crate) fn is_stderr(&self) -> bool {
         match &self.kind {
             TargetKind::Term { term, .. } => matches!(term.target(), TermTarget::Stderr),
+            TargetKind::Multi { state, .. } => state.read().unwrap().draw_target.is_stderr(),
             _ => false,
         }
     }
@@ -689,8 +690,9 @@ impl PartialEq<str> for LineType {
 
 #[cfg(test)]
 mod tests {
-    use crate::draw_target::LineType;
+    use crate::draw_target::{LineType, TargetKind};
     use crate::{MultiProgress, ProgressBar, ProgressDrawTarget};
+    use console::Term;
 
     #[test]
     fn multi_is_hidden() {
@@ -793,5 +795,28 @@ mod tests {
             );
             assert_eq!(result, case.expectation.into(), "case: {case:?}");
         }
+    }
+
+    #[test]
+    fn is_stderr_for_multi() {
+        let term = Term::buffered_stderr();
+        let draw_target = ProgressDrawTarget {
+            kind: TargetKind::Term {
+                term,
+                last_line_count: Default::default(),
+                rate_limiter: super::RateLimiter::new(20),
+                draw_state: Default::default(),
+            },
+        };
+        assert!(draw_target.is_stderr());
+
+        let mp = MultiProgress::with_draw_target(draw_target);
+        let multi_draw_target = ProgressDrawTarget {
+            kind: TargetKind::Multi {
+                state: mp.state.clone(),
+                idx: 0,
+            },
+        };
+        assert!(multi_draw_target.is_stderr());
     }
 }
