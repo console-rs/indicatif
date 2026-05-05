@@ -6,7 +6,9 @@ use std::thread;
 use std::time::Duration;
 
 use console::style;
-use indicatif::{MultiProgress, MultiProgressAlignment, ProgressBar, ProgressStyle};
+use indicatif::{
+    MultiProgress, MultiProgressAlignment, ProgressBar, ProgressBarBuilder, ProgressStyle,
+};
 use once_cell::sync::Lazy;
 use rand::rngs::ThreadRng;
 use rand::{Rng, RngExt};
@@ -29,7 +31,6 @@ struct Item {
     key: String,
     index: usize,
     indent: usize,
-    progress_bar: ProgressBar,
 }
 
 #[derive(Clone, Debug)]
@@ -43,55 +44,46 @@ static ELEMENTS: Lazy<[Elem; 27]> = Lazy::new(|| {
         Elem::AddItem(Item {
             indent: 9,
             index: 0,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "dog".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 0,
             index: 0,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "temp_1".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 8,
             index: 1,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "lazy".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 0,
             index: 1,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "temp_2".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 1,
             index: 0,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "the".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 0,
             index: 0,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "temp_3".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 7,
             index: 3,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "a".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 0,
             index: 3,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "temp_4".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 6,
             index: 2,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "over".to_string(),
         }),
         Elem::RemoveItem(Index(6)),
@@ -101,55 +93,46 @@ static ELEMENTS: Lazy<[Elem; 27]> = Lazy::new(|| {
         Elem::AddItem(Item {
             indent: 0,
             index: 2,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "temp_5".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 4,
             index: 1,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "fox".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 0,
             index: 1,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "temp_6".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 2,
             index: 1,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "quick".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 0,
             index: 1,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "temp_7".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 5,
             index: 5,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "jumps".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 0,
             index: 5,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "temp_8".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 3,
             index: 4,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "brown".to_string(),
         }),
         Elem::AddItem(Item {
             indent: 0,
             index: 3,
-            progress_bar: ProgressBar::new(PB_LEN),
             key: "temp_9".to_string(),
         }),
         Elem::RemoveItem(Index(10)),
@@ -190,25 +173,20 @@ pub fn main() {
         ProgressStyle::with_template("[{pos:>2}/{len:2}] {prefix}{spinner:.green} {msg}").unwrap();
     let sty_fin = ProgressStyle::with_template("[{pos:>2}/{len:2}] {prefix}{msg}").unwrap();
 
-    let pb_main = mp.add(ProgressBar::new(
-        ELEMENTS
-            .iter()
-            .map(|e| match e {
-                Elem::AddItem(item) => item.progress_bar.length().unwrap(),
-                Elem::RemoveItem(_) => 1,
-            })
-            .sum(),
-    ));
+    let pb_main = mp.register(
+        ProgressBarBuilder::new(
+            ELEMENTS
+                .iter()
+                .map(|e| match e {
+                    Elem::AddItem(_) => PB_LEN,
+                    Elem::RemoveItem(_) => 1,
+                })
+                .sum(),
+        )
+        .with_style(sty_main),
+    );
 
-    pb_main.set_style(sty_main);
-    for e in ELEMENTS.iter() {
-        match e {
-            Elem::AddItem(item) => item.progress_bar.set_style(sty_aux.clone()),
-            Elem::RemoveItem(_) => {}
-        }
-    }
-
-    let mut items: Vec<&Item> = Vec::with_capacity(ELEMENTS.len());
+    let mut items: Vec<(&Item, ProgressBar)> = Vec::with_capacity(ELEMENTS.len());
 
     let mp2 = Arc::clone(&mp);
     let mut rng = ThreadRng::default();
@@ -222,29 +200,28 @@ pub fn main() {
             }
             Action::ModifyTree(elem_idx) => match &ELEMENTS[elem_idx] {
                 Elem::AddItem(item) => {
-                    let pb = mp2.insert(item.index, item.progress_bar.clone());
-                    pb.set_prefix("  ".repeat(item.indent));
-                    pb.set_message(&item.key);
-                    items.insert(item.index, item);
+                    let pb = mp2.register_at(
+                        item.index,
+                        ProgressBarBuilder::new(PB_LEN)
+                            .with_style(sty_aux.clone())
+                            .with_prefix("  ".repeat(item.indent))
+                            .with_message(item.key.clone()),
+                    );
+                    items.insert(item.index, (item, pb));
                 }
                 Elem::RemoveItem(Index(index)) => {
-                    let item = items.remove(*index);
-                    let pb = &item.progress_bar;
-                    mp2.remove(pb);
+                    let (_, pb) = items.remove(*index);
+                    mp2.remove(&pb);
                     pb_main.inc(pb.length().unwrap() - pb.position());
                 }
             },
             Action::IncProgressBar(item_idx) => {
-                let item = &items[item_idx];
-                item.progress_bar.inc(1);
-                let pos = item.progress_bar.position();
-                if pos >= item.progress_bar.length().unwrap() {
-                    item.progress_bar.set_style(sty_fin.clone());
-                    item.progress_bar.finish_with_message(format!(
-                        "{} {}",
-                        style("✔").green(),
-                        item.key
-                    ));
+                let (item, pb) = &items[item_idx];
+                pb.inc(1);
+                let pos = pb.position();
+                if pos >= pb.length().unwrap() {
+                    pb.set_style(sty_fin.clone());
+                    pb.finish_with_message(format!("{} {}", style("✔").green(), item.key));
                 }
                 pb_main.inc(1);
             }
@@ -254,15 +231,15 @@ pub fn main() {
 }
 
 /// The function guarantees to return the action, that is valid for the current tree.
-fn get_action(rng: &mut dyn Rng, items: &[&Item]) -> Action {
+fn get_action(rng: &mut dyn Rng, items: &[(&Item, ProgressBar)]) -> Action {
     let elem_idx = ELEM_IDX.load(Ordering::SeqCst);
     // the indices of those items, that not completed yet
     let uncompleted = items
         .iter()
         .enumerate()
-        .filter(|(_, item)| {
-            let pos = item.progress_bar.position();
-            pos < item.progress_bar.length().unwrap()
+        .filter(|(_, (_, pb))| {
+            let pos = pb.position();
+            pos < pb.length().unwrap()
         })
         .map(|(idx, _)| idx)
         .collect::<Vec<usize>>();

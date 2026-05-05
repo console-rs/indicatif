@@ -1,7 +1,7 @@
 use std::thread;
 use std::time::Duration;
 
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBarBuilder, ProgressStyle};
 use rand::RngExt;
 
 fn main() {
@@ -18,13 +18,18 @@ fn main() {
     let handles: Vec<_> = styles
         .iter()
         .map(|s| {
-            let pb = m.add(ProgressBar::new(512));
-            pb.set_style(
-                ProgressStyle::with_template(&format!("{{prefix:.bold}}▕{{bar:.{}}}▏{{msg}}", s.2))
-                    .unwrap()
-                    .progress_chars(s.1),
+            let pb = m.register(
+                ProgressBarBuilder::new(512)
+                    .with_style(
+                        ProgressStyle::with_template(&format!(
+                            "{{prefix:.bold}}▕{{bar:.{}}}▏{{msg}}",
+                            s.2
+                        ))
+                        .unwrap()
+                        .progress_chars(s.1),
+                    )
+                    .with_prefix(s.0),
             );
-            pb.set_prefix(s.0);
             let wait = Duration::from_millis(rand::rng().random_range(10..30));
             thread::spawn(move || {
                 for i in 0..512 {
