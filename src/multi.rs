@@ -325,7 +325,7 @@ impl MultiProgress {
     }
 
     pub fn is_hidden(&self) -> bool {
-        self.state.read().unwrap().is_hidden()
+        self.state.read().unwrap().draw_target.is_hidden()
     }
 }
 
@@ -339,7 +339,7 @@ pub(crate) struct MultiState {
     /// Indices to the `draw_states` to maintain correct visual order
     ordering: Vec<usize>,
     /// Target for draw operation for MultiProgress
-    draw_target: ProgressDrawTarget,
+    pub(crate) draw_target: ProgressDrawTarget,
     /// Controls how the multi progress is aligned if some of its progress bars get removed, default is `Top`
     alignment: MultiProgressAlignment,
     /// Lines to be drawn above everything else in the MultiProgress. These specifically come from
@@ -363,7 +363,7 @@ impl MultiState {
     }
 
     pub(crate) fn mark_zombie(&mut self, index: usize) {
-        let width = self.width().map(usize::from);
+        let width = self.draw_target.width().map(usize::from);
 
         let member = &mut self.members[index];
 
@@ -401,7 +401,7 @@ impl MultiState {
             return Ok(());
         }
 
-        let width = match self.width() {
+        let width = match self.draw_target.width() {
             Some(width) => width as usize,
             None => return Ok(()),
         };
@@ -507,19 +507,11 @@ impl MultiState {
         DrawStateWrapper::for_multi(state, &mut self.orphan_lines)
     }
 
-    pub(crate) fn is_hidden(&self) -> bool {
-        self.draw_target.is_hidden()
-    }
-
     pub(crate) fn suspend<F: FnOnce() -> R, R>(&mut self, f: F, now: Instant) -> R {
         self.clear(now).unwrap();
         let ret = f();
         self.draw(true, None, Instant::now()).unwrap();
         ret
-    }
-
-    pub(crate) fn width(&self) -> Option<u16> {
-        self.draw_target.width()
     }
 
     fn insert(&mut self, location: InsertLocation) -> usize {

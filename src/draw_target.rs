@@ -133,7 +133,7 @@ impl ProgressDrawTarget {
         match self.kind {
             TargetKind::Hidden => true,
             TargetKind::Term { ref term, .. } => !term.is_term(),
-            TargetKind::Multi { ref state, .. } => state.read().unwrap().is_hidden(),
+            TargetKind::Multi { ref state, .. } => state.read().unwrap().draw_target.is_hidden(),
             _ => false,
         }
     }
@@ -151,7 +151,7 @@ impl ProgressDrawTarget {
     pub(crate) fn width(&self) -> Option<u16> {
         match self.kind {
             TargetKind::Term { ref term, .. } => Some(term.size().1),
-            TargetKind::Multi { ref state, .. } => state.read().unwrap().width(),
+            TargetKind::Multi { ref state, .. } => state.read().unwrap().draw_target.width(),
             TargetKind::TermLike { ref inner, .. } => Some(inner.width()),
             TargetKind::Hidden => None,
         }
@@ -370,7 +370,7 @@ impl Drawable<'_> {
     pub(crate) fn width(&self) -> Option<u16> {
         match self {
             Self::Term { term, .. } => Some(term.size().1),
-            Self::Multi { state, .. } => state.width(),
+            Self::Multi { state, .. } => state.draw_target.width(),
             Self::TermLike { term_like, .. } => Some(term_like.width()),
         }
     }
