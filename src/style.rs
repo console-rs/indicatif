@@ -5,9 +5,11 @@ use std::str::FromStr;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 #[cfg(feature = "unicode-width")]
-use unicode_width::UnicodeWidthChar;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
-use console::{measure_text_width, AnsiCodeIterator, Style};
+#[cfg(not(feature = "unicode-width"))]
+use console::measure_text_width;
+use console::{AnsiCodeIterator, Style};
 #[cfg(feature = "unicode-segmentation")]
 use unicode_segmentation::UnicodeSegmentation;
 #[cfg(all(target_arch = "wasm32", feature = "wasmbind"))]
@@ -452,8 +454,8 @@ impl WideElement<'_> {
     ) -> String {
         let left =
             (width as usize).saturating_sub(match cur.lines().find(|line| line.contains('\x00')) {
-                Some(line) => measure_text_width(&line.replace('\x00', "")),
-                None => measure_text_width(&cur),
+                Some(line) => WIDTH.ansi_str(&line.replace('\x00', "")),
+                None => WIDTH.ansi_str(&cur),
             });
         match self {
             Self::Bar {
@@ -745,7 +747,7 @@ struct PaddedStringDisplay<'a> {
 
 impl fmt::Display for PaddedStringDisplay<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let cols = measure_text_width(self.str);
+        let cols = WIDTH.ansi_str(self.str);
         let excess = cols.saturating_sub(self.width);
         if excess > 0 && !self.truncate {
             return f.write_str(self.str);
@@ -794,10 +796,7 @@ pub fn write_ansi_range(
         }
 
         for c in s.chars() {
-            #[cfg(feature = "unicode-width")]
-            let c_width = c.width().unwrap_or(0);
-            #[cfg(not(feature = "unicode-width"))]
-            let c_width = 1;
+            let c_width = WIDTH.char(c);
             if start <= pos && pos + c_width <= end {
                 formatter.write_char(c)?;
             }
@@ -865,21 +864,11 @@ fn segment(s: &str) -> Vec<Box<str>> {
     s.chars().map(|x| x.to_string().into()).collect()
 }
 
-#[cfg(feature = "unicode-width")]
-fn measure(s: &str) -> usize {
-    unicode_width::UnicodeWidthStr::width(s)
-}
-
-#[cfg(not(feature = "unicode-width"))]
-fn measure(s: &str) -> usize {
-    s.chars().count()
-}
-
 /// finds the unicode-aware width of the passed grapheme cluters
 /// panics on an empty parameter, or if the characters are not equal-width
 fn width(c: &[Box<str>]) -> usize {
     c.iter()
-        .map(|s| measure(s.as_ref()))
+        .map(|s| WIDTH.str(s.as_ref()))
         .fold(None, |acc, new| {
             match acc {
                 None => return Some(new),
@@ -888,6 +877,59 @@ fn width(c: &[Box<str>]) -> usize {
             acc
         })
         .unwrap()
+}
+
+pub(crate) static WIDTH: Width = Width::new();
+
+/// Helper for calculating text width.
+///
+/// This structure encapsulates width calculation logic, allowing configuration
+/// of how ambiguous-width characters are treated.
+pub struct Width {}
+
+impl Width {
+    const fn new() -> Self {
+        Self {}
+    }
+
+    #[cfg(feature = "unicode-width")]
+    pub(crate) fn char(&self, c: char) -> usize {
+        c.width().unwrap_or(0) // Make control characters zero-width.
+    }
+
+    #[cfg(not(feature = "unicode-width"))]
+    #[inline]
+    pub(crate) fn char(&self, _c: char) -> usize {
+        1
+    }
+
+    #[cfg(feature = "unicode-width")]
+    pub(crate) fn str(&self, s: &str) -> usize {
+        UnicodeWidthStr::width(s)
+    }
+
+    #[cfg(not(feature = "unicode-width"))]
+    #[inline]
+    pub(crate) fn str(&self, s: &str) -> usize {
+        s.chars().count()
+    }
+
+    #[cfg(feature = "unicode-width")]
+    pub(crate) fn ansi_str(&self, s: &str) -> usize {
+        let mut width = 0;
+        for (chunk, is_ansi) in AnsiCodeIterator::new(s) {
+            if !is_ansi {
+                width += UnicodeWidthStr::width(chunk);
+            }
+        }
+        width
+    }
+
+    #[cfg(not(feature = "unicode-width"))]
+    #[inline]
+    pub(crate) fn ansi_str(&self, s: &str) -> usize {
+        measure_text_width(s)
+    }
 }
 
 #[cfg(test)]
@@ -1244,5 +1286,31 @@ mod tests {
         assert_eq!(&buf[1], "prefix foo");
         assert_eq!(&buf[2], "bar");
         assert_eq!(&buf[3], "baz");
+    }
+
+    #[cfg(feature = "unicode-width")]
+    #[test]
+    fn width_char() {
+        assert_eq!(WIDTH.char('A'), 1);
+        assert_eq!(WIDTH.char('█'), 1);
+        assert_eq!(WIDTH.char('あ'), 2);
+        assert_eq!(WIDTH.char('\r'), 0);
+    }
+
+    #[cfg(feature = "unicode-width")]
+    #[test]
+    fn width_str() {
+        assert_eq!(WIDTH.str("A"), 1);
+        assert_eq!(WIDTH.str("█"), 1);
+        assert_eq!(WIDTH.str("あ"), 2);
+    }
+
+    #[cfg(feature = "unicode-width")]
+    #[test]
+    fn width_ansi_str() {
+        assert_eq!(WIDTH.ansi_str("A"), 1);
+        assert_eq!(WIDTH.ansi_str("█"), 1);
+        assert_eq!(WIDTH.ansi_str("あ"), 2);
+        assert_eq!(WIDTH.ansi_str("\u{1b}[31m█\u{1b}[0m"), 1); // with ANSI
     }
 }
