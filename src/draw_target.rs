@@ -8,10 +8,10 @@ use std::time::Duration;
 use std::time::Instant;
 
 #[cfg(feature = "unicode-width")]
+use crate::Width;
+#[cfg(feature = "unicode-width")]
 use console::AnsiCodeIterator;
 use console::{is_dumb, Term, TermTarget};
-#[cfg(feature = "unicode-width")]
-use unicode_width::UnicodeWidthChar;
 #[cfg(all(target_arch = "wasm32", feature = "wasmbind"))]
 use web_time::Instant;
 
@@ -677,10 +677,9 @@ impl LineType {
             if is_ansi {
                 continue;
             }
+            let width_calculator = Width::new();
             for ch in substr.chars() {
-                let Some(ch_width) = UnicodeWidthChar::width(ch) else {
-                    continue; // Skip control characters.
-                };
+                let ch_width = width_calculator.char(ch);
                 column += ch_width;
                 if column > width {
                     num_lines += 1;
