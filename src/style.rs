@@ -1,7 +1,9 @@
+use portable_atomic::AtomicBool;
 use std::collections::HashMap;
 use std::fmt::{self, Formatter, Write};
 use std::mem;
 use std::str::FromStr;
+use std::sync::atomic::Ordering;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 #[cfg(feature = "unicode-width")]
@@ -827,9 +829,8 @@ fn segment(s: &str) -> Vec<Box<str>> {
 /// finds the unicode-aware width of the passed grapheme cluters
 /// panics on an empty parameter, or if the characters are not equal-width
 fn width(c: &[Box<str>]) -> usize {
-    let width_calculator = Width::new();
     c.iter()
-        .map(|s| width_calculator.str(s.as_ref()))
+        .map(|s| WIDTH.str(s.as_ref()))
         .fold(None, |acc, new| {
             match acc {
                 None => return Some(new),
@@ -840,21 +841,30 @@ fn width(c: &[Box<str>]) -> usize {
         .unwrap()
 }
 
+pub static WIDTH: Width = Width::new();
+
 /// Helper for calculating text width.
 ///
 /// This structure encapsulates width calculation logic, allowing configuration
 /// of how ambiguous-width characters are treated.
-#[derive(Clone, Default)]
-pub struct Width {}
+pub struct Width {
+    is_cjk: AtomicBool,
+}
 
 impl Width {
-    pub fn new() -> Self {
-        Self::default()
+    pub(crate) const fn new() -> Self {
+        Self {
+            is_cjk: AtomicBool::new(false),
+        }
     }
 
     #[cfg(feature = "unicode-width")]
     pub(crate) fn char(&self, c: char) -> usize {
-        c.width().unwrap_or(0) // Make control characters zero-width.
+        match self.is_cjk() {
+            true => c.width_cjk(),
+            false => c.width(),
+        }
+        .unwrap_or(0) // Make control characters zero-width.
     }
 
     #[cfg(not(feature = "unicode-width"))]
@@ -865,7 +875,10 @@ impl Width {
 
     #[cfg(feature = "unicode-width")]
     pub(crate) fn str(&self, s: &str) -> usize {
-        UnicodeWidthStr::width(s)
+        match self.is_cjk() {
+            true => UnicodeWidthStr::width_cjk(s),
+            false => UnicodeWidthStr::width(s),
+        }
     }
 
     #[cfg(not(feature = "unicode-width"))]
@@ -879,7 +892,11 @@ impl Width {
         let mut width = 0;
         for (chunk, is_ansi) in AnsiCodeIterator::new(s) {
             if !is_ansi {
-                width += UnicodeWidthStr::width(chunk);
+                width += if self.is_cjk() {
+                    UnicodeWidthStr::width_cjk(chunk)
+                } else {
+                    UnicodeWidthStr::width(chunk)
+                };
             }
         }
         width
@@ -890,7 +907,29 @@ impl Width {
     pub(crate) fn ansi_str(&self, s: &str) -> usize {
         measure_text_width(s)
     }
+
+    /// Set to use the alternate width calculation more suited to CJK contexts
+    ///
+    /// This is primarily about the [UAX#11] ambiguous characters being treated
+    /// as wide (CJK), but not limited to.
+    /// Please also see the ["cjk" feature flag of the `unicode-width`].
+    ///
+    /// ["cjk" feature flag of the `unicode-width`]: https://docs.rs/unicode-width/latest/unicode_width/#cjk-feature-flag
+    /// [UAX#11]: https://www.unicode.org/reports/tr11/
+    pub fn set_cjk(&self, is_cjk: bool) {
+        self.is_cjk.store(is_cjk, Ordering::Relaxed);
+    }
+
+    /// Whether the alternate width calculation more suited to CJK contexts is enabled
+    pub fn is_cjk(&self) -> bool {
+        self.is_cjk.load(Ordering::Relaxed)
+    }
 }
+
+// Serializes tests that modify or rely on the global CJK ambiguous width setting
+// (via `Width::set_cjk`) to avoid flakiness in parallel execution.
+#[cfg(test)]
+pub(crate) static WIDTH_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[cfg(test)]
 mod tests {
@@ -1154,6 +1193,7 @@ mod tests {
 
     #[test]
     fn wide_element_style() {
+        let _guard = WIDTH_TEST_LOCK.lock().unwrap();
         set_colors_enabled(true);
 
         const CHARS: &str = "=>-";
@@ -1228,29 +1268,67 @@ mod tests {
     #[cfg(feature = "unicode-width")]
     #[test]
     fn width_char() {
+        let _guard = WIDTH_TEST_LOCK.lock().unwrap();
+        // Default (false)
         let width = Width::new();
         assert_eq!(width.char('A'), 1);
         assert_eq!(width.char('█'), 1);
         assert_eq!(width.char('あ'), 2);
         assert_eq!(width.char('\r'), 0);
+
+        // Set to true
+        WIDTH.set_cjk(true);
+        let width = Width::new();
+        assert_eq!(width.char('A'), 1);
+        assert_eq!(width.char('█'), 2);
+        assert_eq!(width.char('あ'), 2);
+        assert_eq!(width.char('\r'), 0);
+
+        // Reset
+        WIDTH.set_cjk(false);
     }
 
     #[cfg(feature = "unicode-width")]
     #[test]
     fn width_str() {
+        let _guard = WIDTH_TEST_LOCK.lock().unwrap();
+        // Default (false)
         let width = Width::new();
         assert_eq!(width.str("A"), 1);
         assert_eq!(width.str("█"), 1);
         assert_eq!(width.str("あ"), 2);
+
+        // Set to true
+        WIDTH.set_cjk(true);
+        let width = Width::new();
+        assert_eq!(width.str("A"), 1);
+        assert_eq!(width.str("█"), 2);
+        assert_eq!(width.str("あ"), 2);
+
+        // Reset
+        WIDTH.set_cjk(false);
     }
 
     #[cfg(feature = "unicode-width")]
     #[test]
     fn width_ansi_str() {
+        let _guard = WIDTH_TEST_LOCK.lock().unwrap();
+        // Default (false)
         let width = Width::new();
         assert_eq!(width.ansi_str("A"), 1);
         assert_eq!(width.ansi_str("█"), 1);
         assert_eq!(width.ansi_str("あ"), 2);
         assert_eq!(width.ansi_str("\u{1b}[31m█\u{1b}[0m"), 1); // with ANSI
+
+        // Set to true
+        WIDTH.set_cjk(true);
+        let width = Width::new();
+        assert_eq!(width.ansi_str("A"), 1);
+        assert_eq!(width.ansi_str("█"), 2);
+        assert_eq!(width.ansi_str("あ"), 2);
+        assert_eq!(width.ansi_str("\u{1b}[31m█\u{1b}[0m"), 2); // with ANSI
+
+        // Reset
+        WIDTH.set_cjk(false);
     }
 }

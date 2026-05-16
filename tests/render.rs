@@ -2,6 +2,8 @@
 
 use std::time::Duration;
 
+#[cfg(feature = "unicode-width")]
+use indicatif::style::WIDTH;
 use indicatif::{
     InMemoryTerm, MultiProgress, MultiProgressAlignment, ProgressBar, ProgressDrawTarget,
     ProgressFinish, ProgressStyle, TermLike,
@@ -1901,8 +1903,9 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec nec viverra massa
     );
 }
 
-#[test]
 #[cfg(feature = "unicode-width")]
+#[test]
+
 fn cjk_msg_at_the_end_wrap() {
     let message = "こんにちは"; // 5 CJK characters, width 10
     let width = 10;
@@ -1920,4 +1923,30 @@ fn cjk_msg_at_the_end_wrap() {
     // Line 1: " こんにち" (9 columns)
     // Line 2: "は" (2 columns)
     assert_eq!(in_mem.contents(), " こんにち\nは");
+}
+
+#[cfg(feature = "unicode-width")]
+#[test]
+fn width_cjk() {
+    let message = "█████"; // 5 ambiguous characters (block).
+
+    let in_mem = InMemoryTerm::new(10, 20);
+    let pb = ProgressBar::with_draw_target(
+        Some(10),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    )
+    .with_style(ProgressStyle::with_template("{msg:>10}").unwrap());
+    pb.set_message(message);
+
+    // Default (false) -> width 5, padded by 5 spaces
+    pb.tick();
+    assert_eq!(in_mem.contents(), "     █████");
+
+    // Set to true -> width 10, padded by 0 spaces
+    WIDTH.set_cjk(true);
+    pb.tick();
+    assert_eq!(in_mem.contents(), "█████");
+
+    // Reset
+    WIDTH.set_cjk(false);
 }
