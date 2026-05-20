@@ -1,4 +1,3 @@
-use std::io;
 use std::ops::{Add, AddAssign, Sub};
 use std::slice::SliceIndex;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
@@ -6,6 +5,7 @@ use std::thread::panicking;
 use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
+use std::{env, io};
 
 #[cfg(feature = "unicode-width")]
 use console::AnsiCodeIterator;
@@ -73,11 +73,16 @@ impl ProgressDrawTarget {
     /// hidden.  This is done so that piping to a file will not produce
     /// useless escape codes in that file.
     ///
-    /// Progress bars will also be hidden if `NO_COLOR` is set or `TERM` is unset/`dumb`.
+    /// Progress bars will also be hidden if `TERM` is unset/`dumb`.
     ///
     /// Will panic if `refresh_rate` is `0`.
     pub fn term(term: Term, refresh_rate: u8) -> Self {
-        if !term.features().colors_supported() {
+        let term_is_dumb_or_unset = match env::var("TERM") {
+            Ok(term) => term == "dumb",
+            Err(_) => true,
+        };
+
+        if !term.is_term() || term_is_dumb_or_unset {
             return Self::hidden();
         }
         Self {
