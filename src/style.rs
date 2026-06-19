@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{self, Formatter, Write};
 use std::mem;
+use std::str::FromStr;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 #[cfg(feature = "unicode-width")]
@@ -602,16 +603,20 @@ impl Template {
         Ok(Self { parts })
     }
 
-    fn from_str(s: &str) -> Result<Self, TemplateError> {
-        Self::from_str_with_tab_width(s, DEFAULT_TAB_WIDTH)
-    }
-
     fn set_tab_width(&mut self, new_tab_width: usize) {
         for part in &mut self.parts {
             if let TemplatePart::Literal(s) = part {
                 s.set_tab_width(new_tab_width);
             }
         }
+    }
+}
+
+impl FromStr for Template {
+    type Err = TemplateError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_str_with_tab_width(s, DEFAULT_TAB_WIDTH)
     }
 }
 
