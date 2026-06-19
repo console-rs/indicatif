@@ -472,7 +472,21 @@ struct Template {
 }
 
 impl Template {
-    fn from_str_with_tab_width(s: &str, tab_width: usize) -> Result<Self, TemplateError> {
+    fn set_tab_width(&mut self, new_tab_width: usize) {
+        for part in &mut self.parts {
+            if let TemplatePart::Literal(s) = part {
+                s.set_tab_width(new_tab_width);
+            }
+        }
+    }
+}
+
+impl FromStr for Template {
+    type Err = TemplateError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let tab_width = DEFAULT_TAB_WIDTH;
+
         use State::*;
         let (mut state, mut parts, mut buf) = (Literal, vec![], String::new());
         for c in s.chars() {
@@ -601,22 +615,6 @@ impl Template {
         }
 
         Ok(Self { parts })
-    }
-
-    fn set_tab_width(&mut self, new_tab_width: usize) {
-        for part in &mut self.parts {
-            if let TemplatePart::Literal(s) = part {
-                s.set_tab_width(new_tab_width);
-            }
-        }
-    }
-}
-
-impl FromStr for Template {
-    type Err = TemplateError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::from_str_with_tab_width(s, DEFAULT_TAB_WIDTH)
     }
 }
 
