@@ -30,43 +30,6 @@ pub struct ProgressStyle {
     pub(crate) format_map: HashMap<&'static str, Box<dyn ProgressTracker>>,
 }
 
-#[cfg(feature = "unicode-segmentation")]
-fn segment(s: &str) -> Vec<Box<str>> {
-    UnicodeSegmentation::graphemes(s, true)
-        .map(|s| s.into())
-        .collect()
-}
-
-#[cfg(not(feature = "unicode-segmentation"))]
-fn segment(s: &str) -> Vec<Box<str>> {
-    s.chars().map(|x| x.to_string().into()).collect()
-}
-
-#[cfg(feature = "unicode-width")]
-fn measure(s: &str) -> usize {
-    unicode_width::UnicodeWidthStr::width(s)
-}
-
-#[cfg(not(feature = "unicode-width"))]
-fn measure(s: &str) -> usize {
-    s.chars().count()
-}
-
-/// finds the unicode-aware width of the passed grapheme cluters
-/// panics on an empty parameter, or if the characters are not equal-width
-fn width(c: &[Box<str>]) -> usize {
-    c.iter()
-        .map(|s| measure(s.as_ref()))
-        .fold(None, |acc, new| {
-            match acc {
-                None => return Some(new),
-                Some(old) => assert_eq!(old, new, "got passed un-equal width progress characters"),
-            }
-            acc
-        })
-        .unwrap()
-}
-
 impl ProgressStyle {
     /// Returns the default progress bar style for bars
     pub fn default_bar() -> Self {
@@ -844,6 +807,43 @@ where
     fn write(&self, state: &ProgressState, w: &mut dyn fmt::Write) {
         (self)(state, w);
     }
+}
+
+#[cfg(feature = "unicode-segmentation")]
+fn segment(s: &str) -> Vec<Box<str>> {
+    UnicodeSegmentation::graphemes(s, true)
+        .map(|s| s.into())
+        .collect()
+}
+
+#[cfg(not(feature = "unicode-segmentation"))]
+fn segment(s: &str) -> Vec<Box<str>> {
+    s.chars().map(|x| x.to_string().into()).collect()
+}
+
+#[cfg(feature = "unicode-width")]
+fn measure(s: &str) -> usize {
+    unicode_width::UnicodeWidthStr::width(s)
+}
+
+#[cfg(not(feature = "unicode-width"))]
+fn measure(s: &str) -> usize {
+    s.chars().count()
+}
+
+/// finds the unicode-aware width of the passed grapheme cluters
+/// panics on an empty parameter, or if the characters are not equal-width
+fn width(c: &[Box<str>]) -> usize {
+    c.iter()
+        .map(|s| measure(s.as_ref()))
+        .fold(None, |acc, new| {
+            match acc {
+                None => return Some(new),
+                Some(old) => assert_eq!(old, new, "got passed un-equal width progress characters"),
+            }
+            acc
+        })
+        .unwrap()
 }
 
 #[cfg(test)]
