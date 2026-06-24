@@ -194,8 +194,16 @@ impl fmt::Display for HumanFloatCount {
             Some((int_str, fract_str)) => (int_str.to_string(), fract_str),
             None => (self.0.trunc().to_string(), ""),
         };
-        let len = int_part.len();
-        for (idx, c) in int_part.chars().enumerate() {
+        // Keep the optional sign out of the digit grouping, otherwise the '-'
+        // is counted as a digit and a stray comma lands right after it
+        // (e.g. -100 would render as "-,100").
+        let (sign, digits) = match int_part.strip_prefix('-') {
+            Some(digits) => ("-", digits),
+            None => ("", int_part.as_str()),
+        };
+        f.write_str(sign)?;
+        let len = digits.len();
+        for (idx, c) in digits.chars().enumerate() {
             let pos = len - idx - 1;
             f.write_char(c)?;
             if pos > 0 && pos % 3 == 0 {
@@ -376,5 +384,16 @@ mod tests {
             "1,234.1234320999999454215867445",
             format!("{:.25}", HumanFloatCount(1234.1234321))
         );
+    }
+
+    #[test]
+    fn human_float_count_negative() {
+        // The sign must stay out of the digit grouping; otherwise a stray
+        // comma lands right after the '-' for sign-aligned lengths.
+        assert_eq!("-100", format!("{}", HumanFloatCount(-100.0)));
+        assert_eq!("-100,000", format!("{}", HumanFloatCount(-100000.0)));
+        assert_eq!("-1,000", format!("{}", HumanFloatCount(-1000.0)));
+        assert_eq!("-42.5", format!("{}", HumanFloatCount(-42.5)));
+        assert_eq!("-inf", format!("{}", HumanFloatCount(f64::NEG_INFINITY)));
     }
 }
