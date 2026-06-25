@@ -191,15 +191,19 @@ impl fmt::Display for HumanFloatCount {
         let num = format!("{:.*}", precision, self.0);
 
         let (int_part, frac_part) = match num.split_once('.') {
-            Some((int_str, fract_str)) => (int_str.to_string(), fract_str),
-            None => (self.0.trunc().to_string(), ""),
+            Some((int_str, fract_str)) => (int_str, fract_str),
+            // No decimal point (e.g. precision 0, or non-finite values like
+            // "inf"): `num` is already the rounded integer string, so use it
+            // directly. Using `self.0.trunc()` here would drop the rounding
+            // and turn e.g. `{:.0}` of 1234.9 into "1,234" instead of "1,235".
+            None => (num.as_str(), ""),
         };
         // Keep the optional sign out of the digit grouping, otherwise the '-'
         // is counted as a digit and a stray comma lands right after it
         // (e.g. -100 would render as "-,100").
         let (sign, digits) = match int_part.strip_prefix('-') {
             Some(digits) => ("-", digits),
-            None => ("", int_part.as_str()),
+            None => ("", int_part),
         };
         f.write_str(sign)?;
         let len = digits.len();
@@ -395,5 +399,18 @@ mod tests {
         assert_eq!("-1,000", format!("{}", HumanFloatCount(-1000.0)));
         assert_eq!("-42.5", format!("{}", HumanFloatCount(-42.5)));
         assert_eq!("-inf", format!("{}", HumanFloatCount(f64::NEG_INFINITY)));
+    }
+
+    #[test]
+    fn human_float_count_zero_precision_rounds() {
+        // With precision 0 the integer part must reflect the *rounded* value,
+        // not a truncated one: format!("{:.0}", 1234.9) is "1235", so the
+        // human-grouped output must be "1,235" and never the truncated "1,234".
+        assert_eq!("1,235", format!("{:.0}", HumanFloatCount(1234.9)));
+        assert_eq!("2,000", format!("{:.0}", HumanFloatCount(1999.6)));
+        assert_eq!("1,000", format!("{:.0}", HumanFloatCount(999.5)));
+        assert_eq!("-1,235", format!("{:.0}", HumanFloatCount(-1234.9)));
+        // Values that round down are unaffected.
+        assert_eq!("1,234", format!("{:.0}", HumanFloatCount(1234.4)));
     }
 }
