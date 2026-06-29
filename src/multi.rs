@@ -96,12 +96,8 @@ use web_time::Instant;
 ///
 ///     total.finish();
 /// }
-///
 /// ```
 ///
-/// Running the example, we see that it is broken:
-///
-#[doc = include_str!("../screenshots/mp-drop-before.svg")]
 ///
 /// The issue is that at the end of each loop iteration, `pb` is dropped. Conceptually `MultiProgress` only maintains
 /// weak references to `ProgressBar`s. At the next loop iteration, `suspend` causes `MultiProgress` to clear the screen.
@@ -126,8 +122,6 @@ use web_time::Instant;
 ///     // ... snipped ...
 /// }
 /// ```
-///
-#[doc = include_str!("../screenshots/mp-drop-after.svg")]
 ///
 /// ## The "zombie" algorithm
 /// The "zombie" algorithm is a compromise. If the user lets a `ProgressBar` drop, then it is taken as a strong hint that
