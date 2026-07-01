@@ -75,7 +75,7 @@ impl ProgressStyle {
         }
     }
 
-    fn new(template: Template) -> Self {
+    pub fn new(template: Template) -> Self {
         let progress_chars = segment("█░");
         let char_width = width(&progress_chars);
         Self {
@@ -467,12 +467,12 @@ impl WideElement<'_> {
 }
 
 #[derive(Clone, Debug)]
-struct Template {
+pub struct Template {
     parts: Vec<TemplatePart>,
 }
 
 impl Template {
-    fn set_tab_width(&mut self, new_tab_width: usize) {
+    pub fn set_tab_width(&mut self, new_tab_width: usize) {
         for part in &mut self.parts {
             if let TemplatePart::Literal(s) = part {
                 s.set_tab_width(new_tab_width);
