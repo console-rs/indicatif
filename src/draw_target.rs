@@ -1,3 +1,4 @@
+use std::io;
 use std::ops::{Add, AddAssign, Sub};
 use std::slice::SliceIndex;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
@@ -5,11 +6,10 @@ use std::thread::panicking;
 use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
-use std::{env, io};
 
 #[cfg(feature = "unicode-width")]
 use console::AnsiCodeIterator;
-use console::{Term, TermTarget};
+use console::{is_dumb, Term, TermTarget};
 #[cfg(feature = "unicode-width")]
 use unicode_width::UnicodeWidthChar;
 #[cfg(all(target_arch = "wasm32", feature = "wasmbind"))]
@@ -77,12 +77,7 @@ impl ProgressDrawTarget {
     ///
     /// Will panic if `refresh_rate` is `0`.
     pub fn term(term: Term, refresh_rate: u8) -> Self {
-        let term_is_dumb_or_unset = match env::var("TERM") {
-            Ok(term) => term == "dumb",
-            Err(_) => true,
-        };
-
-        if !term.is_term() || term_is_dumb_or_unset {
+        if !term.is_term() || is_dumb() {
             return Self::hidden();
         }
         Self {
