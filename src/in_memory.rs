@@ -1,12 +1,16 @@
 use std::fmt::{Debug, Formatter, Write as _};
-use std::io::Write as _;
 use std::sync::{Arc, Mutex};
 
-use vt100::Parser;
+use rio_vt::ansi::CursorShape;
+use rio_vt::crosswords::pos::Column;
+use rio_vt::crosswords::square::Wide;
+use rio_vt::crosswords::{Crosswords, CrosswordsSize};
+use rio_vt::event::{VoidListener, WindowId};
+use rio_vt::performer::handler::Processor;
 
 use crate::TermLike;
 
-/// A thin wrapper around [`vt100::Parser`].
+/// A thin wrapper around a [rio-vt](https://crates.io/crates/rio-vt) terminal.
 ///
 /// This is just an [`Arc`] around its internal state, so it can be freely cloned.
 #[cfg_attr(docsrs, doc(cfg(feature = "in_memory")))]
@@ -31,66 +35,39 @@ impl InMemoryTerm {
 
     pub fn contents(&self) -> String {
         let state = self.state.lock().unwrap();
-
-        // For some reason, the `Screen::contents` method doesn't include newlines in what it
-        // returns, making it useless for our purposes. So we need to manually reconstruct the
-        // contents by iterating over the rows in the terminal buffer.
-        let mut rows = state
-            .parser
-            .screen()
-            .rows(0, state.width)
-            .collect::<Vec<_>>();
-
-        // Reverse the rows and trim empty lines from the end
-        rows = rows
-            .into_iter()
-            .rev()
-            .skip_while(|line| line.is_empty())
-            .map(|line| line.trim_end().to_string())
+        // Emit one logical line per *physical* screen row (rio-vt's own plain
+        // formatter rejoins soft-wrapped rows, which isn't what we want here),
+        // trimming trailing whitespace per row and dropping trailing blanks.
+        let cols = state.term.columns();
+        let mut lines: Vec<String> = state
+            .term
+            .visible_rows()
+            .iter()
+            .map(|row| {
+                let mut s = String::new();
+                for col in 0..cols {
+                    let square = row[Column(col)];
+                    if matches!(square.wide(), Wide::Spacer) {
+                        continue;
+                    }
+                    let c = square.c();
+                    if c != '\0' {
+                        s.push(c);
+                    }
+                }
+                s.trim_end().to_string()
+            })
             .collect();
 
-        // Un-reverse the rows and join them up with newlines
-        rows.reverse();
-        rows.join("\n")
+        while lines.last().is_some_and(|line| line.is_empty()) {
+            lines.pop();
+        }
+        lines.join("\n")
     }
 
     pub fn contents_formatted(&self) -> Vec<u8> {
         let state = self.state.lock().unwrap();
-
-        // For some reason, the `Screen::contents` method doesn't include newlines in what it
-        // returns, making it useless for our purposes. So we need to manually reconstruct the
-        // contents by iterating over the rows in the terminal buffer.
-        let mut rows = state
-            .parser
-            .screen()
-            .rows_formatted(0, state.width)
-            .collect::<Vec<_>>();
-
-        // Reverse the rows and trim empty lines from the end
-        rows = rows
-            .into_iter()
-            .rev()
-            .skip_while(|line| line.is_empty())
-            .collect();
-
-        // Un-reverse the rows
-        rows.reverse();
-
-        // Calculate buffer size
-        let reset = b"[m";
-        let len = rows.iter().map(|line| line.len() + reset.len() + 1).sum();
-
-        // Join rows up with reset codes and newlines
-        let mut contents = rows.iter().fold(Vec::with_capacity(len), |mut acc, cur| {
-            acc.extend_from_slice(cur);
-            acc.extend_from_slice(reset);
-            acc.push(b'\n');
-            acc
-        });
-
-        // Remove last newline again, but leave the reset code
-        contents.truncate(len.saturating_sub(1));
-        contents
+        state.term.contents_formatted()
     }
 
     pub fn moves_since_last_check(&self) -> String {
@@ -188,14 +165,15 @@ impl TermLike for InMemoryTerm {
     fn flush(&self) -> std::io::Result<()> {
         let mut state = self.state.lock().unwrap();
         state.history.push(Move::Flush);
-        state.parser.flush()
+        Ok(())
     }
 }
 
 struct InMemoryTermState {
     width: u16,
     height: u16,
-    parser: vt100::Parser,
+    term: Crosswords<VoidListener>,
+    processor: Processor,
     history: Vec<Move>,
 }
 
@@ -204,13 +182,22 @@ impl InMemoryTermState {
         InMemoryTermState {
             width: cols,
             height: rows,
-            parser: Parser::new(rows, cols, 0),
+            term: Crosswords::new(
+                CrosswordsSize::new(cols as usize, rows as usize),
+                CursorShape::Block,
+                VoidListener,
+                WindowId::from(0),
+                0,
+                0,
+            ),
+            processor: Processor::default(),
             history: vec![],
         }
     }
 
     pub(crate) fn write_str(&mut self, s: &str) -> std::io::Result<()> {
-        self.parser.write_all(s.as_bytes())
+        self.processor.advance(&mut self.term, s.as_bytes());
+        Ok(())
     }
 }
 
@@ -237,13 +224,9 @@ mod test {
     use super::*;
 
     fn cursor_pos(in_mem: &InMemoryTerm) -> (u16, u16) {
-        in_mem
-            .state
-            .lock()
-            .unwrap()
-            .parser
-            .screen()
-            .cursor_position()
+        let state = in_mem.state.lock().unwrap();
+        let pos = state.term.cursor().pos;
+        (pos.row.0 as u16, pos.col.0 as u16)
     }
 
     #[test]
@@ -253,7 +236,9 @@ mod test {
 
         in_mem.write_str("ABCDE").unwrap();
         assert_eq!(in_mem.contents(), "ABCDE");
-        assert_eq!(cursor_pos(&in_mem), (0, 5));
+        // rio-vt keeps the cursor on the last column with a pending wrap
+        // (col == width - 1), rather than reporting col == width.
+        assert_eq!(cursor_pos(&in_mem), (0, 4));
         assert_eq!(
             in_mem.moves_since_last_check(),
             r#"Str("ABCDE")
@@ -272,7 +257,7 @@ mod test {
 
         in_mem.write_str("HIJ").unwrap();
         assert_eq!(in_mem.contents(), "ABCDE\nFGHIJ");
-        assert_eq!(cursor_pos(&in_mem), (1, 5));
+        assert_eq!(cursor_pos(&in_mem), (1, 4));
         assert_eq!(
             in_mem.moves_since_last_check(),
             r#"Str("HIJ")

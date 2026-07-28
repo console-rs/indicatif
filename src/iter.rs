@@ -310,7 +310,7 @@ impl<const HISTORY: usize> MaxRingBuf<HISTORY> {
 
 impl<const HISTORY: usize> Default for MaxRingBuf<HISTORY> {
     fn default() -> Self {
-        assert!(HISTORY <= u8::MAX.into());
+        assert!(HISTORY <= usize::from(u8::MAX));
         assert!(HISTORY > 0);
         Self {
             history: [0; HISTORY],
