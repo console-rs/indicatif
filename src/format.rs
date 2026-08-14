@@ -201,10 +201,17 @@ impl fmt::Display for HumanFloatCount {
         // Keep the optional sign out of the digit grouping, otherwise the '-'
         // is counted as a digit and a stray comma lands right after it
         // (e.g. -100 would render as "-,100").
-        let (sign, digits) = match int_part.strip_prefix('-') {
+        let (mut sign, digits) = match int_part.strip_prefix('-') {
             Some(digits) => ("-", digits),
             None => ("", int_part),
         };
+        let frac_trimmed = frac_part.trim_end_matches('0');
+        // A negative value can round away to zero at the requested precision
+        // (e.g. `{:.0}` of -0.4 is "-0"), and so can -0.0 itself. Printing the
+        // sign in front of an all-zero result would yield a bare "-0".
+        if frac_trimmed.is_empty() && digits.chars().all(|c| c == '0') {
+            sign = "";
+        }
         f.write_str(sign)?;
         let len = digits.len();
         for (idx, c) in digits.chars().enumerate() {
@@ -214,7 +221,6 @@ impl fmt::Display for HumanFloatCount {
                 f.write_char(',')?;
             }
         }
-        let frac_trimmed = frac_part.trim_end_matches('0');
         if !frac_trimmed.is_empty() {
             f.write_char('.')?;
             f.write_str(frac_trimmed)?;
@@ -412,5 +418,21 @@ mod tests {
         assert_eq!("-1,235", format!("{:.0}", HumanFloatCount(-1234.9)));
         // Values that round down are unaffected.
         assert_eq!("1,234", format!("{:.0}", HumanFloatCount(1234.4)));
+    }
+
+    #[test]
+    fn human_float_count_negative_rounding_to_zero() {
+        // A negative value that rounds away to zero must not keep its sign:
+        // format!("{:.4}", -0.00001) is "-0.0000", and trimming the zero
+        // fraction would otherwise leave a bare "-0".
+        assert_eq!("0", format!("{}", HumanFloatCount(-0.00001)));
+        assert_eq!("0", format!("{:.0}", HumanFloatCount(-0.4)));
+        assert_eq!("0", format!("{:.2}", HumanFloatCount(-0.001)));
+        assert_eq!("0", format!("{}", HumanFloatCount(-0.0)));
+        // Negative values that survive rounding keep the sign.
+        assert_eq!("-1.5", format!("{}", HumanFloatCount(-1.5)));
+        assert_eq!("-0.5", format!("{}", HumanFloatCount(-0.5)));
+        assert_eq!("-0.0001", format!("{}", HumanFloatCount(-0.00006)));
+        assert_eq!("-1", format!("{:.0}", HumanFloatCount(-0.6)));
     }
 }
