@@ -71,6 +71,28 @@ pub struct HumanCount(pub u64);
 #[derive(Debug)]
 pub struct HumanFloatCount(pub f64);
 
+/// Formats a count compactly using SI (decimal) prefixes and three
+/// significant digits.
+///
+/// Unlike [`HumanCount`], which keeps every digit and groups them with commas,
+/// this renders the order of magnitude in a fixed width. It is handy for rates
+/// or large counts where the exact value matters less than the magnitude, e.g.
+/// a `{per_sec}`-style field that would otherwise jitter in width.
+///
+/// # Examples
+/// ```rust
+/// # use indicatif::HumanShortCount;
+/// assert_eq!("0",     format!("{}", HumanShortCount(0.0)));
+/// assert_eq!("143",   format!("{}", HumanShortCount(143.0)));
+/// assert_eq!("999",   format!("{}", HumanShortCount(999.0)));
+/// assert_eq!("1k",    format!("{}", HumanShortCount(1_000.0)));
+/// assert_eq!("7.21k", format!("{}", HumanShortCount(7_210.0)));
+/// assert_eq!("39.4M", format!("{}", HumanShortCount(39_400_000.0)));
+/// assert_eq!("1.5G",  format!("{}", HumanShortCount(1_500_000_000.0)));
+/// ```
+#[derive(Debug)]
+pub struct HumanShortCount(pub f64);
+
 impl fmt::Display for FormattedDuration {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut t = self.0.as_secs();
@@ -221,6 +243,36 @@ impl fmt::Display for HumanFloatCount {
         }
         Ok(())
     }
+}
+
+impl fmt::Display for HumanShortCount {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match NumberPrefix::decimal(self.0) {
+            NumberPrefix::Standalone(number) => f.write_str(&short_mantissa(number)),
+            NumberPrefix::Prefixed(prefix, number) => {
+                f.write_str(&short_mantissa(number))?;
+                write!(f, "{prefix}")
+            }
+        }
+    }
+}
+
+// Render `number` with enough fraction digits to keep three significant
+// figures, then drop any trailing zeros (and a bare trailing dot). The mantissa
+// handed to us by `NumberPrefix` is always in `[1, 1000)`, and standalone values
+// are below 1000 too, so the magnitude alone decides the fraction width.
+fn short_mantissa(number: f64) -> String {
+    let decimals = match number.abs() {
+        m if m < 10.0 => 2,
+        m if m < 100.0 => 1,
+        _ => 0,
+    };
+    let mut s = format!("{number:.decimals$}");
+    if decimals > 0 {
+        let trimmed = s.trim_end_matches('0').trim_end_matches('.').len();
+        s.truncate(trimmed);
+    }
+    s
 }
 
 #[cfg(test)]
@@ -412,5 +464,27 @@ mod tests {
         assert_eq!("-1,235", format!("{:.0}", HumanFloatCount(-1234.9)));
         // Values that round down are unaffected.
         assert_eq!("1,234", format!("{:.0}", HumanFloatCount(1234.4)));
+    }
+
+    #[test]
+    fn human_short_count() {
+        // Below 1000 the value is shown as-is, trimmed to three significant
+        // figures with no prefix.
+        assert_eq!("0", format!("{}", HumanShortCount(0.0)));
+        assert_eq!("5", format!("{}", HumanShortCount(5.0)));
+        assert_eq!("0.5", format!("{}", HumanShortCount(0.5)));
+        assert_eq!("42.5", format!("{}", HumanShortCount(42.5)));
+        assert_eq!("143", format!("{}", HumanShortCount(143.0)));
+        assert_eq!("999", format!("{}", HumanShortCount(999.0)));
+
+        // At and beyond 1000 an SI prefix is used, still keeping three
+        // significant figures and dropping trailing zeros.
+        assert_eq!("1k", format!("{}", HumanShortCount(1_000.0)));
+        assert_eq!("1.5k", format!("{}", HumanShortCount(1_500.0)));
+        assert_eq!("7.21k", format!("{}", HumanShortCount(7_210.0)));
+        assert_eq!("12.3k", format!("{}", HumanShortCount(12_345.0)));
+        assert_eq!("123k", format!("{}", HumanShortCount(123_456.0)));
+        assert_eq!("39.4M", format!("{}", HumanShortCount(39_400_000.0)));
+        assert_eq!("1.5G", format!("{}", HumanShortCount(1_500_000_000.0)));
     }
 }

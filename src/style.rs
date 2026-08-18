@@ -16,7 +16,7 @@ use web_time::Instant;
 use crate::draw_target::LineType;
 use crate::format::{
     BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,
-    HumanFloatCount,
+    HumanFloatCount, HumanShortCount,
 };
 use crate::state::{ProgressState, TabExpandedString, DEFAULT_TAB_WIDTH};
 
@@ -263,9 +263,17 @@ impl ProgressStyle {
                             "human_pos" => {
                                 buf.write_fmt(format_args!("{}", HumanCount(pos))).unwrap();
                             }
+                            "short_pos" => {
+                                buf.write_fmt(format_args!("{}", HumanShortCount(pos as f64)))
+                                    .unwrap();
+                            }
                             "len" => buf.write_fmt(format_args!("{len}")).unwrap(),
                             "human_len" => {
                                 buf.write_fmt(format_args!("{}", HumanCount(len))).unwrap();
+                            }
+                            "short_len" => {
+                                buf.write_fmt(format_args!("{}", HumanShortCount(len as f64)))
+                                    .unwrap();
                             }
                             "percent" => buf
                                 .write_fmt(format_args!("{:.*}", 0, state.fraction() * 100f32))
@@ -311,6 +319,9 @@ impl ProgressStyle {
                                     .unwrap();
                                 }
                             }
+                            "short_per_sec" => buf
+                                .write_fmt(format_args!("{}/s", HumanShortCount(state.per_sec())))
+                                .unwrap(),
                             "bytes_per_sec" => buf
                                 .write_fmt(format_args!("{}/s", HumanBytes(state.per_sec() as u64)))
                                 .unwrap(),
@@ -973,6 +984,20 @@ mod tests {
         style.template = Template::from_str("{foo:^5.red.on_blue/green.on_cyan}").unwrap();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "\u{1b}[31m\u{1b}[44m XXX \u{1b}[0m");
+    }
+
+    #[test]
+    fn short_count_keys() {
+        const WIDTH: u16 = 80;
+        let pos = Arc::new(AtomicPosition::new());
+        pos.set(7210);
+        let state = ProgressState::new(Some(39_400_000), pos);
+        let mut buf = Vec::new();
+
+        let mut style = ProgressStyle::default_bar();
+        style.template = Template::from_str("{short_pos}/{short_len}").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "7.21k/39.4M");
     }
 
     #[test]

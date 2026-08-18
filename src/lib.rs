@@ -189,6 +189,10 @@
 //! * `len`: renders the amount of work to be done as an integer
 //! * `human_len`: renders the total length of the bar as an integer, with commas as the thousands
 //!   separator.
+//! * `short_pos`: renders the current position of the bar compactly using SI prefixes and three
+//!   significant digits, i.e. `143`, `7.21k`, `39.4M`.
+//! * `short_len`: renders the total length of the bar compactly using SI prefixes and three
+//!   significant digits, i.e. `143`, `7.21k`, `39.4M`.
 //! * `percent`: renders the current position of the bar as a percentage of the total length (as an integer).
 //! * `percent_precise`: renders the current position of the bar as a percentage of the total length (with 3 fraction digits).
 //! * `bytes`: renders the current position of the bar as bytes (alias of `binary_bytes`).
@@ -204,6 +208,8 @@
 //! * `elapsed_precise`: renders the elapsed time as `HH:MM:SS`.
 //! * `elapsed`: renders the elapsed time as `42s`, `1m` etc.
 //! * `per_sec`: renders the speed in steps per second.
+//! * `short_per_sec`: renders the speed in steps per second compactly using SI prefixes and three
+//!   significant digits, i.e. `143/s`, `7.21k/s`, `39.4M/s`.
 //! * `bytes_per_sec`: renders the speed in bytes per second (alias of `binary_bytes_per_sec`).
 //! * `decimal_bytes_per_sec`: renders the speed in bytes per second using
 //!   power-of-10 units, i.e. `MB`, `kB`, etc.
@@ -263,7 +269,7 @@ mod term_like;
 pub use crate::draw_target::ProgressDrawTarget;
 pub use crate::format::{
     BinaryBytes, DecimalBytes, FormattedDuration, HumanBytes, HumanCount, HumanDuration,
-    HumanFloatCount,
+    HumanFloatCount, HumanShortCount,
 };
 #[cfg(feature = "in_memory")]
 pub use crate::in_memory::InMemoryTerm;
