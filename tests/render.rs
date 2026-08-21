@@ -1867,7 +1867,7 @@ fn orphan_lines_message_above_progress_bar_test(pb: &ProgressBar, in_mem: &InMem
         // Check that the line above the progress bar is a string of dashes of length
         // n * 11 mod the terminal width.
         assert_eq!(
-            format!("{}", "-".repeat(n * 11 % 80)),
+            "-".repeat(n * 11 % 80).to_string(),
             in_mem.contents().lines().rev().nth(1).unwrap(),
         );
     }
