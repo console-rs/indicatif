@@ -633,9 +633,24 @@ impl ProgressBar {
         self.state().tab_width
     }
 
-    /// Index in the `MultiState`
+    /// Opaque index in the `MultiState`
+    ///
+    /// This value is an implementation detail and does not necessarily correspond to visual
+    /// position on the screen.
+    ///
+    /// It is an index into `MultiState::members`, which is not in any particular order (due to
+    /// reclaiming of indices from the `MultiState::free_set`).
     pub(crate) fn index(&self) -> Option<usize> {
         self.state().draw_target.remote().map(|(_, idx)| idx)
+    }
+
+    /// If this [`ProgressBar`] is a member of a [`MultiProgress`](crate::MultiProgress), then return visual position
+    /// on screen. Otherwise, `None`.
+    pub fn visual_index(&self) -> Option<usize> {
+        self.state()
+            .draw_target
+            .remote()
+            .map(|(remote, idx)| remote.read().unwrap().visual_index(idx))
     }
 
     /// Current message
