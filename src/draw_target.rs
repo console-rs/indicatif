@@ -576,13 +576,6 @@ impl DrawState {
 
             // clear the line and keep the cursor on the right terminal side so that
             // future writes/prints will happen on the next line
-            //
-            // Saturating: `last_line_width` can exceed `term_width` when the last
-            // visual row cannot fit even one character - a zero-width terminal, or a
-            // two-column character on a one-column terminal. The cursor is then
-            // already at or past the end of the row, so no filler is due. A plain
-            // subtraction underflows there, which panics in debug and wraps to a
-            // ~1.8e19 `" ".repeat()` allocation in release.
             let line_filler = term_width.saturating_sub(metrics.last_line_width);
             term.write_str(&" ".repeat(line_filler))?;
         }
@@ -885,12 +878,8 @@ mod tests {
 
     #[test]
     fn draw_to_term_narrower_than_its_content() {
-        // A line whose last visual row is wider than the terminal must not
-        // underflow the trailing-filler subtraction. Two ways in: a terminal that
-        // reports zero columns, and a two-column character with one column left.
-        // Before the fix both panicked with "attempt to subtract with overflow" in
-        // debug and aborted release builds with "capacity overflow" from
-        // `" ".repeat(usize::MAX - n)`.
+        // The last visual row can be wider than the terminal: zero columns, or a
+        // two-column character with one column left.
         #[derive(Debug)]
         struct NarrowTerm {
             width: u16,
