@@ -209,14 +209,7 @@ impl ProgressStyle {
             num: bg,
         };
 
-        // Style the filled and empty segments independently, so each emits its
-        // own reset. Wrapping the whole bar in the filled style with the empty
-        // style nested inside leaks cumulative SGR attributes (bold, dim, blink,
-        // underline, reverse) from the filled style into the empty segment: the
-        // empty style's codes override colors but attributes keep accumulating
-        // until the single outer reset (see #727). When no explicit empty style
-        // is given, fall back to the filled style so single-color bars keep
-        // coloring the empty segment as before.
+        // Each segment is styled on its own so it emits its own reset.
         BarDisplay {
             filled: style.unwrap_or(&Style::new()).apply_to(FilledDisplay {
                 chars: &self.progress_chars,
@@ -359,11 +352,7 @@ impl ProgressStyle {
                         }
                     };
 
-                    // Bar placeholders style their filled/empty segments
-                    // internally (see `format_bar`), so the generic outer
-                    // style-wrap must be skipped for them: wrapping the whole bar
-                    // in the filled style is exactly what leaks attributes into
-                    // the empty segment (see #727).
+                    // `format_bar` styles the bar's segments itself.
                     let style = match key.as_str() {
                         "bar" | "wide_bar" => None,
                         _ => style.as_ref(),
@@ -714,9 +703,7 @@ impl fmt::Display for BarDisplay<'_> {
     }
 }
 
-/// The filled portion of a progress bar: the fully-filled clusters followed by
-/// the optional "current" (partially-filled) cluster. Styled independently from
-/// the empty portion so it emits its own reset (see #727).
+/// The filled clusters of a progress bar, plus the partially-filled one.
 struct FilledDisplay<'a> {
     chars: &'a [Box<str>],
     filled: usize,
@@ -1163,11 +1150,7 @@ mod tests {
         );
     }
 
-    // Regression test for #727: a cumulative SGR attribute on the filled style
-    // (here `blink`, `\x1b[5m`) must not leak into the empty segment. Because the
-    // filled and empty segments are now styled independently, each emits its own
-    // reset, so blink is cleared by the reset after `====>` rather than persisting
-    // across the empty `---` until a single trailing reset.
+    // #727: blink on the filled style must not carry into the empty segment.
     #[test]
     fn bar_style_does_not_bleed_attributes_into_empty() {
         set_colors_enabled(true);
