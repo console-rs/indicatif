@@ -168,7 +168,13 @@ impl ProgressStyle {
         &self.tick_strings[self.tick_strings.len() - 1]
     }
 
-    fn format_bar(&self, fract: f32, width: usize, alt_style: Option<&Style>) -> BarDisplay<'_> {
+    fn format_bar(
+        &self,
+        fract: f32,
+        width: usize,
+        style: Option<&Style>,
+        alt_style: Option<&Style>,
+    ) -> BarDisplay<'_> {
         // The number of clusters from progress_chars to write (rounding down).
         let width = width / self.char_width;
         // The number of full clusters (including a fractional component for a partially-full one).
@@ -203,11 +209,14 @@ impl ProgressStyle {
             num: bg,
         };
 
+        // Each segment is styled on its own so it emits its own reset.
         BarDisplay {
-            chars: &self.progress_chars,
-            filled: entirely_filled,
-            cur,
-            rest: alt_style.unwrap_or(&Style::new()).apply_to(rest),
+            filled: style.unwrap_or(&Style::new()).apply_to(FilledDisplay {
+                chars: &self.progress_chars,
+                filled: entirely_filled,
+                cur,
+            }),
+            rest: alt_style.or(style).unwrap_or(&Style::new()).apply_to(rest),
         }
     }
 
@@ -239,7 +248,7 @@ impl ProgressStyle {
                     } else {
                         match key.as_str() {
                             "wide_bar" => {
-                                wide = Some(WideElement::Bar { alt_style });
+                                wide = Some(WideElement::Bar { style, alt_style });
                                 buf.push('\x00');
                             }
                             "bar" => buf
@@ -248,6 +257,7 @@ impl ProgressStyle {
                                     self.format_bar(
                                         state.fraction(),
                                         width.unwrap_or(20) as usize,
+                                        style.as_ref(),
                                         alt_style.as_ref(),
                                     )
                                 ))
@@ -342,6 +352,12 @@ impl ProgressStyle {
                         }
                     };
 
+                    // `format_bar` styles the bar's segments itself.
+                    let style = match key.as_str() {
+                        "bar" | "wide_bar" => None,
+                        _ => style.as_ref(),
+                    };
+
                     match width {
                         Some(width) => {
                             let padded = PaddedStringDisplay {
@@ -416,8 +432,13 @@ impl Write for TabRewriter<'_> {
 
 #[derive(Clone, Copy)]
 enum WideElement<'a> {
-    Bar { alt_style: &'a Option<Style> },
-    Message { align: &'a Alignment },
+    Bar {
+        style: &'a Option<Style>,
+        alt_style: &'a Option<Style>,
+    },
+    Message {
+        align: &'a Alignment,
+    },
 }
 
 impl WideElement<'_> {
@@ -435,11 +456,19 @@ impl WideElement<'_> {
                 None => measure_text_width(&cur),
             });
         match self {
-            Self::Bar { alt_style } => cur.replace(
+            Self::Bar {
+                style: bar_style,
+                alt_style,
+            } => cur.replace(
                 '\x00',
                 &format!(
                     "{}",
-                    style.format_bar(state.fraction(), left, alt_style.as_ref())
+                    style.format_bar(
+                        state.fraction(),
+                        left,
+                        bar_style.as_ref(),
+                        alt_style.as_ref(),
+                    )
                 ),
             ),
             WideElement::Message { align } => {
@@ -663,13 +692,25 @@ enum State {
 }
 
 struct BarDisplay<'a> {
-    chars: &'a [Box<str>],
-    filled: usize,
-    cur: Option<usize>,
+    filled: console::StyledObject<FilledDisplay<'a>>,
     rest: console::StyledObject<RepeatedStringDisplay<'a>>,
 }
 
 impl fmt::Display for BarDisplay<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.filled.fmt(f)?;
+        self.rest.fmt(f)
+    }
+}
+
+/// The filled clusters of a progress bar, plus the partially-filled one.
+struct FilledDisplay<'a> {
+    chars: &'a [Box<str>],
+    filled: usize,
+    cur: Option<usize>,
+}
+
+impl fmt::Display for FilledDisplay<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for _ in 0..self.filled {
             f.write_str(&self.chars[0])?;
@@ -677,7 +718,7 @@ impl fmt::Display for BarDisplay<'_> {
         if let Some(cur) = self.cur {
             f.write_str(&self.chars[cur])?;
         }
-        self.rest.fmt(f)
+        Ok(())
     }
 }
 
@@ -1105,7 +1146,30 @@ mod tests {
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(
             &buf[0],
-            "\u{1b}[31m\u{1b}[44m====\u{1b}[32m\u{1b}[46m----\u{1b}[0m\u{1b}[0m"
+            "\u{1b}[31m\u{1b}[44m====\u{1b}[0m\u{1b}[32m\u{1b}[46m----\u{1b}[0m"
+        );
+    }
+
+    // #727: blink on the filled style must not carry into the empty segment.
+    #[test]
+    fn bar_style_does_not_bleed_attributes_into_empty() {
+        set_colors_enabled(true);
+
+        const CHARS: &str = "=>-";
+        const WIDTH: u16 = 8;
+        let pos = Arc::new(AtomicPosition::new());
+        // half finished
+        pos.set(2);
+        let state = ProgressState::new(Some(4), pos);
+        let mut buf = Vec::new();
+
+        let style = ProgressStyle::with_template("{wide_bar:.blink.red/dim.white}")
+            .unwrap()
+            .progress_chars(CHARS);
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(
+            &buf[0],
+            "\u{1b}[31m\u{1b}[5m====>\u{1b}[0m\u{1b}[37m\u{1b}[2m---\u{1b}[0m"
         );
     }
 
@@ -1134,7 +1198,7 @@ mod tests {
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(
             &buf[0],
-            "\u{1b}[31m\u{1b}[44m====>\u{1b}[32m\u{1b}[46m---\u{1b}[0m\u{1b}[0m"
+            "\u{1b}[31m\u{1b}[44m====>\u{1b}[0m\u{1b}[32m\u{1b}[46m---\u{1b}[0m"
         );
 
         buf.clear();
