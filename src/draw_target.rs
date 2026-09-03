@@ -576,7 +576,7 @@ impl DrawState {
 
             // clear the line and keep the cursor on the right terminal side so that
             // future writes/prints will happen on the next line
-            let line_filler = term_width - metrics.last_line_width;
+            let line_filler = term_width.saturating_sub(metrics.last_line_width);
             term.write_str(&" ".repeat(line_filler))?;
         }
 
@@ -744,8 +744,10 @@ struct Metrics {
 
 #[cfg(test)]
 mod tests {
-    use crate::draw_target::{LineType, TargetKind};
-    use crate::{MultiProgress, ProgressBar, ProgressDrawTarget};
+    use std::sync::{Arc, Mutex};
+
+    use crate::draw_target::{DrawState, LineType, TargetKind, VisualLines};
+    use crate::{MultiProgress, ProgressBar, ProgressDrawTarget, TermLike};
     use console::Term;
 
     #[test]
@@ -872,6 +874,83 @@ mod tests {
             },
         };
         assert!(multi_draw_target.is_stderr());
+    }
+
+    #[test]
+    fn draw_to_term_narrower_than_its_content() {
+        // The last visual row can be wider than the terminal: zero columns, or a
+        // two-column character with one column left.
+        #[derive(Debug)]
+        struct NarrowTerm {
+            width: u16,
+            written: Mutex<Vec<String>>,
+        }
+
+        impl TermLike for NarrowTerm {
+            fn width(&self) -> u16 {
+                self.width
+            }
+            fn height(&self) -> u16 {
+                10
+            }
+            fn move_cursor_up(&self, _: usize) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn move_cursor_down(&self, _: usize) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn move_cursor_right(&self, _: usize) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn move_cursor_left(&self, _: usize) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn write_line(&self, s: &str) -> std::io::Result<()> {
+                self.written.lock().unwrap().push(s.into());
+                Ok(())
+            }
+            fn write_str(&self, s: &str) -> std::io::Result<()> {
+                self.written.lock().unwrap().push(s.into());
+                Ok(())
+            }
+            fn clear_line(&self) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn flush(&self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+
+        for (width, message) in [(0_u16, "ok"), (1, "\u{56fd}")] {
+            let term = Arc::new(NarrowTerm {
+                width,
+                written: Mutex::new(Vec::new()),
+            });
+
+            let mut state = DrawState {
+                lines: vec![LineType::Bar(message.to_string())],
+                ..Default::default()
+            };
+            let mut bar_count = VisualLines::default();
+            state
+                .draw_to_term(term.as_ref(), &mut bar_count)
+                .expect("drawing to a terminal narrower than its content must not fail");
+
+            // No run of filler spaces may exceed the terminal width.
+            let widest_filler = term
+                .written
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|s| !s.is_empty() && s.chars().all(|c| c == ' '))
+                .map(|s| s.len())
+                .max()
+                .unwrap_or(0);
+            assert!(
+                widest_filler <= usize::from(width),
+                "width {width}: wrote {widest_filler} columns of filler"
+            );
+        }
     }
 
     #[test]
