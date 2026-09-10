@@ -330,7 +330,7 @@ pub(crate) struct MultiState {
     /// Set of removed bars, should have corresponding members in the `members` vector with a
     /// `draw_state` of `None`.
     free_set: Vec<MultiStateIndex>,
-    /// Indices to the `draw_states` to maintain correct visual order
+    /// Indices to the `members` to maintain correct visual order
     ordering: Vec<MultiStateIndex>,
     /// Target for draw operation for MultiProgress
     pub(crate) draw_target: ProgressDrawTarget,
