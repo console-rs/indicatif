@@ -1,9 +1,9 @@
 use std::fmt::{Debug, Formatter};
-use std::io;
 use std::sync::{Arc, RwLock};
 use std::thread::panicking;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
+use std::{io, ops};
 
 use crate::draw_target::{
     visual_line_count, DrawState, DrawStateWrapper, LineAdjust, LineType, ProgressDrawTarget,
@@ -326,12 +326,12 @@ impl MultiProgress {
 #[derive(Debug)]
 pub(crate) struct MultiState {
     /// The collection of states corresponding to progress bars
-    members: Vec<MultiStateMember>,
+    members: MultiStateMembers,
     /// Set of removed bars, should have corresponding members in the `members` vector with a
     /// `draw_state` of `None`.
-    free_set: Vec<usize>,
-    /// Indices to the `draw_states` to maintain correct visual order
-    ordering: Vec<usize>,
+    free_set: Vec<MultiStateIndex>,
+    /// Indices to the `members` to maintain correct visual order
+    ordering: Vec<MultiStateIndex>,
     /// Target for draw operation for MultiProgress
     pub(crate) draw_target: ProgressDrawTarget,
     /// Controls how the multi progress is aligned if some of its progress bars get removed, default is `Top`
@@ -346,7 +346,7 @@ pub(crate) struct MultiState {
 impl MultiState {
     fn new(draw_target: ProgressDrawTarget) -> Self {
         Self {
-            members: vec![],
+            members: MultiStateMembers::default(),
             free_set: vec![],
             ordering: vec![],
             draw_target,
@@ -356,7 +356,7 @@ impl MultiState {
         }
     }
 
-    pub(crate) fn mark_zombie(&mut self, index: usize) {
+    pub(crate) fn mark_zombie(&mut self, index: MultiStateIndex) {
         let width = self.draw_target.width().map(usize::from);
 
         let member = &mut self.members[index];
@@ -492,7 +492,7 @@ impl MultiState {
         self.draw(true, Some(lines), now)
     }
 
-    pub(crate) fn draw_state(&mut self, idx: usize) -> DrawStateWrapper<'_> {
+    pub(crate) fn draw_state(&mut self, idx: MultiStateIndex) -> DrawStateWrapper<'_> {
         let member = self.members.get_mut(idx).unwrap();
         // alignment is handled by the `MultiProgress`'s underlying draw target, so there is no
         // point in propagating it here.
@@ -508,13 +508,13 @@ impl MultiState {
         ret
     }
 
-    fn insert(&mut self, location: InsertLocation) -> usize {
+    fn insert(&mut self, location: InsertLocation) -> MultiStateIndex {
         let idx = if let Some(idx) = self.free_set.pop() {
             self.members[idx] = MultiStateMember::default();
             idx
         } else {
             self.members.push(MultiStateMember::default());
-            self.members.len() - 1
+            MultiStateIndex(self.members.len() - 1)
         };
 
         match location {
@@ -528,12 +528,10 @@ impl MultiState {
                 self.ordering.insert(pos, idx);
             }
             InsertLocation::After(after_idx) => {
-                let pos = self.ordering.iter().position(|i| *i == after_idx).unwrap();
-                self.ordering.insert(pos + 1, idx);
+                self.ordering.insert(self.visual_index(after_idx) + 1, idx);
             }
             InsertLocation::Before(before_idx) => {
-                let pos = self.ordering.iter().position(|i| *i == before_idx).unwrap();
-                self.ordering.insert(pos, idx);
+                self.ordering.insert(self.visual_index(before_idx), idx);
             }
         }
 
@@ -558,7 +556,7 @@ impl MultiState {
         }
     }
 
-    fn remove_idx(&mut self, idx: usize) {
+    fn remove_idx(&mut self, idx: MultiStateIndex) {
         if self.free_set.contains(&idx) {
             return;
         }
@@ -577,7 +575,57 @@ impl MultiState {
     fn len(&self) -> usize {
         self.members.len() - self.free_set.len()
     }
+
+    /// Map from opaque index to position on screen.
+    pub(crate) fn visual_index(&self, opaque_index: MultiStateIndex) -> usize {
+        self.ordering
+            .iter()
+            .position(|v| *v == opaque_index)
+            .expect("no such member")
+    }
 }
+
+/// Newtype around `Vec<MultiStateMember>` using `MultiStateIndex` as index type.
+#[derive(Debug, Default)]
+struct MultiStateMembers(Vec<MultiStateMember>);
+
+impl MultiStateMembers {
+    fn get_mut(&mut self, index: MultiStateIndex) -> Option<&mut MultiStateMember> {
+        self.0.get_mut(index.0)
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn push(&mut self, value: MultiStateMember) {
+        self.0.push(value);
+    }
+}
+
+impl ops::Index<MultiStateIndex> for MultiStateMembers {
+    type Output = MultiStateMember;
+    fn index(&self, index: MultiStateIndex) -> &Self::Output {
+        &self.0[index.0]
+    }
+}
+
+impl ops::IndexMut<MultiStateIndex> for MultiStateMembers {
+    fn index_mut(&mut self, index: MultiStateIndex) -> &mut Self::Output {
+        &mut self.0[index.0]
+    }
+}
+
+/// Opaque index into `MultiStateMembers`
+///
+/// This value is an implementation detail and does not necessarily correspond to visual
+/// position on the screen.
+///
+/// It is an index into `MultiState::members`, which is not in any particular order (due to
+/// reclaiming of indices from the `MultiState::free_set`).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[cfg_attr(test, derive(Default))]
+pub(crate) struct MultiStateIndex(usize);
 
 #[derive(Default)]
 struct MultiStateMember {
@@ -624,13 +672,25 @@ enum InsertLocation {
     End,
     Index(usize),
     IndexFromBack(usize),
-    After(usize),
-    Before(usize),
+    After(MultiStateIndex),
+    Before(MultiStateIndex),
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{MultiProgress, ProgressBar, ProgressDrawTarget};
+
+    macro_rules! idx {
+        ($x:expr) => {
+            crate::multi::MultiStateIndex($x)
+        };
+    }
+
+    macro_rules! idx_vec {
+        ( $( $x:expr ),* ) => {
+            vec![$(crate::multi::MultiStateIndex($x), )*]
+        };
+    }
 
     #[test]
     fn late_pb_drop() {
@@ -664,9 +724,28 @@ mod tests {
         let p1 = mp.add(ProgressBar::new(1));
         let p2 = mp.add(ProgressBar::new(1));
         let p3 = mp.add(ProgressBar::new(1));
+
+        // Check position of bars on screen
+        assert_eq!(
+            &[
+                p0.visual_index().unwrap(),
+                p1.visual_index().unwrap(),
+                p2.visual_index().unwrap(),
+                p3.visual_index().unwrap()
+            ],
+            &[0, 1, 2, 3]
+        );
+
         mp.remove(&p2);
         mp.remove(&p1);
+
+        assert_eq!(
+            &[p0.visual_index().unwrap(), p3.visual_index().unwrap()],
+            &[0, 1]
+        );
+
         let p4 = mp.insert(1, ProgressBar::new(1));
+        assert_eq!(p4.visual_index().unwrap(), 1);
 
         let state = mp.state.read().unwrap();
         // the removed place for p1 is reused
@@ -675,23 +754,35 @@ mod tests {
 
         // free_set may contain 1 or 2
         match state.free_set.last() {
-            Some(1) => {
-                assert_eq!(state.ordering, vec![0, 2, 3]);
-                assert!(state.members[1].draw_state.is_none());
-                assert_eq!(p4.index().unwrap(), 2);
+            Some(idx!(1)) => {
+                assert_eq!(state.ordering, idx_vec![0, 2, 3]);
+                assert!(state.members[idx!(1)].draw_state.is_none());
+                assert_eq!(p4.index().unwrap(), idx!(2));
             }
-            Some(2) => {
-                assert_eq!(state.ordering, vec![0, 1, 3]);
-                assert!(state.members[2].draw_state.is_none());
-                assert_eq!(p4.index().unwrap(), 1);
+            Some(idx!(2)) => {
+                assert_eq!(state.ordering, idx_vec![0, 1, 3]);
+                assert!(state.members[idx!(2)].draw_state.is_none());
+                assert_eq!(p4.index().unwrap(), idx!(1));
             }
             _ => unreachable!(),
         }
 
-        assert_eq!(p0.index().unwrap(), 0);
+        assert_eq!(p0.index().unwrap(), idx!(0));
         assert_eq!(p1.index(), None);
         assert_eq!(p2.index(), None);
-        assert_eq!(p3.index().unwrap(), 3);
+        assert_eq!(p3.index().unwrap(), idx!(3));
+
+        // Check position of bars on screen
+        assert_eq!(
+            &[
+                p0.visual_index(),
+                p1.visual_index(),
+                p2.visual_index(),
+                p3.visual_index(),
+                p4.visual_index()
+            ],
+            &[Some(0), None, None, Some(2), Some(1)]
+        );
     }
 
     #[test]
@@ -704,12 +795,24 @@ mod tests {
         let p4 = mp.insert_from_back(10, ProgressBar::new(1));
 
         let state = mp.state.read().unwrap();
-        assert_eq!(state.ordering, vec![4, 0, 1, 3, 2]);
-        assert_eq!(p0.index().unwrap(), 0);
-        assert_eq!(p1.index().unwrap(), 1);
-        assert_eq!(p2.index().unwrap(), 2);
-        assert_eq!(p3.index().unwrap(), 3);
-        assert_eq!(p4.index().unwrap(), 4);
+        assert_eq!(state.ordering, idx_vec![4, 0, 1, 3, 2]);
+        assert_eq!(p0.index().unwrap(), idx!(0));
+        assert_eq!(p1.index().unwrap(), idx!(1));
+        assert_eq!(p2.index().unwrap(), idx!(2));
+        assert_eq!(p3.index().unwrap(), idx!(3));
+        assert_eq!(p4.index().unwrap(), idx!(4));
+
+        // Check position of bars on screen
+        assert_eq!(
+            &[
+                p0.visual_index().unwrap(),
+                p1.visual_index().unwrap(),
+                p2.visual_index().unwrap(),
+                p3.visual_index().unwrap(),
+                p4.visual_index().unwrap()
+            ],
+            &[1, 2, 4, 3, 0]
+        );
     }
 
     #[test]
@@ -722,12 +825,24 @@ mod tests {
         let p4 = mp.insert_after(&p0, ProgressBar::new(1));
 
         let state = mp.state.read().unwrap();
-        assert_eq!(state.ordering, vec![0, 4, 1, 2, 3]);
-        assert_eq!(p0.index().unwrap(), 0);
-        assert_eq!(p1.index().unwrap(), 1);
-        assert_eq!(p2.index().unwrap(), 2);
-        assert_eq!(p3.index().unwrap(), 3);
-        assert_eq!(p4.index().unwrap(), 4);
+        assert_eq!(state.ordering, idx_vec![0, 4, 1, 2, 3]);
+        assert_eq!(p0.index().unwrap(), idx!(0));
+        assert_eq!(p1.index().unwrap(), idx!(1));
+        assert_eq!(p2.index().unwrap(), idx!(2));
+        assert_eq!(p3.index().unwrap(), idx!(3));
+        assert_eq!(p4.index().unwrap(), idx!(4));
+
+        // Check position of bars on screen
+        assert_eq!(
+            &[
+                p0.visual_index().unwrap(),
+                p1.visual_index().unwrap(),
+                p2.visual_index().unwrap(),
+                p3.visual_index().unwrap(),
+                p4.visual_index().unwrap()
+            ],
+            &[0, 2, 3, 4, 1]
+        );
     }
 
     #[test]
@@ -740,12 +855,24 @@ mod tests {
         let p4 = mp.insert_before(&p2, ProgressBar::new(1));
 
         let state = mp.state.read().unwrap();
-        assert_eq!(state.ordering, vec![3, 0, 1, 4, 2]);
-        assert_eq!(p0.index().unwrap(), 0);
-        assert_eq!(p1.index().unwrap(), 1);
-        assert_eq!(p2.index().unwrap(), 2);
-        assert_eq!(p3.index().unwrap(), 3);
-        assert_eq!(p4.index().unwrap(), 4);
+        assert_eq!(state.ordering, idx_vec![3, 0, 1, 4, 2]);
+        assert_eq!(p0.index().unwrap(), idx!(0));
+        assert_eq!(p1.index().unwrap(), idx!(1));
+        assert_eq!(p2.index().unwrap(), idx!(2));
+        assert_eq!(p3.index().unwrap(), idx!(3));
+        assert_eq!(p4.index().unwrap(), idx!(4));
+
+        // Check position of bars on screen
+        assert_eq!(
+            &[
+                p0.visual_index().unwrap(),
+                p1.visual_index().unwrap(),
+                p2.visual_index().unwrap(),
+                p3.visual_index().unwrap(),
+                p4.visual_index().unwrap()
+            ],
+            &[1, 2, 4, 0, 3]
+        );
     }
 
     #[test]
@@ -760,14 +887,28 @@ mod tests {
         let p6 = mp.insert_before(&p1, ProgressBar::new(1));
 
         let state = mp.state.read().unwrap();
-        assert_eq!(state.ordering, vec![3, 5, 4, 0, 6, 1, 2]);
-        assert_eq!(p0.index().unwrap(), 0);
-        assert_eq!(p1.index().unwrap(), 1);
-        assert_eq!(p2.index().unwrap(), 2);
-        assert_eq!(p3.index().unwrap(), 3);
-        assert_eq!(p4.index().unwrap(), 4);
-        assert_eq!(p5.index().unwrap(), 5);
-        assert_eq!(p6.index().unwrap(), 6);
+        assert_eq!(state.ordering, idx_vec![3, 5, 4, 0, 6, 1, 2]);
+        assert_eq!(p0.index().unwrap(), idx!(0));
+        assert_eq!(p1.index().unwrap(), idx!(1));
+        assert_eq!(p2.index().unwrap(), idx!(2));
+        assert_eq!(p3.index().unwrap(), idx!(3));
+        assert_eq!(p4.index().unwrap(), idx!(4));
+        assert_eq!(p5.index().unwrap(), idx!(5));
+        assert_eq!(p6.index().unwrap(), idx!(6));
+
+        // Check position of bars on screen
+        assert_eq!(
+            &[
+                p0.visual_index().unwrap(),
+                p1.visual_index().unwrap(),
+                p2.visual_index().unwrap(),
+                p3.visual_index().unwrap(),
+                p4.visual_index().unwrap(),
+                p5.visual_index().unwrap(),
+                p6.visual_index().unwrap()
+            ],
+            &[3, 5, 6, 0, 2, 1, 4]
+        );
     }
 
     #[test]
@@ -785,12 +926,12 @@ mod tests {
         assert_eq!(state.members.len(), 2);
         assert_eq!(state.free_set.len(), 1);
         assert_eq!(state.len(), 1);
-        assert!(state.members[0].draw_state.is_none());
-        assert_eq!(state.free_set.last(), Some(&0));
+        assert!(state.members[idx!(0)].draw_state.is_none());
+        assert_eq!(state.free_set.last(), Some(&idx!(0)));
 
-        assert_eq!(state.ordering, vec![1]);
+        assert_eq!(state.ordering, idx_vec![1]);
         assert_eq!(p0.index(), None);
-        assert_eq!(p1.index().unwrap(), 1);
+        assert_eq!(p1.index().unwrap(), idx!(1));
     }
 
     #[test]
