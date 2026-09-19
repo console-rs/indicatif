@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
 use std::io;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, Weak};
 use std::thread::panicking;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
@@ -320,6 +320,37 @@ impl MultiProgress {
 
     pub fn is_hidden(&self) -> bool {
         self.state.read().unwrap().draw_target.is_hidden()
+    }
+
+    /// Creates a new weak reference to this [`MultiProgress`]
+    pub fn downgrade(&self) -> WeakMultiProgress {
+        WeakMultiProgress {
+            state: Arc::downgrade(&self.state),
+        }
+    }
+}
+
+/// A weak reference to a [`MultiProgress`].
+#[derive(Clone, Default)]
+pub struct WeakMultiProgress {
+    state: Weak<RwLock<MultiState>>,
+}
+
+impl WeakMultiProgress {
+    /// Create a new [`WeakMultiProgress`] that returns `None` when [`upgrade()`] is called.
+    ///
+    /// [`upgrade()`]: WeakMultiProgress::upgrade
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Attempts to upgrade the Weak pointer to a [`MultiProgress`], delaying dropping of the inner
+    /// value if successful. Returns [`None`] if the inner value has since been dropped.
+    ///
+    /// [`MultiProgress`]: struct.MultiProgress.html
+    pub fn upgrade(&self) -> Option<MultiProgress> {
+        let state = self.state.upgrade()?;
+        Some(MultiProgress { state })
     }
 }
 
@@ -798,5 +829,14 @@ mod tests {
         let mp = MultiProgress::new();
         let pb = mp.add(ProgressBar::new(10));
         mp.add(pb);
+    }
+
+    #[test]
+    fn multi_weak() {
+        let mp = MultiProgress::new();
+        let weak = mp.downgrade();
+        assert!(weak.upgrade().is_some());
+        ::std::mem::drop(mp);
+        assert!(weak.upgrade().is_none());
     }
 }

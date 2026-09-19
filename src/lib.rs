@@ -268,7 +268,7 @@ pub use crate::format::{
 #[cfg(feature = "in_memory")]
 pub use crate::in_memory::InMemoryTerm;
 pub use crate::iter::{ProgressBarIter, ProgressIterator};
-pub use crate::multi::{MultiProgress, MultiProgressAlignment};
+pub use crate::multi::{MultiProgress, MultiProgressAlignment, WeakMultiProgress};
 pub use crate::progress_bar::{ProgressBar, WeakProgressBar};
 #[cfg(feature = "rayon")]
 pub use crate::rayon::ParallelProgressIterator;
