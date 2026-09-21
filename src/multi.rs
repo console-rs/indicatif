@@ -136,7 +136,7 @@ use web_time::Instant;
 ///
 #[derive(Debug, Clone)]
 pub struct MultiProgress {
-    pub(crate) state: Arc<RwLock<MultiState>>,
+    pub state: Arc<RwLock<MultiState>>,
 }
 
 impl Default for MultiProgress {
@@ -324,7 +324,7 @@ impl MultiProgress {
 }
 
 #[derive(Debug)]
-pub(crate) struct MultiState {
+pub struct MultiState {
     /// The collection of states corresponding to progress bars
     members: Vec<MultiStateMember>,
     /// Set of removed bars, should have corresponding members in the `members` vector with a
