@@ -15,7 +15,7 @@ use console::{is_dumb, Term, TermTarget};
 #[cfg(all(target_arch = "wasm32", feature = "wasmbind"))]
 use web_time::Instant;
 
-use crate::multi::{MultiProgressAlignment, MultiState};
+use crate::multi::{MultiProgressAlignment, MultiState, MultiStateIndex};
 use crate::TermLike;
 
 /// Target for draw operations
@@ -60,7 +60,7 @@ impl ProgressDrawTarget {
         Self::term(Term::buffered_stderr(), refresh_rate)
     }
 
-    pub(crate) fn new_remote(state: Arc<RwLock<MultiState>>, idx: usize) -> Self {
+    pub(crate) fn new_remote(state: Arc<RwLock<MultiState>>, idx: MultiStateIndex) -> Self {
         Self {
             kind: TargetKind::Multi { state, idx },
         }
@@ -243,7 +243,7 @@ impl ProgressDrawTarget {
         };
     }
 
-    pub(crate) fn remote(&self) -> Option<(&Arc<RwLock<MultiState>>, usize)> {
+    pub(crate) fn remote(&self) -> Option<(&Arc<RwLock<MultiState>>, MultiStateIndex)> {
         match &self.kind {
             TargetKind::Multi { state, idx } => Some((state, *idx)),
             _ => None,
@@ -265,7 +265,7 @@ enum TargetKind {
     },
     Multi {
         state: Arc<RwLock<MultiState>>,
-        idx: usize,
+        idx: MultiStateIndex,
     },
     Hidden,
     TermLike {
@@ -304,7 +304,7 @@ pub(crate) enum Drawable<'a> {
     },
     Multi {
         state: RwLockWriteGuard<'a, MultiState>,
-        idx: usize,
+        idx: MultiStateIndex,
         force_draw: bool,
         now: Instant,
     },
@@ -745,6 +745,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     use crate::draw_target::{DrawState, LineType, TargetKind, VisualLines};
+    use crate::multi::MultiStateIndex;
     use crate::{MultiProgress, ProgressBar, ProgressDrawTarget, TermLike};
     use console::Term;
 
@@ -868,7 +869,7 @@ mod tests {
         let multi_draw_target = ProgressDrawTarget {
             kind: TargetKind::Multi {
                 state: mp.state.clone(),
-                idx: 0,
+                idx: MultiStateIndex::default(),
             },
         };
         assert!(multi_draw_target.is_stderr());
