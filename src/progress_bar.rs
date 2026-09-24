@@ -177,7 +177,8 @@ impl ProgressBar {
     /// interval. This is useful to advance progress bars that are very slow by themselves.
     ///
     /// When steady ticks are enabled, calling [`ProgressBar::tick()`] on a progress bar does not
-    /// have any effect.
+    /// have any effect. Consider using [`ProgressBar::enable_responsive_tick()`] when the progress
+    /// bar should update immediately instead.
     pub fn enable_steady_tick(&self, interval: Duration) {
         // The way we test for ticker termination is with a single static `AtomicBool`. Since cargo
         // runs tests concurrently, we have a `TICKER_TEST` lock to make sure tests using ticker
@@ -199,21 +200,56 @@ impl ProgressBar {
             return;
         }
 
-        self.stop_and_replace_ticker(Some(interval));
+        let reaction = TickerReaction::OnTimeout;
+        self.stop_and_replace_ticker(Some((interval, reaction)));
     }
 
-    /// Undoes [`ProgressBar::enable_steady_tick()`]
+    /// Spawns a background thread to tick the progress bar
+    ///
+    /// When this is enabled a background thread will regularly tick the progress bar in the given
+    /// interval. This is useful to advance progress bars that are very slow by themselves.
+    ///
+    /// When responsive ticks are enabled, calling [`ProgressBar::tick()`] will immediately update
+    /// the progress bar. Consider using [`ProgressBar::enable_steady_tick()`] for a steady periodic
+    /// tick.
+    pub fn enable_responsive_tick(&self, interval: Duration) {
+        // The way we test for ticker termination is with a single static `AtomicBool`. Since cargo
+        // runs tests concurrently, we have a `TICKER_TEST` lock to make sure tests using ticker
+        // don't step on each other. This check catches attempts to use tickers in tests without
+        // acquiring the lock.
+        #[cfg(test)]
+        {
+            let guard = TICKER_TEST.try_lock();
+            let lock_acquired = guard.is_ok();
+            // Drop the guard before panicking to avoid poisoning the lock (which would cause other
+            // ticker tests to fail)
+            drop(guard);
+            if lock_acquired {
+                panic!("you must acquire the TICKER_TEST lock in your test to use this method");
+            }
+        }
+
+        if interval.is_zero() {
+            return;
+        }
+
+        let reaction = TickerReaction::Immediately;
+        self.stop_and_replace_ticker(Some((interval, reaction)));
+    }
+
+    /// Undoes both [`ProgressBar::enable_steady_tick()`] and [`ProgressBar::enable_responsive_tick()`]
     pub fn disable_steady_tick(&self) {
         self.stop_and_replace_ticker(None);
     }
 
-    fn stop_and_replace_ticker(&self, interval: Option<Duration>) {
+    fn stop_and_replace_ticker(&self, interval: Option<(Duration, TickerReaction)>) {
         let mut ticker_state = self.ticker.lock().unwrap();
         if let Some(ticker) = ticker_state.take() {
             ticker.stop();
         }
 
-        *ticker_state = interval.map(|interval| Ticker::new(interval, &self.state));
+        *ticker_state =
+            interval.map(|(interval, reaction)| Ticker::new(interval, reaction, &self.state));
     }
 
     /// Manually ticks the spinner or progress bar
@@ -224,8 +260,13 @@ impl ProgressBar {
     }
 
     fn tick_inner(&self, now: Instant) {
-        // Only tick if a `Ticker` isn't installed
-        if self.ticker.lock().unwrap().is_none() {
+        // If a ticker thread is installed, notify it to do the ticking
+        if let Some(ref ticker) = *self.ticker.lock().unwrap() {
+            match ticker.reaction {
+                TickerReaction::OnTimeout => (),
+                TickerReaction::Immediately => ticker.stopping.1.notify_one(),
+            }
+        } else {
             self.state().tick(now);
         }
     }
@@ -687,6 +728,7 @@ impl WeakProgressBar {
 pub(crate) struct Ticker {
     stopping: Arc<(Mutex<bool>, Condvar)>,
     join_handle: Option<thread::JoinHandle<()>>,
+    reaction: TickerReaction,
 }
 
 impl Drop for Ticker {
@@ -700,7 +742,11 @@ impl Drop for Ticker {
 static TICKER_RUNNING: AtomicBool = AtomicBool::new(false);
 
 impl Ticker {
-    pub(crate) fn new(interval: Duration, bar_state: &Arc<Mutex<BarState>>) -> Self {
+    pub(crate) fn new(
+        interval: Duration,
+        reaction: TickerReaction,
+        bar_state: &Arc<Mutex<BarState>>,
+    ) -> Self {
         debug_assert!(!interval.is_zero());
 
         // A `Mutex<bool>` is used as a flag to indicate whether the ticker was requested to stop.
@@ -717,6 +763,7 @@ impl Ticker {
         Self {
             stopping,
             join_handle: Some(join_handle),
+            reaction,
         }
     }
 
@@ -747,17 +794,15 @@ impl TickerControl {
             drop(state); // Don't forget to drop the lock before sleeping
             drop(arc); // Also need to drop Arc otherwise BarState won't be dropped
 
-            // Wait for `interval` but return early if we are notified to stop
+            // Wait for `interval` but return early if we are notified
             let result = self
                 .stopping
                 .1
-                .wait_timeout_while(self.stopping.0.lock().unwrap(), interval, |stopped| {
-                    !*stopped
-                })
+                .wait_timeout(self.stopping.0.lock().unwrap(), interval)
                 .unwrap();
 
-            // If the wait didn't time out, it means we were notified to stop
-            if !result.1.timed_out() {
+            // Stop the ticker when the mutex flag was set
+            if *result.0 {
                 break;
             }
         }
@@ -765,6 +810,15 @@ impl TickerControl {
         #[cfg(test)]
         TICKER_RUNNING.store(false, Ordering::SeqCst);
     }
+}
+
+/// Behavior of a steady ticker when its progress bar is ticked
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum TickerReaction {
+    /// Only ever tick when the interval has passed, ignoring manual ticks
+    OnTimeout,
+    /// Immediately tick when done so manually, or after the interval has passed
+    Immediately,
 }
 
 // Tests using the global TICKER_RUNNING flag need to be serialized
