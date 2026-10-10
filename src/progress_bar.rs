@@ -240,6 +240,16 @@ impl ProgressBar {
         }
     }
 
+    /// Advances the position of the progress bar by `delta` without redrawing it
+    ///
+    /// Unlike [`ProgressBar::inc()`], this does not read the current time, which makes it cheaper
+    /// to call in hot loops. The new position is shown on the next redraw, for example from
+    /// [`ProgressBar::tick()`], [`ProgressBar::force_draw()`], a steady tick or a later call to
+    /// [`ProgressBar::inc()`].
+    pub fn inc_no_draw(&self, delta: u64) {
+        self.pos.inc(delta);
+    }
+
     /// Decrease the position of the progress bar by `delta`
     pub fn dec(&self, delta: u64) {
         self.pos.dec(delta);
