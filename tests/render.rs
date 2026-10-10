@@ -38,6 +38,34 @@ fn basic_progress_bar() {
 }
 
 #[test]
+fn progress_bar_inc_no_draw() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let pb = ProgressBar::with_draw_target(
+        Some(10),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    );
+
+    pb.tick();
+    assert_eq!(
+        in_mem.contents(),
+        "░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10"
+    );
+
+    pb.inc_no_draw(1);
+    assert_eq!(pb.position(), 1);
+    assert_eq!(
+        in_mem.contents(),
+        "░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0/10"
+    );
+
+    pb.tick();
+    assert_eq!(
+        in_mem.contents(),
+        "███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 1/10"
+    );
+}
+
+#[test]
 fn progress_bar_builder_method_order() {
     let in_mem = InMemoryTerm::new(10, 80);
     // Test that `with_style` doesn't overwrite the message or prefix
