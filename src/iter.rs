@@ -233,10 +233,13 @@ pub(crate) struct SeekMax<const RESET: u8 = 5, const HISTORY: usize = 10> {
 
 impl<const RESET: u8, const HISTORY: usize> SeekMax<RESET, HISTORY> {
     fn update_seq(&mut self, prev_pos: u64, delta: u64) -> u64 {
-        let new_pos = prev_pos + delta;
         let Some((buf, seq)) = &mut self.buf else {
-            return new_pos;
+            return prev_pos + delta;
         };
+
+        // `prev_pos` is the displayed (de-jittered) position, which may be ahead of the
+        // actual stream position; continue from the last actual position instead.
+        let new_pos = buf.last() + delta;
 
         *seq += 1;
         if *seq >= RESET {
@@ -300,6 +303,12 @@ impl<const HISTORY: usize> MaxRingBuf<HISTORY> {
         }
 
         self.head = (self.head + 1) % (self.history.len() as u8);
+    }
+
+    /// Returns the most recently inserted value
+    fn last(&self) -> u64 {
+        let len = self.history.len();
+        self.history[(usize::from(self.head) + len - 1) % len]
     }
 
     fn max(&self) -> u64 {
@@ -497,5 +506,26 @@ mod test {
             max.update(99 - i);
         }
         assert_eq!(max.max(), 99);
+    }
+
+    #[test]
+    fn seek_then_read_tracks_stream_position() {
+        use std::io::{Cursor, Read, Seek, SeekFrom};
+
+        let pb = ProgressBar::hidden();
+        pb.set_length(400);
+        let mut reader = pb.wrap_read(Cursor::new([0u8; 400]));
+
+        // Find the stream length, then seek back (see #480)
+        assert_eq!(reader.seek(SeekFrom::End(0)).unwrap(), 400);
+        assert_eq!(reader.seek(SeekFrom::Start(0)).unwrap(), 0);
+
+        let mut buf = [0u8; 4];
+        for _ in 0..100 {
+            reader.read_exact(&mut buf).unwrap();
+        }
+
+        assert_eq!(reader.stream_position().unwrap(), 400);
+        assert_eq!(pb.position(), 400);
     }
 }
