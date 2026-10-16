@@ -119,7 +119,7 @@ impl ProgressStyle {
         // Format bar will panic with some potentially confusing message, better to panic here
         // with a message explicitly informing of the problem
         assert!(
-            self.progress_chars.len() >= 2,
+            self.tick_strings.len() >= 2,
             "at least 2 tick strings required"
         );
         self
