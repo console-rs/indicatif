@@ -180,15 +180,6 @@ impl<R: io::Read> io::Read for ProgressBarIter<R> {
         );
         Ok(inc)
     }
-
-    fn read_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
-        self.it.read_exact(buf)?;
-        self.progress.set_position(
-            self.seek_max
-                .update_seq(self.progress.position(), buf.len() as u64),
-        );
-        Ok(())
-    }
 }
 
 impl<R: io::BufRead> io::BufRead for ProgressBarIter<R> {
@@ -485,6 +476,79 @@ mod test {
                 .unwrap();
             v.iter().progress_with_style(style)
         });
+    }
+
+    #[test]
+    fn read_exact_counts_bytes_before_unexpected_eof() {
+        use std::fs::File;
+        use std::io::{ErrorKind, Read, Seek};
+        use std::path::Path;
+
+        let file = File::open(Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml")).unwrap();
+        let len = file.metadata().unwrap().len();
+        let progress = ProgressBar::hidden();
+        let mut reader = progress.wrap_read(file);
+        let error = reader
+            .read_exact(&mut vec![0; len as usize + 1])
+            .unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::UnexpectedEof);
+        assert_eq!(reader.stream_position().unwrap(), len);
+        assert_eq!(progress.position(), len);
+    }
+
+    #[test]
+    fn read_exact_counts_bytes_before_read_error() {
+        use std::io::{self, Cursor, ErrorKind, Read};
+
+        struct Fails;
+        impl Read for Fails {
+            fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+                Err(io::Error::new(ErrorKind::PermissionDenied, "read failed"))
+            }
+        }
+        let progress = ProgressBar::hidden();
+        let mut reader = progress.wrap_read(Cursor::new(b"ab").chain(Fails));
+        let error = reader.read_exact(&mut [0; 4]).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::PermissionDenied);
+        assert_eq!(error.to_string(), "read failed");
+        assert_eq!(reader.it.get_ref().0.position(), 2);
+        assert_eq!(progress.position(), 2);
+    }
+
+    #[test]
+    fn read_exact_retries_interrupted_and_accepts_empty_buffers() {
+        use std::io::{self, ErrorKind, Read};
+
+        struct InterruptedOnce {
+            bytes: &'static [u8],
+            interrupted: bool,
+        }
+        impl Read for InterruptedOnce {
+            fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+                if !self.interrupted {
+                    self.interrupted = true;
+                    return Err(ErrorKind::Interrupted.into());
+                }
+                self.bytes.read(buf)
+            }
+        }
+        let progress = ProgressBar::hidden();
+        let mut reader = progress.wrap_read(InterruptedOnce {
+            bytes: b"abcdef",
+            interrupted: false,
+        });
+        reader.read_exact(&mut []).unwrap();
+        assert!(!reader.it.interrupted);
+        assert_eq!(progress.position(), 0);
+        let mut buf = [0; 3];
+        reader.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf, b"abc");
+        assert_eq!(progress.position(), 3);
+        reader.read_exact(&mut []).unwrap();
+        assert_eq!(progress.position(), 3);
+        reader.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf, b"def");
+        assert_eq!(progress.position(), 6);
     }
 
     #[test]
