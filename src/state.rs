@@ -157,7 +157,10 @@ impl BarState {
         };
 
         let mut draw_state = drawable.state();
-        let lines: Vec<LineType> = msg.lines().map(|l| LineType::Text(Into::into(l))).collect();
+        let lines: Vec<LineType> = msg
+            .lines()
+            .map(|l| LineType::Text(l.replace('\t', &" ".repeat(self.tab_width))))
+            .collect();
         // Empty msg should trigger newline as we are in println
         if lines.is_empty() {
             draw_state.lines.push(LineType::Empty);

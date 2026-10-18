@@ -517,6 +517,41 @@ message printed :)
 }
 
 #[test]
+fn progress_bar_println_expands_tabs() {
+    let in_mem = InMemoryTerm::new(10, 10);
+    let pb = ProgressBar::with_draw_target(
+        Some(10),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    );
+    pb.set_style(ProgressStyle::with_template("pos {pos}").unwrap());
+    pb.tick();
+
+    // The tab is expanded to the tab width, so the line wraps once and the
+    // bar is redrawn below it instead of leaving a stale copy behind.
+    pb.println("a\tbcdefg");
+    pb.set_position(3);
+    pb.println("next");
+    pb.set_position(4);
+    assert_eq!(in_mem.contents(), "a        b\ncdefg\nnext\npos 4");
+}
+
+#[test]
+fn multi_progress_println_expands_tabs() {
+    let in_mem = InMemoryTerm::new(10, 10);
+    let mp =
+        MultiProgress::with_draw_target(ProgressDrawTarget::term_like(Box::new(in_mem.clone())));
+    let pb = mp.add(ProgressBar::new(10));
+    pb.set_style(ProgressStyle::with_template("pos {pos}").unwrap());
+    pb.tick();
+
+    mp.println("a\tbcdefg").unwrap();
+    pb.set_position(3);
+    mp.println("next").unwrap();
+    pb.set_position(4);
+    assert_eq!(in_mem.contents(), "a        b\ncdefg\nnext\npos 4");
+}
+
+#[test]
 fn ticker_drop() {
     let in_mem = InMemoryTerm::new(10, 80);
     let mp =
