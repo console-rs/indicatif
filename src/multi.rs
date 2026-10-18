@@ -11,6 +11,7 @@ use crate::draw_target::{
     VisualLines,
 };
 use crate::progress_bar::ProgressBar;
+use crate::state::DEFAULT_TAB_WIDTH;
 #[cfg(all(target_arch = "wasm32", feature = "wasmbind"))]
 use web_time::Instant;
 
@@ -486,7 +487,10 @@ impl MultiState {
 
         // If msg is "", make sure a line is still printed
         let lines: Vec<LineType> = match msg.is_empty() {
-            false => msg.lines().map(|l| LineType::Text(Into::into(l))).collect(),
+            false => msg
+                .lines()
+                .map(|l| LineType::Text(l.replace('\t', &" ".repeat(DEFAULT_TAB_WIDTH))))
+                .collect(),
             true => vec![LineType::Empty],
         };
 
