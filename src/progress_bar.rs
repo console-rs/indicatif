@@ -366,7 +366,9 @@ impl ProgressBar {
         self.state().reset(Instant::now(), Reset::Elapsed);
     }
 
-    /// Resets all of the progress bar state
+    /// Resets the position, elapsed time, and ETA estimate, making the bar active again
+    ///
+    /// The length, style, prefix, and message are preserved.
     pub fn reset(&self) {
         self.state().reset(Instant::now(), Reset::All);
     }
@@ -409,7 +411,7 @@ impl ProgressBar {
         );
     }
 
-    /// Finishes the progress bar using the behavior stored in the [`ProgressStyle`]
+    /// Finishes the progress bar using the behavior configured with [`Self::with_finish`]
     ///
     /// See [`ProgressBar::with_finish()`].
     pub fn finish_using_style(&self) {
