@@ -541,10 +541,16 @@ impl FromStr for Template {
                 (MaybeOpen, '{') => (Literal, Some('{')),
                 (MaybeOpen | Key, c) if c.is_ascii_whitespace() => {
                     // If we find whitespace where the variable key is supposed to go,
-                    // backtrack and act as if this was a literal.
-                    buf.push(c);
-                    let mut new = String::from("{");
+                    // backtrack and act as if this was a literal. In `MaybeOpen`, `buf`
+                    // still holds the literal text before the `{`; in `Key`, that text
+                    // was already flushed and `buf` holds the key read so far.
+                    let mut new = match state {
+                        MaybeOpen => mem::take(&mut buf),
+                        _ => String::new(),
+                    };
+                    new.push('{');
                     new.push_str(&buf);
+                    new.push(c);
                     buf.clear();
                     parts.push(TemplatePart::Literal(TabExpandedString::new(
                         new.into(),
@@ -1061,6 +1067,29 @@ mod tests {
         style.template = Template::from_str(r#"{ "foo": "{foo}", "bar": {bar} }"#).unwrap();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], r#"{ "foo": "FOO", "bar": BAR }"#);
+    }
+
+    #[test]
+    fn test_expand_template_literal_before_brace_space() {
+        const WIDTH: u16 = 80;
+        let pos = Arc::new(AtomicPosition::new());
+        let state = ProgressState::new(Some(10), pos);
+        let mut buf = Vec::new();
+
+        let mut style = ProgressStyle::default_bar();
+        style.format_map.insert(
+            "foo",
+            Box::new(|_: &ProgressState, w: &mut dyn Write| write!(w, "FOO").unwrap()),
+        );
+
+        style.template = Template::from_str("Log { level: {foo} }").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "Log { level: FOO }");
+
+        buf.clear();
+        style.template = Template::from_str("Log {level {foo}}").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "Log {level FOO}");
     }
 
     #[test]
