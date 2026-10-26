@@ -140,28 +140,27 @@ const UNITS: &[(Duration, &str, &str)] = &[
 
 impl fmt::Display for HumanBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match NumberPrefix::binary(self.0 as f64) {
-            NumberPrefix::Standalone(number) => write!(f, "{number:.0} B"),
-            NumberPrefix::Prefixed(prefix, number) => write!(f, "{number:.2} {prefix}B"),
-        }
+        fmt_bytes(NumberPrefix::binary(self.0 as f64), f)
     }
 }
 
 impl fmt::Display for DecimalBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match NumberPrefix::decimal(self.0 as f64) {
-            NumberPrefix::Standalone(number) => write!(f, "{number:.0} B"),
-            NumberPrefix::Prefixed(prefix, number) => write!(f, "{number:.2} {prefix}B"),
-        }
+        fmt_bytes(NumberPrefix::decimal(self.0 as f64), f)
     }
 }
 
 impl fmt::Display for BinaryBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match NumberPrefix::binary(self.0 as f64) {
-            NumberPrefix::Standalone(number) => write!(f, "{number:.0} B"),
-            NumberPrefix::Prefixed(prefix, number) => write!(f, "{number:.2} {prefix}B"),
-        }
+        fmt_bytes(NumberPrefix::binary(self.0 as f64), f)
+    }
+}
+
+/// Writes a byte count that has been split into a prefix and a value.
+fn fmt_bytes(bytes: NumberPrefix<f64>, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match bytes {
+        NumberPrefix::Standalone(number) => write!(fmt, "{number:.0} B"),
+        NumberPrefix::Prefixed(prefix, number) => write!(fmt, "{number:.2} {prefix}B"),
     }
 }
 
