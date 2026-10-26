@@ -1,7 +1,7 @@
 use std::fmt;
 use std::time::Duration;
 
-use unit_prefix::NumberPrefix;
+use unit_prefix::{NumberPrefix, Prefix};
 
 const SECOND: Duration = Duration::from_secs(1);
 const MINUTE: Duration = Duration::from_secs(60);
@@ -140,28 +140,57 @@ const UNITS: &[(Duration, &str, &str)] = &[
 
 impl fmt::Display for HumanBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt_bytes(NumberPrefix::binary(self.0 as f64), f)
+        fmt_bytes(NumberPrefix::binary(self.0 as f64), 1024.0, f)
     }
 }
 
 impl fmt::Display for DecimalBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt_bytes(NumberPrefix::decimal(self.0 as f64), f)
+        fmt_bytes(NumberPrefix::decimal(self.0 as f64), 1000.0, f)
     }
 }
 
 impl fmt::Display for BinaryBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt_bytes(NumberPrefix::binary(self.0 as f64), f)
+        fmt_bytes(NumberPrefix::binary(self.0 as f64), 1024.0, f)
     }
 }
 
-/// Writes a byte count that has been split into a prefix and a value.
-fn fmt_bytes(bytes: NumberPrefix<f64>, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match bytes {
-        NumberPrefix::Standalone(number) => write!(fmt, "{number:.0} B"),
-        NumberPrefix::Prefixed(prefix, number) => write!(fmt, "{number:.2} {prefix}B"),
+/// Writes a byte count that has been split into a prefix and a value, where `factor` is the
+/// factor between two consecutive prefixes.
+fn fmt_bytes(bytes: NumberPrefix<f64>, factor: f64, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let (prefix, number) = match bytes {
+        NumberPrefix::Standalone(number) => return write!(fmt, "{number:.0} B"),
+        NumberPrefix::Prefixed(prefix, number) => (prefix, number),
+    };
+
+    match next_prefix(prefix) {
+        Some(next) if (number * 100.0).round() >= factor * 100.0 => {
+            write!(fmt, "{:.2} {next}B", number / factor)
+        }
+        _ => write!(fmt, "{number:.2} {prefix}B"),
     }
+}
+
+fn next_prefix(prefix: Prefix) -> Option<Prefix> {
+    use Prefix::*;
+    Some(match prefix {
+        Kilo => Mega,
+        Mega => Giga,
+        Giga => Tera,
+        Tera => Peta,
+        Peta => Exa,
+        Exa => Zetta,
+        Zetta => Yotta,
+        Kibi => Mebi,
+        Mebi => Gibi,
+        Gibi => Tebi,
+        Tebi => Pebi,
+        Pebi => Exbi,
+        Exbi => Zebi,
+        Zebi => Yobi,
+        Yotta | Yobi => return None,
+    })
 }
 
 impl fmt::Display for HumanCount {
@@ -360,6 +389,27 @@ mod tests {
         assert_eq!("7,654", format!("{}", HumanCount(7654)));
         assert_eq!("12,345", format!("{}", HumanCount(12345)));
         assert_eq!("1,234,567,890", format!("{}", HumanCount(1234567890)));
+    }
+
+    #[test]
+    fn bytes_rounding_up_to_next_unit() {
+        // A value just below a unit boundary rounds up to e.g. "1024.00" at two
+        // fraction digits; it must then be shown in the next unit instead.
+        assert_eq!("1.00 MiB", format!("{}", HumanBytes(1024 * 1024 - 1)));
+        assert_eq!("1.00 MiB", format!("{}", BinaryBytes(1024 * 1024 - 5)));
+        assert_eq!(
+            "1.00 GiB",
+            format!("{}", BinaryBytes(1024 * 1024 * 1024 - 1))
+        );
+        assert_eq!("1.00 MB", format!("{}", DecimalBytes(999_995)));
+        assert_eq!("1.00 GB", format!("{}", DecimalBytes(999_999_999)));
+        // Values that round down stay in their unit.
+        assert_eq!("1023.99 KiB", format!("{}", BinaryBytes(1024 * 1024 - 6)));
+        assert_eq!("999.99 kB", format!("{}", DecimalBytes(999_994)));
+        assert_eq!("1023 B", format!("{}", BinaryBytes(1023)));
+        assert_eq!("999 B", format!("{}", DecimalBytes(999)));
+        assert_eq!("16.00 EiB", format!("{}", BinaryBytes(u64::MAX)));
+        assert_eq!("18.45 EB", format!("{}", DecimalBytes(u64::MAX)));
     }
 
     #[test]
