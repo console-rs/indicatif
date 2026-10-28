@@ -284,6 +284,16 @@ impl MultiProgress {
     }
 
     fn internalize(&self, location: InsertLocation, pb: ProgressBar) -> ProgressBar {
+        // Adding a progress bar that is already a member of this `MultiProgress` is a no-op.
+        if pb
+            .state()
+            .draw_target
+            .remote()
+            .is_some_and(|(state, _)| Arc::ptr_eq(state, &self.state))
+        {
+            return pb;
+        }
+
         let mut state = self.state.write().unwrap();
         let idx = state.insert(location);
         drop(state);
@@ -940,5 +950,25 @@ mod tests {
         let mp = MultiProgress::new();
         let pb = mp.add(ProgressBar::new(10));
         mp.add(pb);
+    }
+
+    #[test]
+    fn mp_double_add_is_noop() {
+        let mp = MultiProgress::new();
+        let p0 = mp.add(ProgressBar::new(10));
+        let p1 = mp.add(ProgressBar::new(10));
+
+        // Adding or inserting bars that are already members should have no effect
+        let p0 = mp.add(p0);
+        let p1 = mp.insert(0, p1);
+        let p0 = mp.insert_after(&p1, p0);
+
+        let state = mp.state.read().unwrap();
+        assert_eq!(state.members.len(), 2);
+        assert_eq!(state.ordering, idx_vec![0, 1]);
+        drop(state);
+
+        assert_eq!(p0.visual_index(), Some(0));
+        assert_eq!(p1.visual_index(), Some(1));
     }
 }
