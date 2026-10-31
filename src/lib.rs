@@ -83,7 +83,7 @@
 //!   a new message / retaining the current message.
 //! * the default template renders neither message nor prefix.
 //!
-//! ## Finishing, dropping, and reusing a progress bar
+//! ## Finishing a progress bar
 //!
 //! Reaching the bar's length does not finish it automatically. Choose a finish
 //! method based on whether the work completed and whether its final display should remain.
@@ -102,20 +102,23 @@
 //! These methods choose their own behavior; [`finish_using_style`](ProgressBar::finish_using_style)
 //! instead uses the policy configured by [`with_finish`](ProgressBar::with_finish).
 //!
-//! Clones share one bar: finishing or resetting one handle affects all of them.
-//! When the last handle to an unfinished bar is dropped, it uses that same configured
-//! finish policy, which defaults to [`ProgressFinish::AndClear`]. Dropping a bar that
-//! was explicitly finished does not apply the policy again. For bars managed by
+//! ## Dropping a progress bar
+//!
+//! When the last handle to an unfinished bar is dropped, it uses the finish policy
+//! configured by [`with_finish`](ProgressBar::with_finish). Dropping a bar that was
+//! explicitly finished does not apply the policy again. For bars managed by
 //! [`MultiProgress`], also see its lifecycle documentation: retaining a finished bar's
 //! handle matters when the display is later cleared and redrawn.
 //!
+//! ## Reusing a progress bar
+//!
 //! [`reset`](ProgressBar::reset) starts a new run at position zero and resets elapsed
 //! time and the ETA estimate. It keeps the length, style, prefix, and message, so
-//! update those as needed for the next job. Prefix and message are independent strings,
-//! rendered by `{prefix}` and `{msg}`; neither controls completion.
+//! update those as needed for the next job.
 //! In contrast, [`reset_eta`](ProgressBar::reset_eta)
 //! and [`reset_elapsed`](ProgressBar::reset_elapsed) do not change the position or
-//! make a finished bar active again.
+//! make a finished bar active again. Clones share one bar, so resetting one handle
+//! affects all of them.
 //!
 //! ```rust
 //! use indicatif::ProgressBar;
