@@ -83,6 +83,61 @@
 //!   a new message / retaining the current message.
 //! * the default template renders neither message nor prefix.
 //!
+//! ## Finishing a progress bar
+//!
+//! Reaching the bar's length does not finish it automatically. Choose a finish
+//! method based on whether the work completed and whether its final display should remain.
+//! For a visible bar, the effects are:
+//!
+//! | Method | Position after the call | Display after the call |
+//! | --- | --- | --- |
+//! | [`finish`](ProgressBar::finish) | Set to the length, if known | Left visible |
+//! | [`finish_with_message`](ProgressBar::finish_with_message) | Set to the length, if known | Left visible with the new message |
+//! | [`finish_and_clear`](ProgressBar::finish_and_clear) | Set to the length, if known | Cleared |
+//! | [`abandon`](ProgressBar::abandon) | Unchanged | Left visible |
+//! | [`abandon_with_message`](ProgressBar::abandon_with_message) | Unchanged | Left visible with the new message |
+//!
+//! All of these methods make [`is_finished`](ProgressBar::is_finished) return `true`.
+//! The message variants need a `{msg}` placeholder in the template to display their message.
+//! These methods choose their own behavior; [`finish_using_style`](ProgressBar::finish_using_style)
+//! instead uses the policy configured by [`with_finish`](ProgressBar::with_finish).
+//!
+//! ## Dropping a progress bar
+//!
+//! When the last handle to an unfinished bar is dropped, it uses the finish policy
+//! configured by [`with_finish`](ProgressBar::with_finish). Dropping a bar that was
+//! explicitly finished does not apply the policy again. For bars managed by
+//! [`MultiProgress`], also see its lifecycle documentation: retaining a finished bar's
+//! handle matters when the display is later cleared and redrawn.
+//!
+//! ## Reusing a progress bar
+//!
+//! [`reset`](ProgressBar::reset) starts a new run at position zero and resets elapsed
+//! time and the ETA estimate. It keeps the length, style, prefix, and message, so
+//! update those as needed for the next job.
+//! In contrast, [`reset_eta`](ProgressBar::reset_eta)
+//! and [`reset_elapsed`](ProgressBar::reset_elapsed) do not change the position or
+//! make a finished bar active again. Clones share one bar, so resetting one handle
+//! affects all of them.
+//!
+//! ```rust
+//! use indicatif::ProgressBar;
+//!
+//! let bar = ProgressBar::new(3);
+//! bar.inc(1);
+//! bar.abandon(); // The first job stopped after one item.
+//! assert_eq!(bar.position(), 1);
+//! assert!(bar.is_finished());
+//!
+//! bar.reset();
+//! bar.set_length(5); // Reuse the bar for a different job.
+//! assert_eq!(bar.position(), 0);
+//! assert!(!bar.is_finished());
+//! bar.inc(5);
+//! assert!(!bar.is_finished());
+//! bar.finish();
+//! ```
+//!
 //! # Iterators
 //!
 //! Similar to [tqdm](https://github.com/tqdm/tqdm), progress bars can be
