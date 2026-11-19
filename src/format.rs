@@ -11,14 +11,20 @@ const WEEK: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 const YEAR: Duration = Duration::from_secs(365 * 24 * 60 * 60);
 
 /// Wraps an std duration for human basic formatting.
+///
+/// This is used by the `elapsed_precise`, `eta_precise`, and `duration_precise` keys in [format templates](https://docs.rs/indicatif/latest/indicatif/#templates).
 #[derive(Debug)]
 pub struct FormattedDuration(pub Duration);
 
 /// Wraps an std duration for human readable formatting.
+///
+/// This is used by the `elapsed`, `eta`, and `duration` keys in [format templates](https://docs.rs/indicatif/latest/indicatif/#templates).
 #[derive(Debug)]
 pub struct HumanDuration(pub Duration);
 
 /// Formats bytes for human readability
+///
+/// This is used by the `bytes`, `total_bytes`, and `bytes_per_sec` keys in [format templates](https://docs.rs/indicatif/latest/indicatif/#templates).
 ///
 /// # Examples
 /// ```rust
@@ -35,6 +41,8 @@ pub struct HumanBytes(pub u64);
 
 /// Formats bytes for human readability using SI prefixes
 ///
+/// This is used by the `decimal_bytes`, `decimal_total_bytes`, and `decimal_bytes_per_sec` keys in [format templates](https://docs.rs/indicatif/latest/indicatif/#templates).
+///
 /// # Examples
 /// ```rust
 /// # use indicatif::DecimalBytes;
@@ -50,6 +58,8 @@ pub struct DecimalBytes(pub u64);
 
 /// Formats bytes for human readability using ISO/IEC prefixes
 ///
+/// This is used by the `binary_bytes`, `binary_total_bytes`, and `binary_bytes_per_sec` keys in [format templates](https://docs.rs/indicatif/latest/indicatif/#templates).
+///
 /// # Examples
 /// ```rust
 /// # use indicatif::BinaryBytes;
@@ -64,10 +74,14 @@ pub struct DecimalBytes(pub u64);
 pub struct BinaryBytes(pub u64);
 
 /// Formats counts for human readability using commas
+///
+/// This is used by the `human_pos` and `human_len` keys in [format templates](https://docs.rs/indicatif/latest/indicatif/#templates).
 #[derive(Debug)]
 pub struct HumanCount(pub u64);
 
 /// Formats counts for human readability using commas for floats
+///
+/// This is used by the `per_sec` key in [format templates](https://docs.rs/indicatif/latest/indicatif/#templates).
 #[derive(Debug)]
 pub struct HumanFloatCount(pub f64);
 
