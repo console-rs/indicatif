@@ -216,6 +216,15 @@
 //! as primary style color and blue as alternative style color.
 //! Alternative styles are currently only used for progress bars.
 //!
+//! A placeholder's style accepts a dot-separated list of colors and text
+//! attributes. Some examples:
+//!
+//! ```text
+//! {msg:.bold.blink.green.on_red}
+//! {pos:.yellow.on_blue}
+//! {elapsed:.dim.bold.cyan}
+//! ```
+//!
 //! Example configuration:
 //!
 //! ```rust
