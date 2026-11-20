@@ -252,7 +252,11 @@ impl ProgressStyle {
                     } else {
                         match key.as_str() {
                             "wide_bar" => {
-                                wide = Some(WideElement::Bar { style, alt_style });
+                                wide = Some(WideElement::Bar {
+                                    style,
+                                    alt_style,
+                                    max_width: width.map(|w| w as usize),
+                                });
                                 buf.push('\x00');
                             }
                             "bar" => buf
@@ -362,7 +366,13 @@ impl ProgressStyle {
                         _ => style.as_ref(),
                     };
 
-                    match width {
+                    // wide_bar and wide_msg use the width as a cap, not as
+                    // padding — the expand step handles their sizing.
+                    let pad_width = match key.as_str() {
+                        "wide_bar" | "wide_msg" => &None,
+                        _ => width,
+                    };
+                    match pad_width {
                         Some(width) => {
                             let padded = PaddedStringDisplay {
                                 str: &buf,
@@ -439,6 +449,7 @@ enum WideElement<'a> {
     Bar {
         style: &'a Option<Style>,
         alt_style: &'a Option<Style>,
+        max_width: Option<usize>,
     },
     Message {
         align: &'a Alignment,
@@ -463,18 +474,25 @@ impl WideElement<'_> {
             Self::Bar {
                 style: bar_style,
                 alt_style,
-            } => cur.replace(
-                '\x00',
-                &format!(
-                    "{}",
-                    style.format_bar(
-                        state.fraction(),
-                        left,
-                        bar_style.as_ref(),
-                        alt_style.as_ref(),
-                    )
-                ),
-            ),
+                max_width,
+            } => {
+                let bar_width = match max_width {
+                    Some(max) => left.min(max),
+                    None => left,
+                };
+                cur.replace(
+                    '\x00',
+                    &format!(
+                        "{}",
+                        style.format_bar(
+                            state.fraction(),
+                            bar_width,
+                            bar_style.as_ref(),
+                            alt_style.as_ref(),
+                        )
+                    ),
+                )
+            }
             WideElement::Message { align } => {
                 buf.clear();
                 buf.write_fmt(format_args!(
@@ -1417,5 +1435,39 @@ mod tests {
 
         // Reset
         Width::set_default_cjk(false);
+    }
+
+    #[test]
+    fn wide_bar_max_width_caps_bar_length() {
+        const TERM_WIDTH: u16 = 50;
+        let pos = Arc::new(AtomicPosition::new());
+        let state = ProgressState::new(Some(100), pos);
+        let mut buf = Vec::new();
+
+        // Without a max width, wide_bar fills the terminal.
+        let unlimited = ProgressStyle::with_template("{wide_bar}").unwrap();
+        unlimited.format_state(&state, &mut buf, TERM_WIDTH);
+        let unlimited_width = match &buf[0] {
+            crate::draw_target::LineType::Bar(s) => WIDTH.ansi_str(s),
+            _ => 0,
+        };
+        buf.clear();
+
+        // With max_width 20, the bar is capped.
+        let capped = ProgressStyle::with_template("{wide_bar:20}").unwrap();
+        capped.format_state(&state, &mut buf, TERM_WIDTH);
+        let capped_width = match &buf[0] {
+            crate::draw_target::LineType::Bar(s) => WIDTH.ansi_str(s),
+            _ => 0,
+        };
+
+        assert_eq!(
+            unlimited_width, TERM_WIDTH as usize,
+            "unlimited wide_bar should fill the terminal"
+        );
+        assert_eq!(
+            capped_width, 20,
+            "wide_bar:20 should cap at 20 visual characters"
+        );
     }
 }
