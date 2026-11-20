@@ -1,5 +1,6 @@
 use std::fmt::{Debug, Formatter, Write as _};
 use std::io::Write as _;
+use std::num::NonZero;
 use std::sync::{Arc, Mutex};
 
 use vt100::Parser;
@@ -17,10 +18,11 @@ pub struct InMemoryTerm {
 
 impl InMemoryTerm {
     pub fn new(rows: u16, cols: u16) -> InMemoryTerm {
-        assert!(rows > 0, "rows must be > 0");
-        assert!(cols > 0, "cols must be > 0");
         InMemoryTerm {
-            state: Arc::new(Mutex::new(InMemoryTermState::new(rows, cols))),
+            state: Arc::new(Mutex::new(InMemoryTermState::new(
+                NonZero::new(rows).expect("rows must be > 0"),
+                NonZero::new(cols).expect("cols must be > 0"),
+            ))),
         }
     }
 
@@ -38,7 +40,7 @@ impl InMemoryTerm {
         let mut rows = state
             .parser
             .screen()
-            .rows(0, state.width)
+            .rows(0, state.width.get())
             .collect::<Vec<_>>();
 
         // Reverse the rows and trim empty lines from the end
@@ -63,7 +65,7 @@ impl InMemoryTerm {
         let mut rows = state
             .parser
             .screen()
-            .rows_formatted(0, state.width)
+            .rows_formatted(0, state.width.get())
             .collect::<Vec<_>>();
 
         // Reverse the rows and trim empty lines from the end
@@ -82,7 +84,7 @@ impl InMemoryTerm {
 
         // Join rows up with reset codes and newlines
         let mut contents = rows.iter().fold(Vec::with_capacity(len), |mut acc, cur| {
-            acc.extend_from_slice(cur);
+            acc.extend_from_slice(cur.as_bytes());
             acc.extend_from_slice(reset);
             acc.push(b'\n');
             acc
@@ -104,11 +106,11 @@ impl InMemoryTerm {
 
 impl TermLike for InMemoryTerm {
     fn width(&self) -> u16 {
-        self.state.lock().unwrap().width
+        self.state.lock().unwrap().width.get()
     }
 
     fn height(&self) -> u16 {
-        self.state.lock().unwrap().height
+        self.state.lock().unwrap().height.get()
     }
 
     fn move_cursor_up(&self, n: usize) -> std::io::Result<()> {
@@ -193,18 +195,18 @@ impl TermLike for InMemoryTerm {
 }
 
 struct InMemoryTermState {
-    width: u16,
-    height: u16,
+    width: NonZero<u16>,
+    height: NonZero<u16>,
     parser: vt100::Parser,
     history: Vec<Move>,
 }
 
 impl InMemoryTermState {
-    pub(crate) fn new(rows: u16, cols: u16) -> InMemoryTermState {
+    pub(crate) fn new(height: NonZero<u16>, width: NonZero<u16>) -> InMemoryTermState {
         InMemoryTermState {
-            width: cols,
-            height: rows,
-            parser: Parser::new(rows, cols, 0),
+            width,
+            height,
+            parser: Parser::new(height, width, 0),
             history: vec![],
         }
     }
