@@ -558,6 +558,7 @@ impl DrawState {
         // accurately reflect the number of lines that have been displayed on the terminal, if the
         // full height exceeds the terminal height.
         let mut real_height = VisualLines::default();
+        let mut last_line_width = None;
 
         for line in self.lines.iter() {
             let metrics = line.wrapped_metrics(term_width);
@@ -572,12 +573,27 @@ impl DrawState {
                 real_height += metrics.height;
             }
 
+            if last_line_width.is_some() && !self.move_cursor {
+                term.write_line("")?;
+            }
+
             term.write_str(line.as_ref())?;
 
-            // clear the line and keep the cursor on the right terminal side so that
-            // future writes/prints will happen on the next line
-            let line_filler = term_width.saturating_sub(metrics.last_line_width);
-            term.write_str(&" ".repeat(line_filler))?;
+            if self.move_cursor {
+                // In move_cursor mode lines are updated without clearing first, so pad every
+                // line to clear trailing characters from longer previous draws (#790).
+                write_line_filler(term, term_width, metrics.last_line_width)?;
+            }
+
+            last_line_width = Some(metrics.last_line_width);
+        }
+
+        if !self.move_cursor {
+            if let Some(last_line_width) = last_line_width {
+                // For the last line of the output, keep the cursor on the right terminal
+                // side so that next user writes/prints will happen on the next line
+                write_line_filler(term, term_width, last_line_width)?;
+            }
         }
 
         term.flush()?;
@@ -642,6 +658,16 @@ impl Sub for VisualLines {
     fn sub(self, rhs: Self) -> Self::Output {
         Self(self.0 - rhs.0)
     }
+}
+
+/// Pad the current terminal row with spaces to the right edge.
+fn write_line_filler(
+    term: &(impl TermLike + ?Sized),
+    term_width: usize,
+    line_width: usize,
+) -> io::Result<()> {
+    let filler = term_width.saturating_sub(line_width);
+    term.write_str(&" ".repeat(filler))
 }
 
 /// Calculate the number of visual lines in the given lines, after
