@@ -646,11 +646,29 @@ impl FromStr for Template {
             }
         }
 
-        if matches!(state, Literal | DoubleClose) && !buf.is_empty() {
-            parts.push(TemplatePart::Literal(TabExpandedString::new(
-                buf.into(),
-                tab_width,
-            )));
+        match state {
+            Literal | DoubleClose if !buf.is_empty() => {
+                parts.push(TemplatePart::Literal(TabExpandedString::new(
+                    buf.into(),
+                    tab_width,
+                )));
+            }
+            MaybeOpen => {
+                buf.push('{');
+                parts.push(TemplatePart::Literal(TabExpandedString::new(
+                    buf.into(),
+                    tab_width,
+                )));
+            }
+            Key if !buf.is_empty() => {
+                let mut lit = String::from("{");
+                lit.push_str(&buf);
+                parts.push(TemplatePart::Literal(TabExpandedString::new(
+                    lit.into(),
+                    tab_width,
+                )));
+            }
+            _ => (),
         }
 
         Ok(Self { parts })
@@ -1090,6 +1108,39 @@ mod tests {
         style.template = Template::from_str("Log {level {foo}}").unwrap();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "Log {level FOO}");
+    }
+
+    #[test]
+    fn test_expand_template_trailing_brace() {
+        const WIDTH: u16 = 80;
+        let pos = Arc::new(AtomicPosition::new());
+        let state = ProgressState::new(Some(10), pos);
+        let mut buf = Vec::new();
+
+        let mut style = ProgressStyle::default_bar();
+        style.format_map.insert(
+            "foo",
+            Box::new(|_: &ProgressState, w: &mut dyn Write| write!(w, "FOO").unwrap()),
+        );
+
+        style.template = Template::from_str("Log {").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "Log {");
+
+        buf.clear();
+        style.template = Template::from_str("{").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "{");
+
+        buf.clear();
+        style.template = Template::from_str("{foo} {").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "FOO {");
+
+        buf.clear();
+        style.template = Template::from_str("Log {unclosed").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "Log {unclosed");
     }
 
     #[test]
