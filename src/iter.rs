@@ -172,14 +172,13 @@ impl<R: io::Read> io::Read for ProgressBarIter<R> {
         Ok(inc)
     }
 
-    fn read_to_string(&mut self, buf: &mut String) -> io::Result<usize> {
-        let inc = self.it.read_to_string(buf)?;
-        self.progress.set_position(
-            self.seek_max
-                .update_seq(self.progress.position(), inc as u64),
-        );
-        Ok(inc)
-    }
+    // `read_to_string` is deliberately not overridden here: the default
+    // implementation goes through `read_to_end` and thus through `read`
+    // above, so bytes read before an error (invalid UTF-8 or an I/O error
+    // partway through) still advance the progress bar. Overriding it and
+    // delegating to the inner reader's `read_to_string` would only count
+    // bytes on success, silently losing the progress made before a failure
+    // (the same problem that removing the `read_exact` override fixed).
 }
 
 impl<R: io::BufRead> io::BufRead for ProgressBarIter<R> {
@@ -549,6 +548,63 @@ mod test {
         reader.read_exact(&mut buf).unwrap();
         assert_eq!(&buf, b"def");
         assert_eq!(progress.position(), 6);
+    }
+
+    #[test]
+    fn read_to_string_counts_bytes_on_success() {
+        use std::io::{Cursor, Read};
+
+        let progress = ProgressBar::hidden();
+        let mut reader = progress.wrap_read(Cursor::new(b"abc".to_vec()));
+        let mut buf = String::from("x");
+        let inc = reader.read_to_string(&mut buf).unwrap();
+        assert_eq!(inc, 3);
+        assert_eq!(buf, "xabc");
+        assert_eq!(progress.position(), 3);
+    }
+
+    #[test]
+    fn read_to_string_counts_bytes_before_invalid_utf8() {
+        use std::io::{Cursor, ErrorKind, Read};
+
+        let progress = ProgressBar::hidden();
+        let mut reader = progress.wrap_read(Cursor::new(vec![0xff, b'a', b'b']));
+        let mut buf = String::new();
+        let error = reader.read_to_string(&mut buf).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::InvalidData);
+        // All three bytes were consumed from the underlying reader before
+        // UTF-8 validation failed, so the progress must reflect them even
+        // though nothing was appended to `buf`.
+        assert_eq!(progress.position(), 3);
+    }
+
+    #[test]
+    fn read_to_string_counts_bytes_before_read_error() {
+        use std::io::{self, Cursor, ErrorKind, Read};
+
+        struct Fails;
+        impl Read for Fails {
+            fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+                Err(io::Error::new(ErrorKind::PermissionDenied, "read failed"))
+            }
+        }
+        let progress = ProgressBar::hidden();
+        let mut reader = progress.wrap_read(Cursor::new(b"ab".to_vec()).chain(Fails));
+        let mut buf = String::new();
+        let error = reader.read_to_string(&mut buf).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::PermissionDenied);
+        assert_eq!(progress.position(), 2);
+    }
+
+    #[test]
+    fn read_to_string_empty_source() {
+        use std::io::{Cursor, Read};
+
+        let progress = ProgressBar::hidden();
+        let mut reader = progress.wrap_read(Cursor::new(Vec::new()));
+        let mut buf = String::new();
+        assert_eq!(reader.read_to_string(&mut buf).unwrap(), 0);
+        assert_eq!(progress.position(), 0);
     }
 
     #[test]
