@@ -156,6 +156,31 @@ fn progress_bar_percent_precise_with_no_length() {
 }
 
 #[test]
+fn progress_bar_percent_precision() {
+    let in_mem = InMemoryTerm::new(10, 80);
+    let pb = ProgressBar::with_draw_target(
+        Some(1000),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    )
+    .with_style(ProgressStyle::with_template("{percent_precise:.1}").unwrap());
+
+    pb.set_position(123);
+    pb.tick();
+    assert_eq!(in_mem.contents(), "12.3");
+
+    let in_mem = InMemoryTerm::new(10, 80);
+    let pb = ProgressBar::with_draw_target(
+        Some(1000),
+        ProgressDrawTarget::term_like(Box::new(in_mem.clone())),
+    )
+    .with_style(ProgressStyle::with_template("{percent:.2}").unwrap());
+
+    pb.set_position(123);
+    pb.tick();
+    assert_eq!(in_mem.contents(), "12.30");
+}
+
+#[test]
 fn multi_progress_single_bar_and_leave() {
     let in_mem = InMemoryTerm::new(10, 80);
     let mp =

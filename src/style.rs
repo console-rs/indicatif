@@ -242,6 +242,7 @@ impl ProgressStyle {
                     key,
                     align,
                     width,
+                    precision,
                     truncate,
                     style,
                     alt_style,
@@ -282,10 +283,18 @@ impl ProgressStyle {
                                 buf.write_fmt(format_args!("{}", HumanCount(len))).unwrap();
                             }
                             "percent" => buf
-                                .write_fmt(format_args!("{:.*}", 0, state.fraction() * 100f32))
+                                .write_fmt(format_args!(
+                                    "{:.*}",
+                                    precision.unwrap_or(0),
+                                    state.fraction() * 100f32
+                                ))
                                 .unwrap(),
                             "percent_precise" => buf
-                                .write_fmt(format_args!("{:.*}", 3, state.fraction() * 100f32))
+                                .write_fmt(format_args!(
+                                    "{:.*}",
+                                    precision.unwrap_or(3),
+                                    state.fraction() * 100f32
+                                ))
                                 .unwrap(),
                             "bytes" => buf.write_fmt(format_args!("{}", HumanBytes(pos))).unwrap(),
                             "total_bytes" => {
@@ -567,6 +576,7 @@ impl FromStr for Template {
                         key: mem::take(&mut buf),
                         align: Alignment::Left,
                         width: None,
+                        precision: None,
                         truncate: true,
                         style: None,
                         alt_style: None,
@@ -592,11 +602,22 @@ impl FromStr for Template {
                     }
                     (Width, None)
                 }
-                (Align, '.') => (FirstStyle, None),
+                (Align | Width, '.') => (Dot, None),
                 (Align, '}') => (Literal, None),
                 (Width, c @ '0'..='9') => (Width, Some(c)),
-                (Width, '.') => (FirstStyle, None),
                 (Width, '}') => (Literal, None),
+                (Dot, '}') => (Literal, None),
+                (Dot, c @ '0'..='9') => (Precision, Some(c)),
+                (Dot, c) => (FirstStyle, Some(c)),
+                (Precision, '}') => (Literal, None),
+                (Precision, c @ '0'..='9') => (Precision, Some(c)),
+                (Precision, '.') => (FirstStyle, None),
+                (Precision, c) => {
+                    return Err(TemplateError {
+                        next: c,
+                        state: Precision,
+                    })
+                }
                 (FirstStyle, '/') => (AltStyle, None),
                 (FirstStyle, '}') => (Literal, None),
                 (FirstStyle, c) => (FirstStyle, Some(c)),
@@ -614,14 +635,21 @@ impl FromStr for Template {
                         key: mem::take(&mut buf),
                         align: Alignment::Left,
                         width: None,
+                        precision: None,
                         truncate: false,
                         style: None,
                         alt_style: None,
                     });
                 }
-                (Width, FirstStyle | Literal) if !buf.is_empty() => {
+                (Width, Dot | FirstStyle | Literal) if !buf.is_empty() => {
                     if let Some(TemplatePart::Placeholder { width, .. }) = parts.last_mut() {
                         *width = Some(buf.parse().unwrap());
+                        buf.clear();
+                    }
+                }
+                (Precision, FirstStyle | Literal) if !buf.is_empty() => {
+                    if let Some(TemplatePart::Placeholder { precision, .. }) = parts.last_mut() {
+                        *precision = Some(buf.parse().unwrap());
                         buf.clear();
                     }
                 }
@@ -682,6 +710,7 @@ enum TemplatePart {
         key: String,
         align: Alignment,
         width: Option<u16>,
+        precision: Option<usize>,
         truncate: bool,
         style: Option<Style>,
         alt_style: Option<Style>,
@@ -697,6 +726,8 @@ enum State {
     Key,
     Align,
     Width,
+    Dot,
+    Precision,
     FirstStyle,
     AltStyle,
 }
