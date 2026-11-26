@@ -606,11 +606,14 @@ impl FromStr for Template {
                 (Align, '}') => (Literal, None),
                 (Width, c @ '0'..='9') => (Width, Some(c)),
                 (Width, '}') => (Literal, None),
+                // A dot is ambiguous until the next character: digits mean precision,
+                // while anything else starts the first style.
                 (Dot, '}') => (Literal, None),
                 (Dot, c @ '0'..='9') => (Precision, Some(c)),
                 (Dot, c) => (FirstStyle, Some(c)),
                 (Precision, '}') => (Literal, None),
                 (Precision, c @ '0'..='9') => (Precision, Some(c)),
+                // A second dot ends the precision and starts the first style.
                 (Precision, '.') => (FirstStyle, None),
                 (Precision, c) => {
                     return Err(TemplateError {
@@ -641,12 +644,16 @@ impl FromStr for Template {
                         alt_style: None,
                     });
                 }
+                // Width digits are still in `buf` when a dot arrives, so flush them
+                // before the same buffer collects precision digits.
                 (Width, Dot | FirstStyle | Literal) if !buf.is_empty() => {
                     if let Some(TemplatePart::Placeholder { width, .. }) = parts.last_mut() {
                         *width = Some(buf.parse().unwrap());
                         buf.clear();
                     }
                 }
+                // Precision digits end at the closing brace or at the second dot
+                // that starts the first style.
                 (Precision, FirstStyle | Literal) if !buf.is_empty() => {
                     if let Some(TemplatePart::Placeholder { precision, .. }) = parts.last_mut() {
                         *precision = Some(buf.parse().unwrap());
