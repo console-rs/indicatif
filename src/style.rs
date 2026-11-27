@@ -626,7 +626,12 @@ impl FromStr for Template {
                 (FirstStyle, c) => (FirstStyle, Some(c)),
                 (AltStyle, '}') => (Literal, None),
                 (AltStyle, c) => (AltStyle, Some(c)),
-                (st, c) => return Err(TemplateError { next: c, state: st }),
+                (st, c) => {
+                    return Err(TemplateError {
+                        state: st,
+                        next: Some(c),
+                    })
+                }
             };
 
             match (state, new.0) {
@@ -681,30 +686,41 @@ impl FromStr for Template {
             }
         }
 
-        if matches!(state, Literal | DoubleClose) && !buf.is_empty() {
-            parts.push(TemplatePart::Literal(TabExpandedString::new(
-                buf.into(),
-                tab_width,
-            )));
+        match state {
+            Literal | DoubleClose => {
+                if !buf.is_empty() {
+                    parts.push(TemplatePart::Literal(TabExpandedString::new(
+                        buf.into(),
+                        tab_width,
+                    )));
+                }
+                Ok(Self { parts })
+            }
+            _ => Err(TemplateError { state, next: None }),
         }
-
-        Ok(Self { parts })
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TemplateError {
     state: State,
-    next: char,
+    next: Option<char>,
 }
 
 impl fmt::Display for TemplateError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "TemplateError: unexpected character {:?} in state {:?}",
-            self.next, self.state
-        )
+        match self.next {
+            Some(c) => write!(
+                f,
+                "TemplateError: unexpected character {:?} in state {:?}",
+                c, self.state
+            ),
+            None => write!(
+                f,
+                "TemplateError: unexpected end of template in state {:?}",
+                self.state
+            ),
+        }
     }
 }
 
@@ -1128,6 +1144,101 @@ mod tests {
         style.template = Template::from_str("Log {level {foo}}").unwrap();
         style.format_state(&state, &mut buf, WIDTH);
         assert_eq!(&buf[0], "Log {level FOO}");
+    }
+
+    #[test]
+    fn test_expand_template_unclosed_eof() {
+        assert_eq!(
+            Template::from_str("Log {").unwrap_err(),
+            TemplateError {
+                state: State::MaybeOpen,
+                next: None,
+            }
+        );
+        assert_eq!(
+            Template::from_str("{").unwrap_err(),
+            TemplateError {
+                state: State::MaybeOpen,
+                next: None,
+            }
+        );
+        assert_eq!(
+            Template::from_str("{foo} {").unwrap_err(),
+            TemplateError {
+                state: State::MaybeOpen,
+                next: None,
+            }
+        );
+        assert_eq!(
+            Template::from_str("Log {unclosed").unwrap_err(),
+            TemplateError {
+                state: State::Key,
+                next: None,
+            }
+        );
+        assert_eq!(
+            Template::from_str("{unclosed").unwrap_err(),
+            TemplateError {
+                state: State::Key,
+                next: None,
+            }
+        );
+        assert_eq!(
+            Template::from_str("{foo:").unwrap_err(),
+            TemplateError {
+                state: State::Align,
+                next: None,
+            }
+        );
+        assert_eq!(
+            Template::from_str("{foo:5").unwrap_err(),
+            TemplateError {
+                state: State::Width,
+                next: None,
+            }
+        );
+        assert_eq!(
+            Template::from_str("{foo:.red").unwrap_err(),
+            TemplateError {
+                state: State::FirstStyle,
+                next: None,
+            }
+        );
+        assert_eq!(
+            Template::from_str("{foo:.red/blue").unwrap_err(),
+            TemplateError {
+                state: State::AltStyle,
+                next: None,
+            }
+        );
+
+        let err = Template::from_str("Log {").unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "TemplateError: unexpected end of template in state MaybeOpen"
+        );
+
+        assert!(ProgressStyle::with_template("Log {").is_err());
+        assert!(ProgressStyle::with_template("{").is_err());
+        assert!(ProgressStyle::with_template("{unclosed").is_err());
+    }
+
+    #[test]
+    fn test_expand_template_trailing_closing_brace() {
+        const WIDTH: u16 = 80;
+        let pos = Arc::new(AtomicPosition::new());
+        let state = ProgressState::new(Some(10), pos);
+        let mut buf = Vec::new();
+
+        let mut style = ProgressStyle::default_bar();
+        style.template = Template::from_str("foo}").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "foo}");
+
+        buf.clear();
+        style.template = Template::from_str("foo}}").unwrap();
+        style.format_state(&state, &mut buf, WIDTH);
+        assert_eq!(&buf[0], "foo}");
     }
 
     #[test]
